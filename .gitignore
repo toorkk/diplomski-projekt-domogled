@@ -1,0 +1,40 @@
+db_data/
+*.pgsql
+*.sql
+*.dump
+
+# Node.js / Vite / React
+/node_modules
+/dist
+/.vite
+/.cache
+/.pnpm-store
+/.esbuild
+# Vite config
+vite.config.js
+# IDE settings
+/.idea
+/.vscode
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+venv/
+*.env
+
+# Docker
+docker-compose.override.yml
+docker-compose.yml
+*.env
+
+# Logs
+*.log
+
+# Coverage and testing
+.coverage/
+*.coveragerc
