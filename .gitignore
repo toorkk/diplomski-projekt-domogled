@@ -10,8 +10,6 @@ db_data/
 /.cache
 /.pnpm-store
 /.esbuild
-# Vite config
-vite.config.js
 # IDE settings
 /.idea
 /.vscode
@@ -34,7 +32,3 @@ docker-compose.yml
 
 # Logs
 *.log
-
-# Coverage and testing
-.coverage/
-*.coveragerc

@@ -1,0 +1,118 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36" version="27.0.3">
+  <diagram name="Page-1" id="TJriIcAF3nwdUMp8iTL3">
+    <mxGraphModel dx="1358" dy="748" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-1" value="&lt;div&gt;&lt;br&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" vertex="1" parent="1">
+          <mxGeometry x="160" y="50" width="720" height="640" as="geometry" />
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-3" value="Uporabnik" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="324" width="30" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-4" value="Domogled" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="500" y="50" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-5" value="Pregled Zemljevida Nepremičnin" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="250" y="150" width="120" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-6" value="" style="endArrow=none;html=1;rounded=0;" edge="1" parent="1" source="G_5Acj7Bu1AD-gfA_uFF-3" target="G_5Acj7Bu1AD-gfA_uFF-5">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="350" y="380" as="sourcePoint" />
+            <mxPoint x="400" y="330" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-7" value="Pregled specifične nepremičnine" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="460" y="267.5" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-9" value="Filtriranje nepremičnin" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="460" y="110" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-10" value="Pregled statistik o nepremičninah" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="250" y="405" width="120" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-11" value="Primerjava nepremičnin" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="250" y="280" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-12" value="Izračun predvidene vrednosti nepr." style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="680" y="545" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-13" value="Iskanje specifične nepremičnine" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="630" y="160" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-17" value="&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;Server" style="shape=datastore;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="930" y="327" width="60" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-19" value="" style="endArrow=none;html=1;rounded=0;" edge="1" parent="1" source="G_5Acj7Bu1AD-gfA_uFF-3" target="G_5Acj7Bu1AD-gfA_uFF-10">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="350" y="450" as="sourcePoint" />
+            <mxPoint x="400" y="400" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-20" value="" style="endArrow=none;html=1;rounded=0;" edge="1" parent="1" source="G_5Acj7Bu1AD-gfA_uFF-3" target="G_5Acj7Bu1AD-gfA_uFF-11">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="80" y="440" as="sourcePoint" />
+            <mxPoint x="130" y="390" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-21" value="&lt;font style=&quot;font-size: 12px;&quot;&gt;Extends&lt;/font&gt;" style="endArrow=open;endSize=12;dashed=1;html=1;rounded=0;" edge="1" parent="1" source="G_5Acj7Bu1AD-gfA_uFF-9" target="G_5Acj7Bu1AD-gfA_uFF-5">
+          <mxGeometry width="160" relative="1" as="geometry">
+            <mxPoint x="60" y="510" as="sourcePoint" />
+            <mxPoint x="220" y="510" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-23" value="&lt;font style=&quot;font-size: 12px;&quot;&gt;Includes&lt;/font&gt;" style="endArrow=open;endSize=12;dashed=1;html=1;rounded=0;exitX=1;exitY=0;exitDx=0;exitDy=0;" edge="1" parent="1" source="G_5Acj7Bu1AD-gfA_uFF-7" target="G_5Acj7Bu1AD-gfA_uFF-13">
+          <mxGeometry width="160" relative="1" as="geometry">
+            <mxPoint x="386" y="192" as="sourcePoint" />
+            <mxPoint x="455" y="256" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-24" value="&lt;font style=&quot;font-size: 12px;&quot;&gt;Extends&lt;/font&gt;" style="endArrow=open;endSize=12;dashed=1;html=1;rounded=0;" edge="1" parent="1" source="G_5Acj7Bu1AD-gfA_uFF-7" target="G_5Acj7Bu1AD-gfA_uFF-5">
+          <mxGeometry width="160" relative="1" as="geometry">
+            <mxPoint x="376" y="182" as="sourcePoint" />
+            <mxPoint x="453" y="163" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-27" value="Vnos nove nepremičnine" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="250" y="545" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-28" value="" style="endArrow=none;html=1;rounded=0;" edge="1" parent="1" source="G_5Acj7Bu1AD-gfA_uFF-3" target="G_5Acj7Bu1AD-gfA_uFF-27">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="100" y="305" as="sourcePoint" />
+            <mxPoint x="271" y="387" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-29" value="&lt;div&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Includes&lt;/font&gt;&lt;/div&gt;" style="endArrow=open;endSize=12;dashed=1;html=1;rounded=0;" edge="1" parent="1" source="G_5Acj7Bu1AD-gfA_uFF-27" target="G_5Acj7Bu1AD-gfA_uFF-12">
+          <mxGeometry width="160" relative="1" as="geometry">
+            <mxPoint x="370" y="214" as="sourcePoint" />
+            <mxPoint x="468" y="251" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-30" value="" style="endArrow=none;html=1;rounded=0;" edge="1" parent="1" source="G_5Acj7Bu1AD-gfA_uFF-17" target="G_5Acj7Bu1AD-gfA_uFF-12">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="100" y="311" as="sourcePoint" />
+            <mxPoint x="304" y="488" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-31" value="Posodobitev zbirke&lt;br&gt;nepremičnin" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="680" y="405" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-32" value="" style="endArrow=none;html=1;rounded=0;" edge="1" parent="1" source="G_5Acj7Bu1AD-gfA_uFF-17" target="G_5Acj7Bu1AD-gfA_uFF-31">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="940" y="375" as="sourcePoint" />
+            <mxPoint x="668" y="420" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-33" value="Filtriranje po občinah in obdobjih" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="460" y="405" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="G_5Acj7Bu1AD-gfA_uFF-34" value="&lt;font style=&quot;font-size: 12px;&quot;&gt;Extends&lt;/font&gt;" style="endArrow=open;endSize=12;dashed=1;html=1;rounded=0;" edge="1" parent="1" source="G_5Acj7Bu1AD-gfA_uFF-33" target="G_5Acj7Bu1AD-gfA_uFF-10">
+          <mxGeometry width="160" relative="1" as="geometry">
+            <mxPoint x="485" y="291" as="sourcePoint" />
+            <mxPoint x="362" y="220" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
