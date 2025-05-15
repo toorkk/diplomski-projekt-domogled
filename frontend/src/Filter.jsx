@@ -13,7 +13,7 @@ export default function Filters() {
         }`}
         style={{
           width: isOpen ? '0px' : '50px',
-          height: '500px',
+          height: '600px',
           borderTopRightRadius: '12px',
           borderBottomRightRadius: '12px'
         }}
@@ -36,7 +36,7 @@ export default function Filters() {
 
       {/* Odprt filter */}
       <div 
-        className={`bg-white rounded-r-xl shadow-lg border border-gray-200 h-125 transition-all duration-300 ease-out ${
+        className={`bg-white rounded-r-xl shadow-lg border border-gray-200 h-150 transition-all duration-300 ease-out ${
           isOpen 
             ? 'w-96 opacity-100' 
             : 'w-0 opacity-0 overflow-hidden'

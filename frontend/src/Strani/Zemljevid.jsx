@@ -13,7 +13,7 @@ export default function Zemljevid() {
         if (!map.current && mapContainer.current) {
             map.current = new maplibregl.Map({
                 container: mapContainer.current,
-                style: "https://api.maptiler.com/maps/streets-v2/style.json?key=0o1JJH0AwIhwX3Od4vsn",
+                style: "https://api.maptiler.com/maps/0196d56b-a9a2-7fd7-90c8-96455f98e5e4/style.json?key=VxVsHKinUjiHiI3FPcfq",
                 center: [14.9, 46.14],
                 zoom: 7.8
             });
