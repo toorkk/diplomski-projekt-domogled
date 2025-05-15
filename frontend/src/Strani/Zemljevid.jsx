@@ -57,11 +57,8 @@ export default function Zemljevid() {
     const handleSearch = (e) => {
         e.preventDefault();
         if (searchQuery.trim()) {
-
-            // Tu bo logika za iskalnik pol dodama
+            // Tu bo logika za iskalnik pol dodana
             console.log('Iskanje:', searchQuery);
-
-
             setSearchVisible(false);
         }
     };
@@ -80,19 +77,19 @@ export default function Zemljevid() {
                 }}
             />
 
-            {/* Iskalnik */}
-            <div className="absolute top-50 right-2 z-10">
+            {/* Iskalnik - hover verzija */}
+            <div 
+                className="absolute top-50 right-2 z-10"
+                onMouseEnter={() => setSearchVisible(true)}
+                onMouseLeave={() => setSearchVisible(false)}
+            >
                 {!searchVisible ? (
                     /* Search Ikonica */
-                    <button
-                        onClick={() => setSearchVisible(true)}
-                        className="bg-white rounded-lg shadow-lg border border-gray-200 p-3.5 w-12 h-12 hover:bg-gray-50 transition-colors duration-200"
-                        title="Search"
-                    >
+                    <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3.5 w-12 h-12 hover:bg-gray-50 transition-colors duration-200 flex items-center justify-center">
                         <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
-                    </button>
+                    </div>
                 ) : (
                     /* Search Bar */
                     <form onSubmit={handleSearch} className="flex bg-white rounded-lg shadow-lg border border-gray-200">
@@ -102,7 +99,6 @@ export default function Zemljevid() {
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Iskanje lokacije..."
                             className="px-4 py-3 rounded-l-lg border-none focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
-                            autoFocus
                         />
                         <button
                             type="submit"
@@ -110,18 +106,6 @@ export default function Zemljevid() {
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setSearchVisible(false);
-                                setSearchQuery("");
-                            }}
-                            className="px-3 py-3 text-gray-400 hover:text-gray-600 rounded-r-lg"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
                     </form>
