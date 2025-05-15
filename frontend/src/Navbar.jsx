@@ -7,7 +7,7 @@ export default function Navbar({ activePage, onPageChange }) {
   ];
 
   return (
-    <nav className="absolute top-6 left-1/2 transform -translate-x-1/2 z-10 bg-white rounded-xl shadow-lg border border-gray-100">
+    <nav className="absolute top-6 left-1/2 transform -translate-x-1/2 z-10 bg-white rounded-lg shadow-lg border border-gray-100">
       <div className="flex items-center px-6 py-3">
         {/* Logo */}
         <div className="flex items-center mr-8">

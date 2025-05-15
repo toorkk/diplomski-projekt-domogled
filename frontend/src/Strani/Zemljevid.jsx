@@ -26,20 +26,23 @@ export default function Zemljevid() {
                 if (controlContainer) {
                     const topRightControls = controlContainer.querySelector('.maplibregl-ctrl-top-right');
                     if (topRightControls) {
-                        topRightControls.style.top = '200px';
+                        topRightControls.style.top = '260px';
                     }
 
                     const buttons = controlContainer.querySelectorAll('.maplibregl-ctrl-group button');
                     buttons.forEach(button => {
-                        button.style.width = '48px';
-                        button.style.height = '48px';
+                        button.style.width = '47px';
+                        button.style.height = '47px';
                         button.style.fontSize = '18px';
                     });
 
                     const ctrlGroups = controlContainer.querySelectorAll('.maplibregl-ctrl-group');
                     ctrlGroups.forEach(group => {
                         group.style.borderRadius = '8px';
-                        group.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+                        group.style.borderWidth = '1px';
+                        group.style.borderColor = 'var(--color-gray-200)'
+                        group.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)';
+                        group.style.margin = '0px 8px 0 0';
                     });
                 }
             });
@@ -78,7 +81,7 @@ export default function Zemljevid() {
             />
 
             {/* Iskalnik */}
-            <div className="absolute top-35 right-2 z-10">
+            <div className="absolute top-50 right-2 z-10">
                 {!searchVisible ? (
                     /* Search Ikonica */
                     <button
