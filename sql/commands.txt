@@ -1,0 +1,7 @@
+docker compose build
+docker compose up -d
+
+Get-Content sql/01_create_database.sql | docker exec -i domogled-db psql -U postgres -d domogled
+Get-Content sql/02_staging_schema.sql | docker exec -i domogled-db psql -U postgres -d domogled
+Get-Content sql/03_core_schema.sql | docker exec -i domogled-db psql -U postgres -d domogled
+Get-Content sql/04_data_load.sql | docker exec -i domogled-db psql -U postgres -d domogled
