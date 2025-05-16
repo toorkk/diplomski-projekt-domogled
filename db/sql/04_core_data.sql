@@ -1,9 +1,4 @@
--- Naloži staging podatke
-\copy staging.sifranti(id, sifrant, numericna_vrednost, opis) FROM '/var/lib/postgresql/csv_data/ETN_SLO_2025_NP_sifranti_20250511.csv' WITH (FORMAT csv, HEADER true);
-\copy staging.del_stavbe FROM '/var/lib/postgresql/csv_data/ETN_SLO_2025_NP_NP_DELISTAVB_20250511.csv' WITH (FORMAT csv, HEADER true);
-\copy staging.posel FROM '/var/lib/postgresql/csv_data/ETN_SLO_2025_NP_NP_POSLI_20250511.csv' WITH (FORMAT csv, HEADER true);
-
--- napolni core.properties
+-- 4.1 napolni core.properties
 INSERT INTO core.del_stavbe (
   posel_id, 
   sifra_ko,
@@ -26,7 +21,7 @@ INSERT INTO core.del_stavbe (
   gostinski_vrt,
   vkljucen_gostinski_vrt_v_najemnino,
 
-  centroid, 
+  coordinates, 
   leto,
 
   vrsta_prostorov_code, 
@@ -54,7 +49,8 @@ SELECT
   d.GOSTINSKI_VRT,
   d.VKLJUCENOST_GOSTINSKEGA_VRTA_V_NAJEMNINO,
 
-  ST_SetSRID(ST_MakePoint(d.E_CENTROID, d.N_CENTROID), 3794),
+  -- podatki so pretvorjeni iz slovenskega sistema (SRID 3794) v WGS84
+  ST_Transform(ST_SetSRID(ST_MakePoint(d.E_CENTROID, d.N_CENTROID), 3794), 4326),
   d.LETO,
 
   d.VRSTA_ODDANIH_PROSTOROV,
@@ -62,7 +58,7 @@ SELECT
 FROM staging.del_stavbe d
 LEFT JOIN staging.sifranti s1 ON s1.sifrant='Vrsta oddanih prostorov' AND s1.numericna_vrednost=d.VRSTA_ODDANIH_PROSTOROV::TEXT;
 
--- napolni core.posel
+-- 4.2 napolni core.posel
 INSERT INTO core.posel (
   posel_id,
   vrsta_posla_code,

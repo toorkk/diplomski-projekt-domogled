@@ -4,12 +4,12 @@ from sqlalchemy import create_engine, Column, Integer, Text, Numeric, SmallInteg
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from geoalchemy2 import Geometry
-from geoalchemy2.shape import to_shape
-from geoalchemy2.functions import ST_Transform, ST_SetSRID, ST_MakeEnvelope, ST_Intersects, ST_AsGeoJSON
+from geoalchemy2.functions import ST_SetSRID, ST_MakeEnvelope, ST_Intersects, ST_AsGeoJSON
 import os
 from dotenv import load_dotenv
 import json
-from typing import List, Optional
+import math
+
 
 load_dotenv()
 
@@ -42,7 +42,7 @@ class DelStavbe(Base):
     povrsina_uporabna = Column(Numeric)
     gostinski_vrt = Column(SmallInteger)
     vkljucen_gostinski_vrt_v_najemnino = Column(SmallInteger)
-    centroid = Column(Geometry('POINT', srid=3794))
+    coordinates = Column(Geometry('POINT', srid=4326))
     leto = Column(Integer)
     vrsta_prostorov_code = Column(SmallInteger)
     vrsta_prostorov_desc = Column(Text)
@@ -82,9 +82,7 @@ def get_properties_geojson(
         # Create bounding box geometry in WGS84 (SRID 4326)
         bbox_geom = ST_SetSRID(ST_MakeEnvelope(west, south, east, north), 4326)
         
-        # Transform bbox to the same coordinate system as centroids (SRID 3794)
-        bbox_transformed = ST_Transform(bbox_geom, 3794)
-        
+        # Simple, fast query - no transformations needed
         query = db.query(
             DelStavbe.del_stavbe_id,
             DelStavbe.obcina,
@@ -94,11 +92,10 @@ def get_properties_geojson(
             DelStavbe.povrsina,
             DelStavbe.dejanska_raba,
             DelStavbe.leto,
-            # spremeni centroid v WGS84 za frontend - todo: prestavi to v data ingestion ################
-            ST_AsGeoJSON(ST_Transform(DelStavbe.centroid, 4326)).label('geom_json')
+            ST_AsGeoJSON(DelStavbe.coordinates).label('geom_json')
         ).filter(
-            ST_Intersects(DelStavbe.centroid, bbox_transformed)
-        )
+            ST_Intersects(DelStavbe.coordinates, bbox_geom)
+        ).limit(10000)  # LIMIT
         
         # Zaženi query
         results = query.all()
@@ -134,6 +131,6 @@ def get_properties_geojson(
         return geojson
         
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid bounding box format: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"neveljavni bounding box koordinati: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"db error: {str(e)}")

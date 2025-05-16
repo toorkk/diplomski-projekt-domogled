@@ -25,7 +25,8 @@ CREATE TABLE core.del_stavbe (
   gostinski_vrt         SMALLINT,
   vkljucen_gostinski_vrt_v_najemnino SMALLINT,
 
-  centroid              GEOMETRY(Point, 3794),
+  -- podatki so pretvorjeni iz slovenskega sistema (SRID 3794) v WGS84
+  coordinates              GEOMETRY(Point, 4326),
   leto                  INTEGER,
 
 
@@ -60,13 +61,13 @@ CREATE TABLE core.posel (
   leto                         INTEGER
 );
 
--- Indeksi
-DROP INDEX IF EXISTS del_stavbe_centroid_idx;
+-- 3.3 Indeksi
+DROP INDEX IF EXISTS del_stavbe_coordinates_idx;
 DROP INDEX IF EXISTS del_stavbe_leto_idx;
 DROP INDEX IF EXISTS del_stavbe_povrsina_idx;
 DROP INDEX IF EXISTS posel_datum_zacetka_najemanja_idx;
 
-CREATE INDEX ON core.del_stavbe USING GIST(centroid);
-CREATE INDEX ON core.del_stavbe (leto);
-CREATE INDEX ON core.del_stavbe (povrsina);
-CREATE INDEX ON core.posel (datum_zacetka_najemanja);
+CREATE INDEX del_stavbe_coordinates_idx ON core.del_stavbe USING GIST(coordinates);
+CREATE INDEX del_stavbe_leto_idx ON core.del_stavbe (leto);
+CREATE INDEX del_stavbe_povrsina_idx ON core.del_stavbe (povrsina);
+CREATE INDEX posel_datum_zacetka_najemanja_idx ON core.posel (datum_zacetka_najemanja);

@@ -73,3 +73,8 @@ CREATE TABLE staging.posel (
   TRZNOST_POSLA                          SMALLINT,
   LETO                                   INTEGER
 );
+
+-- 2.4 Naloži staging podatke
+\copy staging.sifranti(id, sifrant, numericna_vrednost, opis) FROM '/var/lib/postgresql/csv_data/ETN_SLO_2025_NP_sifranti_20250511.csv' WITH (FORMAT csv, HEADER true);
+\copy staging.del_stavbe FROM '/var/lib/postgresql/csv_data/ETN_SLO_2025_NP_NP_DELISTAVB_20250511.csv' WITH (FORMAT csv, HEADER true);
+\copy staging.posel FROM '/var/lib/postgresql/csv_data/ETN_SLO_2025_NP_NP_POSLI_20250511.csv' WITH (FORMAT csv, HEADER true);
