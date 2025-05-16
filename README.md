@@ -5,13 +5,17 @@ Ekipa Ptujčana, razvoj spletne strani za vizualizacijo in analizo nepremičnins
 # setup
 
 DOCKER:
+v mapi db
 
+docker compose build
 docker-compose up -d
+
+prvič laufal:
+za tem pojdi v sql commands.txt in zaženi kaj je not
 
 -------------------------
 BACKEND:
-
-cd backend
+v mapi backend
 
 ustvari virtual enviornment:
 python -m venv venv
@@ -33,8 +37,7 @@ python -m uvicorn app.main:app --reload
 
 ------------------------
 FRONTEND:
-
-moras bit v mapi frontend
+v mapi frontend
 
 npm install
 

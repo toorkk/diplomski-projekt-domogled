@@ -16,3 +16,5 @@ services:
 
 volumes:
   db_data:
+    external: true
+    name: diplomski-projekt-domogled_db_data
