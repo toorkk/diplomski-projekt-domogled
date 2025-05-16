@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import Filter from "../Filter";
+import Switcher from "./Switcher";
 
 export default function Zemljevid() {
     const mapContainer = useRef(null);
@@ -283,6 +284,9 @@ export default function Zemljevid() {
             </div>
 
             <Filter />
+            <div className="absolute top-10 right-20 z-10">
+            <Switcher />
+            </div>
         </>
     );
 }
