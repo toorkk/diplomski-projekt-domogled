@@ -284,9 +284,9 @@ export default function Zemljevid() {
             </div>
 
             <Filter />
-            <div className="absolute top-10 right-20 z-10">
+          
             <Switcher />
-            </div>
+            
         </>
     );
 }
