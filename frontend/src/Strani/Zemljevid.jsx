@@ -3,6 +3,34 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import Filter from "../Filter";
 import Switcher from "./Switcher";
+import Iskalnik from "./Iskalnik";
+import '../Stili/Zemljevid.css';
+
+<style jsx global>{`
+    .maplibregl-popup-content {
+        border-radius: 8px !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
+        border: 1px solid #e5e7eb !important;
+        padding: 0 !important;
+    }
+    
+    .maplibregl-popup-close-button {
+        padding: 5px 8px !important;
+        color: #4b5563 !important;
+        font-size: 16px !important;
+    }
+    
+    .maplibregl-popup-close-button:hover {
+        background-color: rgba(0,0,0,0.03) !important;
+        color: #1d4ed8 !important;
+    }
+    
+    .custom-popup .maplibregl-popup-tip {
+        border-top-color: white !important;
+    }
+`}</style>
+
+
 
 export default function Zemljevid() {
     const mapContainer = useRef(null);
@@ -181,37 +209,115 @@ export default function Zemljevid() {
                 let popupContent = '';
 
                 if (properties.type === 'individual') {
-                    popupContent = `
-            <div class="p-3">
-                <h3 class="font-bold text-lg mb-2">Informacije o objektu</h3>
-                <p><strong>ID:</strong> ${properties.id}</p>
-                ${properties.obcina ? `<p><strong>Občina:</strong> ${properties.obcina}</p>` : ''}
-                ${properties.naselje ? `<p><strong>Naselje:</strong> ${properties.naselje}</p>` : ''}
-                ${properties.ulica ? `<p><strong>Ulica:</strong> ${properties.ulica}</p>` : ''}
-                ${properties.hisna_stevilka ? `<p><strong>Hišna številka:</strong> ${properties.hisna_stevilka}</p>` : ''}
-                ${properties.povrsina ? `<p><strong>Površina:</strong> ${properties.povrsina} m²</p>` : ''}
-                ${properties.dejanska_raba ? `<p><strong>Raba:</strong> ${properties.dejanska_raba}</p>` : ''}
-                ${properties.leto ? `<p><strong>Leto:</strong> ${properties.leto}</p>` : ''}
+    // Sestavi naslov z ulico in hišno številko, če obstajata
+    const naslov = `${properties.ulica || ''} ${properties.hisna_stevilka || ''}`.trim();
+    
+    popupContent = `
+        <div class="font-sans bg-white rounded-lg overflow-hidden">
+            <!-- Modro zglavje -->
+            <div class="bg-[rgb(59,130,246)] text-white p-4">
+                ${naslov ? `<h3 class="font-bold text-lg mb-1">${naslov}</h3>` : 
+                  properties.naselje ? `<p class="text-white">${properties.naselje}</p>` : ''}
             </div>
-        `;
+            
+            <!-- Vsebina -->
+            <div class="p-4">
+                <div class="grid grid-cols-2 gap-y-2 text-sm">
+                    <div class="text-gray-600">ID:</div>
+                    <div class="font-medium">${properties.id}</div>
+                    
+                    ${properties.obcina ? `
+                    <div class="text-gray-600">Občina:</div>
+                    <div class="font-medium">${properties.obcina}</div>
+                    ` : ''}
+                    
+                    ${properties.naselje ? `
+                    <div class="text-gray-600">Naselje:</div>
+                    <div class="font-medium">${properties.naselje}</div>
+                    ` : ''}
+                    
+                    ${(properties.ulica && !naslov) ? `
+                    <div class="text-gray-600">Ulica:</div>
+                    <div class="font-medium">${properties.ulica}</div>
+                    ` : ''}
+                    
+                    ${(properties.hisna_stevilka && !naslov) ? `
+                    <div class="text-gray-600">Hišna številka:</div>
+                    <div class="font-medium">${properties.hisna_stevilka}</div>
+                    ` : ''}
+
+                    ${properties.povrsina ? `
+                    <div class="text-gray-600">Površina:</div>
+                    <div class="font-medium">${properties.povrsina} m²</div>
+                    ` : ''}
+                    
+                    ${properties.dejanska_raba ? `
+                    <div class="text-gray-600">Raba:</div>
+                    <div class="font-medium">${properties.dejanska_raba}</div>
+                    ` : ''}
+                    
+                    ${properties.leto ? `
+                    <div class="text-gray-600">Leto:</div>
+                    <div class="font-medium">${properties.leto}</div>
+                    ` : ''}
+                </div>
+                
+                <!-- Moder gumb za podrobnosti -->
+                <div class="mt-4 text-center">
+                    <button 
+                        class="bg-[rgb(59,130,246)] hover:bg-[rgb(29,100,216)] text-white py-2 px-4 rounded text-sm transition-colors duration-200 w-full"
+                        onclick="window.open('/objekt/${properties.id}', '_blank')"
+                    >
+                        Podrobnosti
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
                 } else if (properties.type === 'cluster') {
-                    console.log(properties.obcine.length + " - " + JSON.stringify(properties) )
+                    console.log(properties.obcine.length + " - " + JSON.stringify(properties))
                     const obcineText = properties.obcine && properties.obcine.length > 1000000
                         ? properties.obcine.slice(0, 3).join(', ') + (properties.obcine.length > 3 ? '...' : '')
                         : 'N/A';
 
                     popupContent = `
-            <div class="p-3">
-                <h3 class="font-bold text-lg mb-2">Cluster informacije</h3>
-                <p><strong>Število objektov:</strong> ${properties.point_count}</p>
-                ${properties.avg_povrsina ? `<p><strong>Povprečna površina:</strong> ${Math.round(properties.avg_povrsina)} m²</p>` : ''}
-                <p><strong>Občine:</strong> ${obcineText}</p>
-                <p class="text-sm text-gray-600 mt-2">Približaj za več detajlov</p>
+            <div class="p-4 font-sans bg-white rounded-lg">
+                <div class="mb-3 pb-2 border-b border-gray-200">
+                    <h3 class="font-bold text-lg" style="color: rgb(59, 130, 246);">Cluster informacije</h3>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-y-2 text-sm">
+                    <div class="text-gray-600">Število objektov:</div>
+                    <div class="font-medium">${properties.point_count}</div>
+                    
+                    ${properties.avg_povrsina ? `
+                    <div class="text-gray-600">Povprečna površina:</div>
+                    <div class="font-medium">${Math.round(properties.avg_povrsina)} m²</div>
+                    ` : ''}
+                    
+                    <div class="text-gray-600">Občine:</div>
+                    <div class="font-medium">${obcineText}</div>
+                </div>
+                
+                <div class="mt-4 pt-2 border-t border-gray-200 text-center">
+                    <p class="text-sm flex items-center justify-center cursor-pointer" style="color: rgb(59, 130, 246);">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                        Približaj za več detajlov
+                    </p>
+                </div>
             </div>
         `;
                 }
 
-                const popup = new maplibregl.Popup()
+                const popup = new maplibregl.Popup({
+                    closeButton: true,
+                    closeOnClick: true,
+                    maxWidth: '320px',
+                    className: 'custom-popup'
+                })
                     .setLngLat(e.lngLat)
                     .setHTML(popupContent)
                     .addTo(map.current);
@@ -331,14 +437,30 @@ export default function Zemljevid() {
         };
     }, []);
 
-    const handleSearch = (e) => {
-        e.preventDefault();
-        if (searchQuery.trim()) {
-            // Tu bo logika za iskalnik pol dodana
-            console.log('Iskanje:', searchQuery);
-            setSearchVisible(false);
+    // Funkcija za iskalnik se poveze na Iskalnik komponento
+    const handleSearch = (searchResult) => {
+        if (!map.current) return;
+
+        console.log('Iskanje rezultat:', searchResult);
+
+        if (searchResult.coordinates && searchResult.coordinates.length === 2) {
+            const [lng, lat] = searchResult.coordinates;
+
+
+            // Mapo zoomne in
+            map.current.flyTo({
+                center: [lng, lat],
+                zoom: 17,
+                duration: 1500,
+                essential: true
+            });
+        } else if (searchResult.query) {
+
+            console.log("ni lokacije brt");
         }
     };
+
+
 
     return (
         <>
@@ -364,45 +486,12 @@ export default function Zemljevid() {
                 </div>
             )}
 
-            {/* Iskalnik - hover verzija */}
-            <div
-                className="absolute top-50 right-2 z-10"
-                onMouseEnter={() => setSearchVisible(true)}
-                onMouseLeave={() => setSearchVisible(false)}
-            >
-                {!searchVisible ? (
-                    /* Search Ikonica */
-                    <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3.5 w-12 h-12 hover:bg-gray-50 transition-colors duration-200 flex items-center justify-center">
-                        <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                    </div>
-                ) : (
-                    /* Search Bar */
-                    <form onSubmit={handleSearch} className="flex bg-white rounded-lg shadow-lg border border-gray-200">
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Iskanje lokacije..."
-                            className="px-4 py-3 rounded-l-lg border-none focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
-                        />
-                        <button
-                            type="submit"
-                            className="px-4 py-3 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 transition-colors duration-200"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </button>
-                    </form>
-                )}
-            </div>
+
 
             <Filter />
-          
             <Switcher />
-            
+            <Iskalnik onSearch={handleSearch} />
+
         </>
     );
 }
