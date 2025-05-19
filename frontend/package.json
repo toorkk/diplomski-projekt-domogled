@@ -10,8 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@maplibre/maplibre-gl-geocoder": "^1.8.0",
     "@tailwindcss/vite": "^4.1.6",
     "frontend": "file:",
+    "lodash": "^4.17.21",
     "maplibre-gl": "^5.5.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
