@@ -1,4 +1,4 @@
--- 4.1 napolni core.properties
+-- 4.1 napolni core.del_stavbe
 INSERT INTO core.del_stavbe (
   posel_id, 
   sifra_ko,

@@ -15,8 +15,6 @@ dejanska_raba,
 lega_dela_stavbe,
 povrsina, 
 povrsina_uporabna, 
-gostinski_vrt,
-vkljucen_gostinski_vrt_v_najemnino,
 coordinates, 
 leto,
 vrsta_prostorov_code, 
@@ -39,11 +37,10 @@ d.dejanska_raba_dela_stavbe,
 d.lega_dela_stavbe_v_stavbi,
 d.povrsina_dela_stavbe,
 d.uporabna_povrsina_dela_stavbe,
-d.gostinski_vrt,
-d.vkljucenost_gostinskega_vrta_v_najemnino,
 ST_Transform(ST_SetSRID(ST_MakePoint(d.e_centroid, d.n_centroid), 3794), 4326),
 d.leto,
 d.vrsta_oddanih_prostorov,
 s1.opis
 FROM staging.del_stavbe d
 LEFT JOIN staging.sifranti s1 ON s1.sifrant='Vrsta oddanih prostorov' AND s1.numericna_vrednost::integer = d.vrsta_oddanih_prostorov
+WHERE d.vrsta_oddanih_prostorov IN (1, 2)

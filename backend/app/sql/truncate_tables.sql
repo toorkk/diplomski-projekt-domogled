@@ -1,2 +1,0 @@
-TRUNCATE TABLE core.del_stavbe CASCADE;
-TRUNCATE TABLE core.posel CASCADE;

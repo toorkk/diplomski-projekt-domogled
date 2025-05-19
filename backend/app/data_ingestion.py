@@ -12,13 +12,27 @@ import json
 
 from .sql_utils import get_sql_query, execute_sql_file, execute_sql_count
 
-# Nastavitev beleženja
+class YearFilter(logging.Filter):
+    """Filter that adds the current ingestion year to all log records."""
+    def __init__(self, name=''):
+        super().__init__(name)
+        self.current_year = "N/A"
+        
+    def filter(self, record):
+        record.ingestion_year = self.current_year
+        return True
+
+year_filter = YearFilter()
+
 file_handler = logging.FileHandler("data_ingestion.log", encoding='utf-8')
 stream_handler = logging.StreamHandler(sys.stdout)
 
+file_handler.addFilter(year_filter)
+stream_handler.addFilter(year_filter)
+
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelname)s - [leto:%(ingestion_year)s] - %(message)s',
     handlers=[file_handler, stream_handler]
 )
 logger = logging.getLogger("data_ingestion")
@@ -28,8 +42,6 @@ class DataIngestionService:
         self.db_url = db_url
         self.engine = create_engine(db_url)
         
-
-
     async def download_data(self, filter_param: str, filter_value: str, filter_year: str) -> str:
         """Prenese podatke iz API-ja in vrne pot do prenesene datoteke."""
         try:
@@ -105,8 +117,6 @@ class DataIngestionService:
             logger.error(f"Napaka pri prenosu podatkov: {str(e)}")
             raise
 
-
-
     def extract_files(self, zip_path: str) -> Dict[str, str]:
         """Razbere datoteke iz ZIP arhiva in vrne poti."""
         try:
@@ -144,8 +154,6 @@ class DataIngestionService:
             logger.error(f"Napaka pri ekstrahiranju datotek: {str(e)}")
             raise
     
-
-
     def import_to_staging(self, csv_files: Dict[str, str]):
         """Uvozi CSV podatke v staging tabele."""
         try:
@@ -163,20 +171,16 @@ class DataIngestionService:
                 
                 # Branje CSV datoteke z ustreznim kodiranjem
                 try:
-                    for encoding in ['utf-8', 'latin1', 'cp1250']:
-                        try:
-                            df = pd.read_csv(file_path, encoding=encoding)
-                            logger.info(f"Uspešno prebrana datoteka s kodiranjem {encoding}")
-                            break
-                        except UnicodeDecodeError:
-                            logger.warning(f"Napaka pri branju z {encoding}, poskušam drugo kodiranje")
-                            continue
-                    else:
-                        logger.error("Ni bilo mogoče prebrati datoteke z nobenim kodiranjem")
-                        continue
-                    
+                    df = pd.read_csv(file_path, encoding='utf-8')
+
                     # Preimenovanje stolpcev v male črke
                     df.columns = [col.lower() for col in df.columns]
+                    
+                    # Počistimo obstoječe podatke v staging tabeli
+                    with self.engine.connect() as conn:
+                        truncate_sql = f"TRUNCATE TABLE staging.{table_name};"
+                        conn.execute(text(truncate_sql))
+                        conn.commit()
                     
                     # Nalaganje podatkov v staging tabelo
                     df.to_sql(
@@ -199,34 +203,45 @@ class DataIngestionService:
             logger.error(f"Napaka pri uvozu v staging: {str(e)}")
             raise
 
-
-
-    def transform_to_core(self):
+    def transform_to_core(self, filter_year: str):
         """Pretvori podatke iz staging v core tabele."""
         try:
-            # Brisanje obstoječih podatkov iz core tabel
-            logger.info("Brisanje obstoječih podatkov iz core tabel")
-            execute_sql_file(self.engine, 'truncate_tables.sql')
-            
             # Preverjanje, ali so staging tabele napolnjene
             staging_del_stavbe_count = execute_sql_count(self.engine, 'staging', 'del_stavbe')
             staging_posel_count = execute_sql_count(self.engine, 'staging', 'posel')
             logger.info(f"Podatki v staging: del_stavbe={staging_del_stavbe_count}, posel={staging_posel_count}")
             
             if staging_del_stavbe_count == 0 or staging_posel_count == 0:
-                logger.warning("Staging tabele so prazne! Ne morem nadaljevati s transformacijo.")
+                logger.warning(f"Staging tabele so prazne! Ne morem nadaljevati s transformacijo.")
                 return
             
-            # Preverjanje, ali PostGIS deluje pravilno
+            # Preverjanje, koliko zapisov ima vrsta_oddanih_prostorov = 1 ali 2
             try:
                 with self.engine.connect() as conn:
-                    postgis_check = conn.execute(text("SELECT PostGIS_version();")).scalar()
-                    logger.info(f"PostGIS verzija: {postgis_check}")
+                    count_filtered = conn.execute(text("SELECT COUNT(*) FROM staging.del_stavbe WHERE vrsta_oddanih_prostorov IN (1, 2)")).scalar()
+                    logger.info(f"Število zapisov v staging.del_stavbe z vrsta_oddanih_prostorov IN (1, 2): {count_filtered} od {staging_del_stavbe_count} ({round(count_filtered/staging_del_stavbe_count*100, 2)}%)")
             except Exception as e:
-                logger.warning("PostGIS morda ni pravilno nameščen, kar lahko povzroči težave.")
+                logger.warning(f"Napaka pri štetju filtriranih zapisov: {str(e)}")
+            
+            # Najprej izbrišemo obstoječe podatke samo za to leto (če obstajajo)
+            try:
+                with self.engine.connect() as conn:
+                    trans = conn.begin()
+                    try:
+                        del_result = conn.execute(text(f"DELETE FROM core.del_stavbe WHERE leto = {filter_year}"))
+                        posel_result = conn.execute(text(f"DELETE FROM core.posel WHERE leto = {filter_year}"))
+                        trans.commit()
+                        logger.info(f"Obstoječi podatki so bili izbrisani iz core tabel. Izbrisanih del_stavbe: {del_result.rowcount}, posel: {posel_result.rowcount}")
+                    except Exception as e:
+                        trans.rollback()
+                        logger.error(f"Napaka pri brisanju obstoječih podatkov: {str(e)}")
+                        raise
+            except Exception as e:
+                logger.error(f"Napaka povezave pri brisanju obstoječih podatkov: {str(e)}")
+                raise
             
             # Pretvorba podatkov za del_stavbe
-            logger.info("Pretvarjanje podatkov v core.del_stavbe")
+            logger.info(f"Pretvarjanje podatkov v core.del_stavbe")
             try:
                 with self.engine.connect() as conn:
                     trans = conn.begin()
@@ -244,11 +259,12 @@ class DataIngestionService:
                 raise
             
             # Pretvorba podatkov za posel
-            logger.info("Pretvarjanje podatkov v core.posel")
+            logger.info(f"Pretvarjanje podatkov v core.posel")
             try:
                 with self.engine.connect() as conn:
                     trans = conn.begin()
                     try:
+                        # Uporabimo originalno SQL poizvedbo
                         sql_query = get_sql_query('posel_transform.sql')
                         result = conn.execute(text(sql_query))
                         logger.info(f"Transformacija posel: vplivala na {result.rowcount} vrstic")
@@ -268,14 +284,12 @@ class DataIngestionService:
             logger.info(f"Pretvorba podatkov zaključena. Število vrstic: core.del_stavbe: {del_stavbe_count}, core.posel: {posel_count}")
             
             if del_stavbe_count == 0 or posel_count == 0:
-                logger.warning("Transformacija je bila izvedena brez napak, vendar podatki niso bili vstavljeni!")
+                logger.warning(f"Transformacija je bila izvedena brez napak, vendar podatki niso bili vstavljeni!")
             
         except Exception as e:
             logger.error(f"Napaka pri pretvorbi v core: {str(e)}")
             raise
     
-
-
     def cleanup(self, temp_dir: str):
         """Počisti začasen direktorij."""
         try:
@@ -284,11 +298,14 @@ class DataIngestionService:
         except Exception as e:
             logger.error(f"Napaka pri čiščenju začasnega direktorija: {str(e)}")
     
-
-
     async def run_ingestion(self, filter_param: str, filter_value: str, filter_year: str) -> Dict[str, Any]:
         """Zažene celoten proces vnosa podatkov."""
         try:
+
+            year_filter.current_year = filter_year
+
+            logger.info(f"Začenjam vnos podatkov")
+            
             zip_path = await self.download_data(filter_param, filter_value, filter_year)
             temp_dir = os.path.dirname(zip_path)
             
@@ -296,11 +313,11 @@ class DataIngestionService:
             
             self.import_to_staging(csv_files)
             
-            self.transform_to_core()
+            self.transform_to_core(filter_year)
             
             self.cleanup(temp_dir)
             
-            return {"status": "success", "message": "Vnos podatkov uspešno zaključen"}
+            return {"status": "success", "message": f"Vnos podatkov uspešno zaključen"}
             
         except Exception as e:
             logger.error(f"Napaka pri vnosu podatkov: {str(e)}")

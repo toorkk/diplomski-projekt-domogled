@@ -96,26 +96,36 @@ async def ingest_data(
     background_tasks: BackgroundTasks,
     filter_param: str = Query("DRZAVA", description="Filter parameter"),
     filter_value: str = Query("1", description="Filter vrednost"),
-    filter_year: str = Query("2025", description="Filter leto")
+    start_year: int = Query(2013, description="Začetno leto"),
+    end_year: int = Query(2025, description="Končno leto")
 ):
-    """API endpoint za zagon vnosa podatkov"""
+    """API endpoint za zagon vnosa podatkov za razpon let"""
     try:
-        background_tasks.add_task(
-            ingestion_service.run_ingestion,
-            filter_param=filter_param,
-            filter_value=filter_value,
-            filter_year=filter_year
-        )
+        # Preverimo, da je začetno leto manjše od končnega
+        if start_year > end_year:
+            return JSONResponse(
+                status_code=400,
+                content={"status": "error", "message": "Začetno leto mora biti manjše ali enako končnemu letu"}
+            )
+            
+        # Dodamo opravila za vsako leto v razponu
+        for year in range(start_year, end_year + 1):
+            background_tasks.add_task(
+                ingestion_service.run_ingestion,
+                filter_param=filter_param,
+                filter_value=filter_value,
+                filter_year=str(year)
+            )
         
         return JSONResponse(
             status_code=202,
             content={
                 "status": "accepted",
-                "message": "Vnost podatkov se je začel",
+                "message": f"Vnos podatkov se je začel za leta od {start_year} do {end_year}",
                 "params": {
                     "filter_param": filter_param,
                     "filter_value": filter_value,
-                    "filter_year": filter_year
+                    "years": list(range(start_year, end_year + 1))
                 }
             }
         )
@@ -123,7 +133,7 @@ async def ingest_data(
         return JSONResponse(
             status_code=500,
             content={"status": "error", "message": str(e)}
-        )    
+        )
     
 
 @app.get("/api/ingestion-status")
