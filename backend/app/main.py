@@ -54,18 +54,6 @@ class DelStavbe(Base):
     vrsta_prostorov_desc = Column(Text)
 
 
-def calculate_cluster_resolution(zoom_level: float) -> float:
-    """
-    Izračun prostorske ločljivosti za združevanje v clusters na podlagi stopnje povečave.
-    Večja povečava = manjši clusters
-    Manjša povečava = večji clusters
-    """
-    # At zoom 12, cluster radius ≈ 0.001 degrees (≈77m in Slovenia longitude)
-    # At zoom 6, cluster radius ≈ 0.1 degrees (≈7.7km in Slovenia longitude)
-    base_resolution = 0.01  # Resolution at zoom 12
-    zoom_factor = 2 ** (12 - zoom_level)
-    return base_resolution * zoom_factor
-
 app = FastAPI()
 
 app.add_middleware(
@@ -161,46 +149,110 @@ async def ingestion_status():
 
 
 
-def get_individual_properties(west: float, south: float, east: float, north: float, db: Session):
+def calculate_cluster_resolution(zoom_level: float) -> float:
+    """
+    Izračun prostorske ločljivosti za združevanje v clusters na podlagi stopnje povečave.
+    Večja povečava = manjši clusters
+    Manjša povečava = večji clusters
+    """
+    # At zoom 12, cluster radius ≈ 0.001 degrees (≈77m in Slovenia longitude)
+    # At zoom 6, cluster radius ≈ 0.1 degrees (≈7.7km in Slovenia longitude)
+    base_resolution = 0.01  # Resolution at zoom 12
+    zoom_factor = 2 ** (12 - zoom_level)
+    return base_resolution * zoom_factor
 
+
+def calculate_cluster_resolution(zoom_level: float) -> float:
+    """
+    Izračun prostorske ločljivosti za združevanje v clusters na podlagi stopnje povečave.
+    Večja povečava = manjši clusters
+    Manjša povečava = večji clusters
+    """
+    # At zoom 12, cluster radius ≈ 0.001 degrees (≈77m in Slovenia longitude)
+    # At zoom 6, cluster radius ≈ 0.1 degrees (≈7.7km in Slovenia longitude)
+    base_resolution = 0.01  # Resolution at zoom 12
+    zoom_factor = 2 ** (12 - zoom_level)
+    return base_resolution * zoom_factor
+
+def get_building_clustered_properties(west: float, south: float, east: float, north: float, db: Session):
+    """
+    Get properties clustered by building (sifra_ko and stevilka_stavbe)
+    Used for medium zoom levels
+    """
     bbox_geom = ST_SetSRID(ST_MakeEnvelope(west, south, east, north), 4326)
     
-    query = db.query(
-        DelStavbe.del_stavbe_id,
-        DelStavbe.obcina,
-        DelStavbe.naselje,
-        DelStavbe.ulica,
-        DelStavbe.hisna_stevilka,
-        DelStavbe.povrsina,
-        DelStavbe.dejanska_raba,
-        DelStavbe.leto,
-        ST_AsGeoJSON(DelStavbe.coordinates).label('geom_json')
+    # SQL query to create clusters using sifra_ko and stevilka_stavbe
+    cluster_query = db.query(
+        func.count(DelStavbe.del_stavbe_id).label('point_count'),
+        func.avg(ST_X(DelStavbe.coordinates)).label('avg_lng'),
+        func.avg(ST_Y(DelStavbe.coordinates)).label('avg_lat'),
+        DelStavbe.sifra_ko,
+        DelStavbe.stevilka_stavbe,
+        func.avg(DelStavbe.povrsina).label('avg_povrsina'),
+        func.array_agg(DelStavbe.obcina.distinct()).label('obcine'),
+        func.array_agg(DelStavbe.del_stavbe_id).label('property_ids')
     ).filter(
         ST_Intersects(DelStavbe.coordinates, bbox_geom)
-    ).limit(10000)
-    
-    results = query.all()
+    ).group_by(
+        DelStavbe.sifra_ko,
+        DelStavbe.stevilka_stavbe
+    ).all()
     
     features = []
-    for row in results:
-        geom_dict = json.loads(row.geom_json)
-        
-        feature = {
-            "type": "Feature",
-            "geometry": geom_dict,
-            "properties": {
-                "id": row.del_stavbe_id,
-                "type": "individual",
-                "obcina": row.obcina,
-                "naselje": row.naselje,
-                "ulica": row.ulica,
-                "hisna_stevilka": row.hisna_stevilka,
-                "povrsina": float(row.povrsina) if row.povrsina else None,
-                "dejanska_raba": row.dejanska_raba,
-                "leto": row.leto
+    for row in cluster_query:
+        if row.point_count == 1:
+            # Single point - get full individual property data
+            property_id = row.property_ids[0]
+            individual_property = db.query(
+                DelStavbe.del_stavbe_id,
+                DelStavbe.obcina,
+                DelStavbe.naselje,
+                DelStavbe.ulica,
+                DelStavbe.hisna_stevilka,
+                DelStavbe.povrsina,
+                DelStavbe.dejanska_raba,
+                DelStavbe.leto,
+                ST_AsGeoJSON(DelStavbe.coordinates).label('geom_json')
+            ).filter(DelStavbe.del_stavbe_id == property_id).first()
+            
+            if individual_property:
+                geom_dict = json.loads(individual_property.geom_json)
+                feature = {
+                    "type": "Feature",
+                    "geometry": geom_dict,
+                    "properties": {
+                        "id": individual_property.del_stavbe_id,
+                        "type": "individual",
+                        "obcina": individual_property.obcina,
+                        "naselje": individual_property.naselje,
+                        "ulica": individual_property.ulica,
+                        "hisna_stevilka": individual_property.hisna_stevilka,
+                        "povrsina": float(individual_property.povrsina) if individual_property.povrsina else None,
+                        "dejanska_raba": individual_property.dejanska_raba,
+                        "leto": individual_property.leto
+                    }
+                }
+                features.append(feature)
+        else:
+            # Multi-point cluster
+            feature = {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [float(row.avg_lng), float(row.avg_lat)]
+                },
+                "properties": {
+                    "type": "cluster",
+                    "cluster_type": "building",
+                    "point_count": row.point_count,
+                    "avg_povrsina": float(row.avg_povrsina) if row.avg_povrsina else None,
+                    "obcine": [obcina for obcina in row.obcine if obcina] if row.obcine else [],
+                    "cluster_id": f"b_{row.sifra_ko}_{row.stevilka_stavbe}",  # Building-level cluster ID
+                    "sifra_ko": row.sifra_ko,
+                    "stevilka_stavbe": row.stevilka_stavbe
+                }
             }
-        }
-        features.append(feature)
+            features.append(feature)
     
     return {
         "type": "FeatureCollection",
@@ -208,12 +260,15 @@ def get_individual_properties(west: float, south: float, east: float, north: flo
     }
 
 
-
-def get_clustered_properties(west: float, south: float, east: float, north: float, zoom: float, db: Session):
+def get_distance_clustered_properties(west: float, south: float, east: float, north: float, zoom: float, db: Session):
+    """
+    Get properties clustered by geographic distance
+    Used for low zoom levels
+    """
     resolution = calculate_cluster_resolution(zoom)
     bbox_geom = ST_SetSRID(ST_MakeEnvelope(west, south, east, north), 4326)
     
-    # SQL query to create clusters using PostGIS
+    # SQL query to create clusters using PostGIS and geographic grid
     cluster_query = db.query(
         func.count(DelStavbe.del_stavbe_id).label('point_count'),
         func.avg(ST_X(DelStavbe.coordinates)).label('avg_lng'),
@@ -275,10 +330,11 @@ def get_clustered_properties(west: float, south: float, east: float, north: floa
                 },
                 "properties": {
                     "type": "cluster",
+                    "cluster_type": "distance",
                     "point_count": row.point_count,
                     "avg_povrsina": float(row.avg_povrsina) if row.avg_povrsina else None,
                     "obcine": [obcina for obcina in row.obcine if obcina] if row.obcine else [],
-                    "cluster_id": f"{row.cluster_x}_{row.cluster_y}"
+                    "cluster_id": f"d_{row.cluster_x}_{row.cluster_y}"  # Distance-based cluster ID
                 }
             }
             features.append(feature)
@@ -296,19 +352,22 @@ def get_properties_geojson(
     db: Session = Depends(get_db)
 ):
     """
-    Pridobi dele stavb trenutno vidne na ekranu
+    Pridobi dele stavb trenutno vidne na ekranu z dvostopenjskim sistemom razvrščanja v gruče:
+    - Visok zoom (>= cluster_threshold): Združeni po stavbah (sifra_ko in stevilka_stavbe)
+    - Nizek zoom (< cluster_threshold): Združeni po geografski razdalji
     """
     try:
         west, south, east, north = map(float, bbox.split(','))
         
-        cluster_threshold = 200
+        # Define threshold for switching between clustering methods
+        cluster_threshold = 14.5  # Above this, cluster by building; below, cluster by distance
         
         if zoom >= cluster_threshold:
-            # High zoom - return individual points
-            return get_individual_properties(west, south, east, north, db)
+            # Higher zoom - cluster by building (sifra_ko and stevilka_stavbe)
+            return get_building_clustered_properties(west, south, east, north, db)
         else:
-            # Low zoom - return clusters
-            return get_clustered_properties(west, south, east, north, zoom, db)
+            # Lower zoom - cluster by geographic distance
+            return get_distance_clustered_properties(west, south, east, north, zoom, db)
             
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"neveljavni bounding box koordinati: {str(e)}")
