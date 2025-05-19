@@ -1,14 +1,20 @@
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine, Column, Integer, Text, Numeric, SmallInteger, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from geoalchemy2 import Geometry
 from geoalchemy2.functions import ST_Transform, ST_SetSRID, ST_MakeEnvelope, ST_Intersects, ST_AsGeoJSON, ST_X, ST_Y
 import os
+import asyncio
 from dotenv import load_dotenv
 import json
 import math
+
+import requests
+
+from .data_ingestion import DataIngestionService
 
 
 load_dotenv()
@@ -26,7 +32,7 @@ class DelStavbe(Base):
     del_stavbe_id = Column(Integer, primary_key=True)
     posel_id = Column(Integer, nullable=False)
     sifra_ko = Column(SmallInteger, nullable=False)
-    ime_ko = Column(Text, nullable=False)
+    ime_ko = Column(Text)
     obcina = Column(Text)
     stevilka_stavbe = Column(Integer)
     stevilka_dela_stavbe = Column(Integer)
@@ -81,6 +87,67 @@ def get_db():
 def root():
     return {"message": "Domogled API"}
 
+
+ingestion_service = DataIngestionService(DATABASE_URL)
+
+
+@app.post("/api/ingest-data")
+async def ingest_data(
+    background_tasks: BackgroundTasks,
+    filter_param: str = Query("DRZAVA", description="Filter parameter"),
+    filter_value: str = Query("1", description="Filter vrednost"),
+    filter_year: str = Query("2025", description="Filter leto")
+):
+    """API endpoint za zagon vnosa podatkov"""
+    try:
+        background_tasks.add_task(
+            ingestion_service.run_ingestion,
+            filter_param=filter_param,
+            filter_value=filter_value,
+            filter_year=filter_year
+        )
+        
+        return JSONResponse(
+            status_code=202,
+            content={
+                "status": "accepted",
+                "message": "Vnost podatkov se je začel",
+                "params": {
+                    "filter_param": filter_param,
+                    "filter_value": filter_value,
+                    "filter_year": filter_year
+                }
+            }
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+        )    
+    
+
+@app.get("/api/ingestion-status")
+async def ingestion_status():
+    """Preveri status vnosa podatkov"""
+    try:
+        if os.path.exists("data_ingestion.log"):
+            with open("data_ingestion.log", "r") as f:
+                last_lines = f.readlines()[-20:]
+        else:
+            last_lines = ["Vnos podatkov še ni bil zagnan."]
+        
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": "success",
+                "last_logs": last_lines
+            }
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+        )
 
 
 

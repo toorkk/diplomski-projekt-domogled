@@ -9,3 +9,5 @@ pandas
 joblib
 python-dotenv
 shapely
+requests
+zipfile36

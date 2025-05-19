@@ -6,7 +6,7 @@ CREATE TABLE core.del_stavbe (
   del_stavbe_id         SERIAL      PRIMARY KEY,
   posel_id              INTEGER     NOT NULL,
   sifra_ko              SMALLINT    NOT NULL,
-  ime_ko                TEXT        NOT NULL,
+  ime_ko                TEXT,
   obcina                TEXT,
   stevilka_stavbe       INTEGER,
   stevilka_dela_stavbe  INTEGER,
