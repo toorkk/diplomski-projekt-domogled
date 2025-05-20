@@ -359,7 +359,6 @@ def get_properties_geojson(
     try:
         west, south, east, north = map(float, bbox.split(','))
         
-        # Define threshold for switching between clustering methods
         cluster_threshold = 14.5  # Above this, cluster by building; below, cluster by distance
         
         if zoom >= cluster_threshold:
