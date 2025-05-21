@@ -5,30 +5,9 @@ import Filter from "../Filter";
 import Switcher from "./Switcher";
 import Iskalnik from "./Iskalnik";
 import '../Stili/Zemljevid.css';
+import Podrobnosti from "./Podrobnosti";
 
-<style jsx global>{`
-    .maplibregl-popup-content {
-        border-radius: 8px !important;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
-        border: 1px solid #e5e7eb !important;
-        padding: 0 !important;
-    }
-    
-    .maplibregl-popup-close-button {
-        padding: 5px 8px !important;
-        color: #4b5563 !important;
-        font-size: 16px !important;
-    }
-    
-    .maplibregl-popup-close-button:hover {
-        background-color: rgba(0,0,0,0.03) !important;
-        color: #1d4ed8 !important;
-    }
-    
-    .custom-popup .maplibregl-popup-tip {
-        border-top-color: white !important;
-    }
-`}</style>
+
 
 
 
@@ -41,6 +20,8 @@ export default function Zemljevid() {
     const [propertiesLoaded, setPropertiesLoaded] = useState(false);
     const [lastBounds, setLastBounds] = useState(null);
     const [lastZoom, setLastZoom] = useState(null);
+    const [selectedProperty, setSelectedProperty] = useState(null);
+    const [showPropertyDetails, setShowPropertyDetails] = useState(false);
 
 
     // preverja če se je mapa dovolj premaknila za ponovno nalaganje podatkov
@@ -209,71 +190,69 @@ export default function Zemljevid() {
                 let popupContent = '';
 
                 if (properties.type === 'individual') {
-    // Sestavi naslov z ulico in hišno številko, če obstajata
-    const naslov = `${properties.ulica || ''} ${properties.hisna_stevilka || ''}`.trim();
-    
-    popupContent = `
-        <div class="font-sans bg-white rounded-lg overflow-hidden">
-            <!-- Modro zglavje -->
-            <div class="bg-[rgb(59,130,246)] text-white p-4">
-                ${naslov ? `<h3 class="font-bold text-lg mb-1">${naslov}</h3>` : 
-                  properties.naselje ? `<p class="text-white">${properties.naselje}</p>` : ''}
+                    // Sestavi naslov z ulico in hišno številko, če obstajata
+                    const naslov = `${properties.ulica || ''} ${properties.hisna_stevilka || ''}`.trim();
+
+                    popupContent = `
+    <div class="font-sans bg-white rounded-lg overflow-hidden">
+        <!-- Modro zglavje -->
+        <div class="bg-[rgb(59,130,246)] text-white p-4">
+            ${naslov ? `<h3 class="font-bold text-lg mb-1">${naslov}</h3>` :
+                            properties.naselje ? `<p class="text-white">${properties.naselje}</p>` : ''}
+        </div>
+        
+        <!-- Vsebina -->
+        <div class="p-4">
+            <div class="grid grid-cols-2 gap-y-2 text-sm">
+                
+                ${properties.obcina ? `
+                <div class="text-gray-600">Občina:</div>
+                <div class="font-medium">${properties.obcina}</div>
+                ` : ''}
+                
+                ${properties.naselje ? `
+                <div class="text-gray-600">Naselje:</div>
+                <div class="font-medium">${properties.naselje}</div>
+                ` : ''}
+                
+                ${(properties.ulica && !naslov) ? `
+                <div class="text-gray-600">Ulica:</div>
+                <div class="font-medium">${properties.ulica}</div>
+                ` : ''}
+                
+                ${(properties.hisna_stevilka && !naslov) ? `
+                <div class="text-gray-600">Hišna številka:</div>
+                <div class="font-medium">${properties.hisna_stevilka}</div>
+                ` : ''}
+
+                ${properties.povrsina ? `
+                <div class="text-gray-600">Površina:</div>
+                <div class="font-medium">${properties.povrsina} m²</div>
+                ` : ''}
+                
+                ${properties.dejanska_raba ? `
+                <div class="text-gray-600">Raba:</div>
+                <div class="font-medium">${properties.dejanska_raba}</div>
+                ` : ''}
+                
+                ${properties.leto ? `
+                <div class="text-gray-600">Leto:</div>
+                <div class="font-medium">${properties.leto}</div>
+                ` : ''}
             </div>
             
-            <!-- Vsebina -->
-            <div class="p-4">
-                <div class="grid grid-cols-2 gap-y-2 text-sm">
-                    <div class="text-gray-600">ID:</div>
-                    <div class="font-medium">${properties.id}</div>
-                    
-                    ${properties.obcina ? `
-                    <div class="text-gray-600">Občina:</div>
-                    <div class="font-medium">${properties.obcina}</div>
-                    ` : ''}
-                    
-                    ${properties.naselje ? `
-                    <div class="text-gray-600">Naselje:</div>
-                    <div class="font-medium">${properties.naselje}</div>
-                    ` : ''}
-                    
-                    ${(properties.ulica && !naslov) ? `
-                    <div class="text-gray-600">Ulica:</div>
-                    <div class="font-medium">${properties.ulica}</div>
-                    ` : ''}
-                    
-                    ${(properties.hisna_stevilka && !naslov) ? `
-                    <div class="text-gray-600">Hišna številka:</div>
-                    <div class="font-medium">${properties.hisna_stevilka}</div>
-                    ` : ''}
-
-                    ${properties.povrsina ? `
-                    <div class="text-gray-600">Površina:</div>
-                    <div class="font-medium">${properties.povrsina} m²</div>
-                    ` : ''}
-                    
-                    ${properties.dejanska_raba ? `
-                    <div class="text-gray-600">Raba:</div>
-                    <div class="font-medium">${properties.dejanska_raba}</div>
-                    ` : ''}
-                    
-                    ${properties.leto ? `
-                    <div class="text-gray-600">Leto:</div>
-                    <div class="font-medium">${properties.leto}</div>
-                    ` : ''}
-                </div>
-                
-                <!-- Moder gumb za podrobnosti -->
-                <div class="mt-4 text-center">
-                    <button 
-                        class="bg-[rgb(59,130,246)] hover:bg-[rgb(29,100,216)] text-white py-2 px-4 rounded text-sm transition-colors duration-200 w-full"
-                        onclick="window.open('/objekt/${properties.id}', '_blank')"
-                    >
-                        Podrobnosti
-                    </button>
-                </div>
+            <!-- Moder gumb za podrobnosti -->
+            <div class="mt-4 text-center">
+                <button 
+                    class="bg-[rgb(59,130,246)] hover:bg-[rgb(29,100,216)] text-white py-2 px-4 rounded text-sm transition-colors duration-200 w-full"
+                    id="btnShowDetails_${properties.id}"
+                >
+                    Podrobnosti
+                </button>
             </div>
         </div>
-    `;
+    </div>
+`;
 
                 } else if (properties.type === 'cluster') {
                     console.log(properties.obcine.length + " - " + JSON.stringify(properties))
@@ -321,6 +300,24 @@ export default function Zemljevid() {
                     .setLngLat(e.lngLat)
                     .setHTML(popupContent)
                     .addTo(map.current);
+
+                if (properties.type === 'individual') {
+                    // Počakamo, da se DOM naloži
+                    setTimeout(() => {
+                        const detailsButton = document.getElementById(`btnShowDetails_${properties.id}`);
+                        if (detailsButton) {
+                            detailsButton.addEventListener('click', () => {
+                                // Shranimo podatke o nepremičnini
+                                const propertyData = { ...properties };
+                                setSelectedProperty(propertyData);
+                                setShowPropertyDetails(true);
+
+                                // Zapremo popup
+                                popup.remove();
+                            });
+                        }
+                    }, 100);
+                }
             };
 
             // Add click handlers for both layers
@@ -491,6 +488,17 @@ export default function Zemljevid() {
             <Filter />
             <Switcher />
             <Iskalnik onSearch={handleSearch} />
+
+            {showPropertyDetails && selectedProperty && (
+                <Podrobnosti
+                    propertyId={selectedProperty.id}
+                    initialData={selectedProperty}
+                    onClose={() => {
+                        setShowPropertyDetails(false);
+                        setSelectedProperty(null);
+                    }}
+                />
+            )}
 
         </>
     );
