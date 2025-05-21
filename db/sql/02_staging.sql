@@ -9,9 +9,9 @@ CREATE TABLE staging.sifranti (
   opis               TEXT
 );
 
--- 2.2 staging.del_stavbe
-DROP TABLE IF EXISTS staging.del_stavbe;
-CREATE TABLE staging.del_stavbe (
+-- 2.2 staging.np_del_stavbe
+DROP TABLE IF EXISTS staging.np_del_stavbe;
+CREATE TABLE staging.np_del_stavbe (
   ID_POSLA                                    INTEGER,
   SIFRA_KO                                    INTEGER,
   IME_KO                                      TEXT,
@@ -49,9 +49,9 @@ CREATE TABLE staging.del_stavbe (
   LETO                                        INTEGER
 );
 
--- 2.3 staging.posel
-DROP TABLE IF EXISTS staging.posel;
-CREATE TABLE staging.posel (
+-- 2.3 staging.np_posel
+DROP TABLE IF EXISTS staging.np_posel;
+CREATE TABLE staging.np_posel (
   ID_POSLA                               INTEGER,
   VRSTA_NAJEMNEGA_POSLA                  SMALLINT,
   DATUM_UVELJAVITVE                      TEXT,
@@ -76,5 +76,5 @@ CREATE TABLE staging.posel (
 
 -- 2.4 Naloži staging podatke
 \copy staging.sifranti(id, sifrant, numericna_vrednost, opis) FROM '/var/lib/postgresql/csv_data/ETN_SLO_2025_NP_sifranti_20250511.csv' WITH (FORMAT csv, HEADER true);
-\copy staging.del_stavbe FROM '/var/lib/postgresql/csv_data/ETN_SLO_2025_NP_NP_DELISTAVB_20250511.csv' WITH (FORMAT csv, HEADER true);
-\copy staging.posel FROM '/var/lib/postgresql/csv_data/ETN_SLO_2025_NP_NP_POSLI_20250511.csv' WITH (FORMAT csv, HEADER true);
+\copy staging.np_del_stavbe FROM '/var/lib/postgresql/csv_data/ETN_SLO_2025_NP_NP_DELISTAVB_20250511.csv' WITH (FORMAT csv, HEADER true);
+\copy staging.np_posel FROM '/var/lib/postgresql/csv_data/ETN_SLO_2025_NP_NP_POSLI_20250511.csv' WITH (FORMAT csv, HEADER true);

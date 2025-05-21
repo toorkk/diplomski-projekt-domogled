@@ -10,27 +10,27 @@ CREATE TABLE staging.sifranti (
   opis               TEXT
 );
 
--- staging.del_stavbe
-DROP TABLE IF EXISTS staging.del_stavbe;
-CREATE TABLE staging.del_stavbe (
+-- staging.np_del_stavbe
+DROP TABLE IF EXISTS staging.np_del_stavbe;
+CREATE TABLE staging.np_del_stavbe (
   id_posla                                    INTEGER,
-  sifra_ko                                    INTEGER,
-  ime_ko                                      TEXT,
-  obcina                                      TEXT,
+  sifra_ko                                    SMALLINT,
+  ime_ko                                      VARCHAR(100),
+  obcina                                      VARCHAR(100),
   stevilka_stavbe                             INTEGER,
   stevilka_dela_stavbe                        INTEGER,
-  interna_oznaka_oddanih_prostorov            TEXT,
-  naselje                                     TEXT,
-  ulica                                       TEXT,
-  hisna_stevilka                              TEXT,
-  dodatek_hs                                  TEXT,
+  interna_oznaka_oddanih_prostorov            VARCHAR(100),
+  naselje                                     VARCHAR(100),
+  ulica                                       VARCHAR(100),
+  hisna_stevilka                              VARCHAR(20),
+  dodatek_hs                                  VARCHAR(10),
   stevilka_stanovanja_ali_poslovnega_prostora INTEGER,
   vrsta_oddanih_prostorov                     SMALLINT,
   opremljenost_oddanih_prostorov              SMALLINT,
   mikrolokacija_oddanih_prostorov             SMALLINT,
   izlozba                                     SMALLINT,
   nakupovalni_center                          SMALLINT,
-  povrsina_oddanih_prostorov                  NUMERIC,
+  povrsina_oddanih_prostorov                  NUMERIC(10,2),
   povrsina_oddanih_prostorov_enaka_delu_stavbe BOOLEAN,
   pogodbena_najemnina_posameznih_oddanih_prostorov NUMERIC,
   opombe_o_oddanih_prostorih                   TEXT,
@@ -38,21 +38,21 @@ CREATE TABLE staging.del_stavbe (
   dejanska_raba_dela_stavbe                   TEXT,
   lega_dela_stavbe_v_stavbi                   TEXT,
   stevilo_sob                                 INTEGER,
-  povrsina_dela_stavbe                        NUMERIC,
-  uporabna_povrsina_dela_stavbe               NUMERIC,
+  povrsina_dela_stavbe                        NUMERIC(10,2),
+  uporabna_povrsina_dela_stavbe               NUMERIC(10,2),
   prostori_dela_stavbe                        TEXT,
-  uporabna_povrsina_oddanih_prostorov         NUMERIC,
+  uporabna_povrsina_oddanih_prostorov         NUMERIC(10,2),
   gostinski_vrt                               SMALLINT,
   vkljucenost_gostinskega_vrta_v_najemnino    SMALLINT,
-  povrsina_gostinskega_vrta                   NUMERIC,
+  povrsina_gostinskega_vrta                   NUMERIC(10,2),
   e_centroid                                  NUMERIC,
   n_centroid                                  NUMERIC,
   leto                                        INTEGER
 );
 
--- staging.posel
-DROP TABLE IF EXISTS staging.posel;
-CREATE TABLE staging.posel (
+-- staging.np_posel
+DROP TABLE IF EXISTS staging.np_posel;
+CREATE TABLE staging.np_posel (
   id_posla                               INTEGER,
   vrsta_najemnega_posla                  SMALLINT,
   datum_uveljavitve                      TEXT,
