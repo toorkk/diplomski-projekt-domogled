@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 
-export default function Switcher() {
-  const [activeType, setActiveType] = useState('prodaja');
+export default function Switcher({ activeType, onChangeType }) {
   const [isMobile, setIsMobile] = useState(false);
 
   // Detect screen size
@@ -38,13 +37,15 @@ export default function Switcher() {
 
         {/* Toggle switch */}
         <button
-          onClick={() => setActiveType(activeType === 'prodaja' ? 'najem' : 'prodaja')}
+          onClick={() => onChangeType(activeType === 'prodaja' ? 'najem' : 'prodaja')}
           className={`relative inline-flex items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
             isMobile ? 'h-5 w-9' : 'h-6 w-11'
           }`}
           style={{
-            backgroundColor: activeType === 'prodaja' ? '#3B82F6' : '#6B7280'
+            backgroundColor: activeType === 'prodaja' ? '#3B82F6' : '#10B981'
           }}
+          aria-pressed={activeType !== 'prodaja'}
+          aria-label="Preklopi med prodajo in najemom"
         >
           <span
             className={`inline-block rounded-full bg-white transition-transform ${
@@ -63,7 +64,7 @@ export default function Switcher() {
         <span className={`${
           isMobile ? 'text-sm' : 'text-base'
         } font-medium transition-colors duration-200 ${
-          activeType === 'najem' ? 'text-blue-700' : 'text-gray-600'
+          activeType === 'najem' ? 'text-green-700' : 'text-gray-600'
         }`}>
           Najem
         </span>

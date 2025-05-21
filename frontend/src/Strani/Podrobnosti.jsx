@@ -44,7 +44,7 @@ export default function Podrobnosti({ propertyId, onClose, initialData = null })
     const parts = [];
     if (property.ulica) parts.push(property.ulica);
     if (property.hisna_stevilka) parts.push(property.hisna_stevilka);
-    
+    if (property.dodatek_hs) parts.push(property.dodatek_hs);
     return parts.join(' ');
   };
 

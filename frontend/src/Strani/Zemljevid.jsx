@@ -6,14 +6,15 @@ import Switcher from "./Switcher";
 import Iskalnik from "./Iskalnik";
 import '../Stili/Zemljevid.css';
 import Podrobnosti from "./Podrobnosti";
-
-
-
-
+import PopupManager from "./PopupManager";
 
 export default function Zemljevid() {
     const mapContainer = useRef(null);
     const map = useRef(null);
+    const popupManager = useRef(null);
+    // Use ref to track current data source type for event handlers
+    const dataSourceTypeRef = useRef('prodaja');
+    
     const [searchVisible, setSearchVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -22,14 +23,20 @@ export default function Zemljevid() {
     const [lastZoom, setLastZoom] = useState(null);
     const [selectedProperty, setSelectedProperty] = useState(null);
     const [showPropertyDetails, setShowPropertyDetails] = useState(false);
+    // Keep state for UI updates
+    const [dataSourceType, setDataSourceType] = useState('prodaja');
 
+    // Update ref whenever state changes
+    useEffect(() => {
+        dataSourceTypeRef.current = dataSourceType;
+    }, [dataSourceType]);
 
     // preverja če se je mapa dovolj premaknila za ponovno nalaganje podatkov
     const hasBoundsChanged = useCallback((newBounds, oldBounds) => {
         if (!oldBounds) return true;
 
         // preveri zoom change
-        if (Math.abs(newZoom - oldZoom) > 0.5) return true;
+        if (Math.abs(map.current.getZoom() - lastZoom) > 0.5) return true;
 
         const threshold = 0.001;
         return (
@@ -38,17 +45,22 @@ export default function Zemljevid() {
             Math.abs(newBounds.getNorth() - oldBounds.getNorth()) > threshold ||
             Math.abs(newBounds.getSouth() - oldBounds.getSouth()) > threshold
         );
+    }, [lastZoom]);
+
+    // Handler za izbiro nepremičnine
+    const handlePropertySelect = useCallback((propertyData) => {
+        setSelectedProperty(propertyData);
+        setShowPropertyDetails(true);
     }, []);
 
-
-    // pridobitev podatkov iz backenda, prikaže samo trenutno vidne
+    // pridobitev podatkov iz backenda - uporabljamo ref za data source type
     const fetchPropertiesForViewport = useCallback(async () => {
         if (!map.current || isLoading) return;
 
         const currentBounds = map.current.getBounds();
         const currentZoom = map.current.getZoom();
 
-        if (!hasBoundsChanged(currentBounds, lastBounds, currentZoom, lastZoom)) {
+        if (!hasBoundsChanged(currentBounds, lastBounds)) {
             console.log('meje in zoom enaki, ne gettam');
             return;
         }
@@ -58,8 +70,13 @@ export default function Zemljevid() {
         try {
             const bbox = `${currentBounds.getWest()},${currentBounds.getSouth()},${currentBounds.getEast()},${currentBounds.getNorth()}`;
 
-            const currentZoom = map.current.getZoom();
-            const response = await fetch(`http://localhost:8000/properties/geojson?bbox=${bbox}&zoom=${currentZoom}&data_source=np`);
+            // Pridobivanje current data sourca
+            const currentDataSourceType = dataSourceTypeRef.current;
+            const dataSource = currentDataSourceType === 'prodaja' ? 'kpp' : 'np';
+            
+            console.log(`Nalagam podatke za tip: ${currentDataSourceType}, data_source=${dataSource}`);
+            
+            const response = await fetch(`http://localhost:8000/properties/geojson?bbox=${bbox}&zoom=${currentZoom}&data_source=${dataSource}`);
 
             if (!response.ok) {
                 throw new Error(`HTTP error: ${response.status}`);
@@ -78,8 +95,6 @@ export default function Zemljevid() {
                 map.current.removeSource('clusters');
             }
 
-
-
             const individualFeatures = geojson.features.filter(f => f.properties.type === 'individual');
             const clusterFeatures = geojson.features.filter(f => f.properties.type === 'cluster');
 
@@ -92,6 +107,10 @@ export default function Zemljevid() {
                         features: individualFeatures
                     }
                 });
+
+                // Different colors based on data source type - use ref value
+                const circleColor = currentDataSourceType === 'prodaja' ? '#3B82F6' : '#10B981';
+                const strokeColor = currentDataSourceType === 'prodaja' ? '#1D4ED8' : '#059669';
 
                 map.current.addLayer({
                     id: 'properties-layer',
@@ -106,15 +125,15 @@ export default function Zemljevid() {
                             12, 6,
                             16, 10
                         ],
-                        'circle-color': '#3B82F6',
+                        'circle-color': circleColor,
                         'circle-opacity': 0.7,
                         'circle-stroke-width': 1,
-                        'circle-stroke-color': '#1D4ED8'
+                        'circle-stroke-color': strokeColor
                     }
                 });
             }
 
-            // Add deli stavb clusters
+            // Add deli stavb clusterje
             if (clusterFeatures.length > 0) {
                 map.current.addSource('clusters', {
                     type: 'geojson',
@@ -123,6 +142,11 @@ export default function Zemljevid() {
                         features: clusterFeatures
                     }
                 });
+
+                // Razlicne barve clusterjev glede na datasource
+                const clusterColors = currentDataSourceType === 'prodaja' 
+                    ? ['#51bbd6', '#f1c40f', '#e67e22', '#e74c3c']
+                    : ['#34D399', '#10B981', '#059669', '#047857'];
 
                 map.current.addLayer({
                     id: 'clusters-layer',
@@ -142,10 +166,10 @@ export default function Zemljevid() {
                             'interpolate',
                             ['linear'],
                             ['get', 'point_count'],
-                            1, '#51bbd6',
-                            100, '#f1c40f',
-                            1000, '#e67e22',
-                            10000, '#e74c3c'
+                            1, clusterColors[0],
+                            100, clusterColors[1],
+                            1000, clusterColors[2],
+                            10000, clusterColors[3]
                         ],
                         'circle-opacity': 0.8,
                         'circle-stroke-width': 2,
@@ -176,177 +200,15 @@ export default function Zemljevid() {
                 });
             }
 
-            // Remove old click handlers
-            if (map.current._propertiesClickHandler) {
-                map.current.off('click', 'properties-layer', map.current._propertiesClickHandler);
-                map.current.off('click', 'clusters-layer', map.current._propertiesClickHandler);
-            }
-
-            // Add click handlers
-            map.current._propertiesClickHandler = (e) => {
-                const features = e.features[0];
-                const properties = features.properties;
-
-                let popupContent = '';
-
-                if (properties.type === 'individual') {
-                    // Sestavi naslov z ulico in hišno številko, če obstajata
-                    const naslov = `${properties.ulica || ''} ${properties.hisna_stevilka || ''}`.trim();
-
-                    popupContent = `
-    <div class="font-sans bg-white rounded-lg overflow-hidden">
-        <!-- Modro zglavje -->
-        <div class="bg-[rgb(59,130,246)] text-white p-4">
-            ${naslov ? `<h3 class="font-bold text-lg mb-1">${naslov}</h3>` :
-                            properties.naselje ? `<p class="text-white">${properties.naselje}</p>` : ''}
-        </div>
-        
-        <!-- Vsebina -->
-        <div class="p-4">
-            <div class="grid grid-cols-2 gap-y-2 text-sm">
-                
-                ${properties.obcina ? `
-                <div class="text-gray-600">Občina:</div>
-                <div class="font-medium">${properties.obcina}</div>
-                ` : ''}
-                
-                ${properties.naselje ? `
-                <div class="text-gray-600">Naselje:</div>
-                <div class="font-medium">${properties.naselje}</div>
-                ` : ''}
-                
-                ${(properties.ulica && !naslov) ? `
-                <div class="text-gray-600">Ulica:</div>
-                <div class="font-medium">${properties.ulica}</div>
-                ` : ''}
-                
-                ${(properties.hisna_stevilka && !naslov) ? `
-                <div class="text-gray-600">Hišna številka:</div>
-                <div class="font-medium">${properties.hisna_stevilka}</div>
-                ` : ''}
-
-                ${properties.povrsina ? `
-                <div class="text-gray-600">Površina:</div>
-                <div class="font-medium">${properties.povrsina} m²</div>
-                ` : ''}
-                
-                ${properties.dejanska_raba ? `
-                <div class="text-gray-600">Raba:</div>
-                <div class="font-medium">${properties.dejanska_raba}</div>
-                ` : ''}
-                
-                ${properties.leto ? `
-                <div class="text-gray-600">Leto:</div>
-                <div class="font-medium">${properties.leto}</div>
-                ` : ''}
-            </div>
-            
-            <!-- Moder gumb za podrobnosti -->
-            <div class="mt-4 text-center">
-                <button 
-                    class="bg-[rgb(59,130,246)] hover:bg-[rgb(29,100,216)] text-white py-2 px-4 rounded text-sm transition-colors duration-200 w-full"
-                    id="btnShowDetails_${properties.id}"
-                >
-                    Podrobnosti
-                </button>
-            </div>
-        </div>
-    </div>
-`;
-
-                } else if (properties.type === 'cluster') {
-                    console.log(properties.obcine.length + " - " + JSON.stringify(properties))
-                    const obcineText = properties.obcine && properties.obcine.length > 1000000
-                        ? properties.obcine.slice(0, 3).join(', ') + (properties.obcine.length > 3 ? '...' : '')
-                        : 'N/A';
-
-                    popupContent = `
-            <div class="p-4 font-sans bg-white rounded-lg">
-                <div class="mb-3 pb-2 border-b border-gray-200">
-                    <h3 class="font-bold text-lg" style="color: rgb(59, 130, 246);">Cluster informacije</h3>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-y-2 text-sm">
-                    <div class="text-gray-600">Število objektov:</div>
-                    <div class="font-medium">${properties.point_count}</div>
-                    
-                    ${properties.avg_povrsina ? `
-                    <div class="text-gray-600">Povprečna površina:</div>
-                    <div class="font-medium">${Math.round(properties.avg_povrsina)} m²</div>
-                    ` : ''}
-                    
-                    <div class="text-gray-600">Občine:</div>
-                    <div class="font-medium">${obcineText}</div>
-                </div>
-                
-                <div class="mt-4 pt-2 border-t border-gray-200 text-center">
-                    <p class="text-sm flex items-center justify-center cursor-pointer" style="color: rgb(59, 130, 246);">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                        </svg>
-                        Približaj za več detajlov
-                    </p>
-                </div>
-            </div>
-        `;
-                }
-
-                const popup = new maplibregl.Popup({
-                    closeButton: true,
-                    closeOnClick: true,
-                    maxWidth: '320px',
-                    className: 'custom-popup'
-                })
-                    .setLngLat(e.lngLat)
-                    .setHTML(popupContent)
-                    .addTo(map.current);
-
-                if (properties.type === 'individual') {
-                    // Počakamo, da se DOM naloži
-                    setTimeout(() => {
-                        const detailsButton = document.getElementById(`btnShowDetails_${properties.id}`);
-                        if (detailsButton) {
-                            detailsButton.addEventListener('click', () => {
-                                // Shranimo podatke o nepremičnini
-                                const propertyData = { ...properties };
-                                setSelectedProperty(propertyData);
-                                setShowPropertyDetails(true);
-
-                                // Zapremo popup
-                                popup.remove();
-                            });
-                        }
-                    }, 100);
-                }
-            };
-
-            // Add click handlers for both layers
-            if (individualFeatures.length > 0) {
-                map.current.on('click', 'properties-layer', map.current._propertiesClickHandler);
-            }
-            if (clusterFeatures.length > 0) {
-                map.current.on('click', 'clusters-layer', map.current._propertiesClickHandler);
-            }
-
-            // miška hover
-            if (!map.current._propertiesHoverHandler) {
-                map.current._propertiesHoverHandler = () => {
-                    map.current.getCanvas().style.cursor = 'pointer';
-                };
-
-                map.current._propertiesLeaveHandler = () => {
-                    map.current.getCanvas().style.cursor = '';
-                };
-
-                map.current.on('mouseenter', 'properties-layer', map.current._propertiesHoverHandler);
-                map.current.on('mouseleave', 'properties-layer', map.current._propertiesLeaveHandler);
+            // Nastavimo popupe in click handlere preko PopupManager
+            if (popupManager.current) {
+                popupManager.current.setupEventHandlers(handlePropertySelect);
             }
 
             setLastBounds(currentBounds);
             setLastZoom(currentZoom);
 
-
-            console.log(`Naložil ${geojson.features.length} del stavb`);
+            console.log(`Naložil ${geojson.features.length} del stavb za tip: ${currentDataSourceType}`);
             setPropertiesLoaded(true);
 
         } catch (error) {
@@ -355,7 +217,23 @@ export default function Zemljevid() {
             setIsLoading(false);
         }
 
-    }, [isLoading, lastBounds, hasBoundsChanged]);
+    }, [isLoading, lastBounds, hasBoundsChanged, handlePropertySelect]);
+
+    // Handler za spremembo data sourca (najem, nakup)
+    const handleDataSourceChange = useCallback((newType) => {
+        console.log(`Menjam data source type na: ${newType}`);
+        setDataSourceType(newType);
+        // Reset bounds to force new data load
+        setLastBounds(null);
+    }, []);
+
+    // Effect da realoada data ko se datasource change-a
+    useEffect(() => {
+        if (map.current && map.current.loaded()) {
+            console.log(`Data source type spremenjen na: ${dataSourceType}, reload podatkov`);
+            fetchPropertiesForViewport();
+        }
+    }, [dataSourceType, fetchPropertiesForViewport]);
 
     useEffect(() => {
         if (!map.current && mapContainer.current) {
@@ -394,14 +272,16 @@ export default function Zemljevid() {
                     });
                 }
 
+                // Inicializacija PopupManager-a
+                popupManager.current = new PopupManager(map.current);
+                
                 fetchPropertiesForViewport();
-
             });
 
-            // timeout po premiku za dele stavb get
+            // Store the event listener - without useCallback to avoid closure issues
             let timeoutId;
             const handleMoveEnd = () => {
-                console.log('Map move');
+                console.log(`Map move - trenutni data source type: ${dataSourceTypeRef.current}`);
                 clearTimeout(timeoutId);
                 timeoutId = setTimeout(() => {
                     fetchPropertiesForViewport();
@@ -420,12 +300,10 @@ export default function Zemljevid() {
                 if (map.current._moveEndHandler) {
                     map.current.off('moveend', map.current._moveEndHandler);
                 }
-                if (map.current._propertiesClickHandler) {
-                    map.current.off('click', 'properties-layer', map.current._propertiesClickHandler);
-                }
-                if (map.current._propertiesHoverHandler) {
-                    map.current.off('mouseenter', 'properties-layer', map.current._propertiesHoverHandler);
-                    map.current.off('mouseleave', 'properties-layer', map.current._propertiesLeaveHandler);
+                
+                // Cleanup preko PopupManager
+                if (popupManager.current) {
+                    popupManager.current.cleanup();
                 }
 
                 map.current.remove();
@@ -443,7 +321,6 @@ export default function Zemljevid() {
         if (searchResult.coordinates && searchResult.coordinates.length === 2) {
             const [lng, lat] = searchResult.coordinates;
 
-
             // Mapo zoomne in
             map.current.flyTo({
                 center: [lng, lat],
@@ -452,12 +329,9 @@ export default function Zemljevid() {
                 essential: true
             });
         } else if (searchResult.query) {
-
             console.log("ni lokacije brt");
         }
     };
-
-
 
     return (
         <>
@@ -483,10 +357,8 @@ export default function Zemljevid() {
                 </div>
             )}
 
-
-
             <Filter />
-            <Switcher />
+            <Switcher activeType={dataSourceType} onChangeType={handleDataSourceChange} />
             <Iskalnik onSearch={handleSearch} />
 
             {showPropertyDetails && selectedProperty && (
@@ -499,7 +371,6 @@ export default function Zemljevid() {
                     }}
                 />
             )}
-
         </>
     );
 }
