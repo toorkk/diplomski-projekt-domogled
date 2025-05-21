@@ -1,4 +1,17 @@
-CREATE TABLE kpp_del_stavbe (
+CREATE SCHEMA IF NOT EXISTS staging;
+
+
+DROP TABLE IF EXISTS staging.kpp_sifrant;
+CREATE TABLE staging.kpp_sifrant (
+    id INTEGER,
+    sifrant VARCHAR(100),
+    numericna_vrednost INTEGER,
+    opis TEXT
+);
+
+
+DROP TABLE IF EXISTS staging.kpp_del_stavbe;
+CREATE TABLE staging.kpp_del_stavbe (
     id_posla INTEGER,
     sifra_ko INTEGER,
     ime_ko VARCHAR(100),
@@ -12,7 +25,7 @@ CREATE TABLE kpp_del_stavbe (
     ulica VARCHAR(100),
     hisna_stevilka VARCHAR(20),
     dodatek_hs VARCHAR(10),
-    stevilka_stanovanja_ali_poslovnega_prostora VARCHAR(20),
+    stevilka_stanovanja_ali_poslovnega_prostora INTEGER,
     vrsta_dela_stavbe INTEGER,
     leto_izgradnje_dela_stavbe INTEGER,
     stavba_je_dokoncana INTEGER,
@@ -41,26 +54,30 @@ CREATE TABLE kpp_del_stavbe (
 );
 
 
-CREATE TABLE kpp_posel (
+DROP TABLE IF EXISTS staging.kpp_posel;
+CREATE TABLE staging.kpp_posel (
     id_posla INTEGER,
     vrsta_kupoprodajnega_posla INTEGER,
-    datum_uveljavitve DATE,
-    datum_sklenitve_pogodbe DATE,
+    datum_uveljavitve TEXT,
+    datum_sklenitve_pogodbe TEXT,
     pogodbena_cena_odskodnina NUMERIC(12,2),
     vkljucenost_ddv INTEGER,
     stopnja_ddv NUMERIC(5,2),
-    datum_izteka_lizinga DATE,
-    datum_prenehanja_lizinga DATE,
+    datum_izteka_lizinga TEXT,
+    datum_prenehanja_lizinga TEXT,
     opombe_o_pravnem_poslu TEXT,
     posredovanje_nepremicninske_agencije INTEGER,
-    datum_zadnje_spremembe_posla DATE,
-    datum_zadnje_uveljavitve_posla DATE,
+    datum_zadnje_spremembe_posla TEXT,
+    datum_zadnje_uveljavitve_posla TEXT,
     vrsta_akta INTEGER,
     trznost_posla INTEGER,
     leto INTEGER
 );
 
-CREATE TABLE kpp_zemljisce (
+
+
+DROP TABLE IF EXISTS staging.kpp_zemljisce;
+CREATE TABLE staging.kpp_zemljisce (
     id_posla INTEGER,
     sifra_ko INTEGER,
     ime_ko VARCHAR(100),
@@ -77,12 +94,4 @@ CREATE TABLE kpp_zemljisce (
     e_centroid NUMERIC(10,2),
     n_centroid NUMERIC(10,2),
     leto INTEGER
-);
-
-
-CREATE TABLE kpp_sifrant (
-    id INTEGER,
-    sifrant VARCHAR(100),
-    numericna_vrednost INTEGER,
-    opis TEXT,
 );

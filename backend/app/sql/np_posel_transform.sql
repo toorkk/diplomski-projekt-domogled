@@ -1,6 +1,6 @@
 INSERT INTO core.np_posel (
 posel_id,
-vrsta_posla_code,
+vrsta_posla,
 
 datum_uveljavitve,
 datum_sklenitve,

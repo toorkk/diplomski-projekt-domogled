@@ -13,13 +13,15 @@ import json
 from .sql_utils import get_sql_query, execute_sql_file, execute_sql_count
 
 class YearFilter(logging.Filter):
-    """Filter that adds the current ingestion year to all log records."""
+    """Filter ki doda leto podatkov k vsem log-om."""
     def __init__(self, name=''):
         super().__init__(name)
         self.current_year = "N/A"
+        self.current_type = "N/A"
         
     def filter(self, record):
         record.ingestion_year = self.current_year
+        record.ingestion_type = self.current_type
         return True
 
 year_filter = YearFilter()
@@ -32,7 +34,7 @@ stream_handler.addFilter(year_filter)
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - [leto:%(ingestion_year)s] - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelname)s - [leto:%(ingestion_year)s][tip:%(ingestion_type)s] - %(message)s',
     handlers=[file_handler, stream_handler]
 )
 logger = logging.getLogger("data_ingestion")
@@ -42,17 +44,24 @@ class DataIngestionService:
         self.db_url = db_url
         self.engine = create_engine(db_url)
         
-    async def download_data(self, filter_param: str, filter_value: str, filter_year: str) -> str:
+    async def download_data(self, filter_param: str, filter_value: str, filter_year: str, data_type: str) -> str:
         """Prenese podatke iz API-ja in vrne pot do prenesene datoteke."""
         try:
-            api_url = "https://ipi.eprostor.gov.si/jgp-service-api/display-views/groups/127/composite-products/322/file"
+            # Določanje pravega API URL-ja glede na tip podatkov
+            if data_type == "np":
+                # API URL za najemne posle (np)
+                api_url = "https://ipi.eprostor.gov.si/jgp-service-api/display-views/groups/127/composite-products/322/file"
+            else:
+                # API URL za kupoprodajne posle (kpp)
+                api_url = "https://ipi.eprostor.gov.si/jgp-service-api/display-views/groups/127/composite-products/321/file"
+            
             params = {
                 "filterParam": filter_param,
                 "filterValue": filter_value,
                 "filterYear": filter_year
             }
             
-            logger.info(f"Prenašanje metapodatkov. Parametri: {params}")
+            logger.info(f"Prenašanje {data_type} metapodatkov. Parametri: {params}")
             
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
@@ -88,7 +97,7 @@ class DataIngestionService:
                 
                 # Ustvarjanje začasnega direktorija in shranjevanje datoteke
                 temp_dir = tempfile.mkdtemp()
-                zip_path = os.path.join(temp_dir, "downloaded_data.zip")
+                zip_path = os.path.join(temp_dir, f"{data_type}_downloaded_data.zip")
                 
                 with open(zip_path, 'wb') as f:
                     for chunk in file_response.iter_content(chunk_size=8192):
@@ -117,7 +126,7 @@ class DataIngestionService:
             logger.error(f"Napaka pri prenosu podatkov: {str(e)}")
             raise
 
-    def extract_files(self, zip_path: str) -> Dict[str, str]:
+    def extract_files(self, zip_path: str, data_type: str) -> Dict[str, str]:
         """Razbere datoteke iz ZIP arhiva in vrne poti."""
         try:
             extract_dir = os.path.dirname(zip_path)
@@ -126,21 +135,39 @@ class DataIngestionService:
                 zip_ref.extractall(extract_dir)
                 
                 # Preslikava pričakovanih CSV datotek v tabele
-                csv_mapping = {
-                    'sifranti': None,
-                    'np_del_stavbe': None,
-                    'np_posel': None
-                }
-                
-                # Iskanje CSV datotek v ekstrahirani vsebini
-                for file in zip_ref.namelist():
-                    if file.endswith('.csv'):
-                        if 'sifranti' in file.lower():
-                            csv_mapping['sifranti'] = os.path.join(extract_dir, file)
-                        elif 'np_delistavb' in file.lower():
-                            csv_mapping['np_del_stavbe'] = os.path.join(extract_dir, file)
-                        elif 'np_posli' in file.lower():
-                            csv_mapping['np_posel'] = os.path.join(extract_dir, file)
+                if data_type == "np":
+                    csv_mapping = {
+                        'sifranti': None,
+                        'np_del_stavbe': None,
+                        'np_posel': None
+                    }
+                    
+                    # Iskanje CSV datotek v ekstrahirani vsebini
+                    for file in zip_ref.namelist():
+                        if file.endswith('.csv'):
+                            if 'sifranti' in file.lower():
+                                csv_mapping['sifranti'] = os.path.join(extract_dir, file)
+                            elif 'delistavb' in file.lower():
+                                csv_mapping['np_del_stavbe'] = os.path.join(extract_dir, file)
+                            elif 'posli' in file.lower():
+                                csv_mapping['np_posel'] = os.path.join(extract_dir, file)
+                else:
+                    # KPP podatki
+                    csv_mapping = {
+                        'sifranti': None,
+                        'kpp_del_stavbe': None,
+                        'kpp_posel': None
+                    }
+                    
+                    # Iskanje CSV datotek v ekstrahirani vsebini
+                    for file in zip_ref.namelist():
+                        if file.endswith('.csv'):
+                            if 'sifranti' in file.lower():
+                                csv_mapping['sifranti'] = os.path.join(extract_dir, file)
+                            elif 'delistavb' in file.lower():
+                                csv_mapping['kpp_del_stavbe'] = os.path.join(extract_dir, file)
+                            elif 'posli' in file.lower():
+                                csv_mapping['kpp_posel'] = os.path.join(extract_dir, file)
             
             # Preverjanje, ali so vse zahtevane datoteke najdene
             missing_files = [k for k, v in csv_mapping.items() if v is None]
@@ -154,12 +181,15 @@ class DataIngestionService:
             logger.error(f"Napaka pri ekstrahiranju datotek: {str(e)}")
             raise
     
-    def import_to_staging(self, csv_files: Dict[str, str]):
+    def import_to_staging(self, csv_files: Dict[str, str], data_type: str):
         """Uvozi CSV podatke v staging tabele."""
         try:
-            # Ustvarjanje staging tabel
-            logger.info("Ustvarjanje staging tabel")
-            execute_sql_file(self.engine, 'create_staging_tables.sql')
+            # Ustvarjanje staging tabel za ustrezen tip podatkov
+            logger.info(f"Ustvarjanje staging tabel za {data_type}")
+            if data_type == "np":
+                execute_sql_file(self.engine, 'np_staging.sql')
+            else:
+                execute_sql_file(self.engine, 'kpp_staging.sql')
             
             # Uvoz CSV datotek v ustrezne staging tabele
             for table_name, file_path in csv_files.items():
@@ -203,35 +233,44 @@ class DataIngestionService:
             logger.error(f"Napaka pri uvozu v staging: {str(e)}")
             raise
 
-    def transform_to_core(self, filter_year: str):
+
+    def transform_to_core(self, filter_year: str, data_type: str):
         """Pretvori podatke iz staging v core tabele."""
         try:
             # Preverjanje, ali so staging tabele napolnjene
-            staging_np_del_stavbe_count = execute_sql_count(self.engine, 'staging', 'np_del_stavbe')
-            staging_np_posel_count = execute_sql_count(self.engine, 'staging', 'np_posel')
-            logger.info(f"Podatki v staging: np_del_stavbe={staging_np_del_stavbe_count}, np_posel={staging_np_posel_count}")
+            if data_type == "np":
+                staging_del_stavbe_count = execute_sql_count(self.engine, 'staging', 'np_del_stavbe')
+                staging_posel_count = execute_sql_count(self.engine, 'staging', 'np_posel')
+                table_prefix = "np"
+            else:
+                staging_del_stavbe_count = execute_sql_count(self.engine, 'staging', 'kpp_del_stavbe')
+                staging_posel_count = execute_sql_count(self.engine, 'staging', 'kpp_posel')
+                table_prefix = "kpp"
             
-            if staging_np_del_stavbe_count == 0 or staging_np_posel_count == 0:
+            logger.info(f"Podatki v staging: {table_prefix}_del_stavbe={staging_del_stavbe_count}, {table_prefix}_posel={staging_posel_count}")
+            
+            if staging_del_stavbe_count == 0 or staging_posel_count == 0:
                 logger.warning(f"Staging tabele so prazne! Ne morem nadaljevati s transformacijo.")
                 return
             
-            # Preverjanje, koliko zapisov ima vrsta_oddanih_prostorov = 1 ali 2
-            try:
-                with self.engine.connect() as conn:
-                    count_filtered = conn.execute(text("SELECT COUNT(*) FROM staging.np_del_stavbe WHERE vrsta_oddanih_prostorov IN (1, 2)")).scalar()
-                    logger.info(f"Število zapisov v staging.np_del_stavbe z vrsta_oddanih_prostorov IN (1, 2): {count_filtered} od {staging_np_del_stavbe_count} ({round(count_filtered/staging_np_del_stavbe_count*100, 2)}%)")
-            except Exception as e:
-                logger.warning(f"Napaka pri štetju filtriranih zapisov: {str(e)}")
+            # Preverjanje, koliko zapisov ima vrsta_oddanih_prostorov = 1 ali 2 (samo za np)
+            if data_type == "np":
+                try:
+                    with self.engine.connect() as conn:
+                        count_filtered = conn.execute(text("SELECT COUNT(*) FROM staging.np_del_stavbe WHERE vrsta_oddanih_prostorov IN (1, 2)")).scalar()
+                        logger.info(f"Število zapisov v staging.np_del_stavbe z vrsta_oddanih_prostorov IN (1, 2): {count_filtered} od {staging_del_stavbe_count} ({round(count_filtered/staging_del_stavbe_count*100, 2)}%)")
+                except Exception as e:
+                    logger.warning(f"Napaka pri štetju filtriranih zapisov: {str(e)}")
             
             # Najprej izbrišemo obstoječe podatke samo za to leto (če obstajajo)
             try:
                 with self.engine.connect() as conn:
                     trans = conn.begin()
                     try:
-                        del_result = conn.execute(text(f"DELETE FROM core.np_del_stavbe WHERE leto = {filter_year}"))
-                        np_posel_result = conn.execute(text(f"DELETE FROM core.np_posel WHERE leto = {filter_year}"))
+                        del_result = conn.execute(text(f"DELETE FROM core.{table_prefix}_del_stavbe WHERE leto = {filter_year}"))
+                        posel_result = conn.execute(text(f"DELETE FROM core.{table_prefix}_posel WHERE leto = {filter_year}"))
                         trans.commit()
-                        logger.info(f"Obstoječi podatki so bili izbrisani iz core tabel. Izbrisanih np_del_stavbe: {del_result.rowcount}, np_posel: {np_posel_result.rowcount}")
+                        logger.info(f"Obstoječi podatki so bili izbrisani iz core tabel. Izbrisanih {table_prefix}_del_stavbe: {del_result.rowcount}, {table_prefix}_posel: {posel_result.rowcount}")
                     except Exception as e:
                         trans.rollback()
                         logger.error(f"Napaka pri brisanju obstoječih podatkov: {str(e)}")
@@ -240,50 +279,50 @@ class DataIngestionService:
                 logger.error(f"Napaka povezave pri brisanju obstoječih podatkov: {str(e)}")
                 raise
             
-            # Pretvorba podatkov za np_del_stavbe
-            logger.info(f"Pretvarjanje podatkov v core.np_del_stavbe")
+            # Pretvorba podatkov za del_stavbe
+            logger.info(f"Pretvarjanje podatkov v core.{table_prefix}_del_stavbe")
             try:
                 with self.engine.connect() as conn:
                     trans = conn.begin()
                     try:
-                        sql_query = get_sql_query('np_del_stavbe_transform.sql')
+                        sql_query = get_sql_query(f'{table_prefix}_del_stavbe_transform.sql')
                         result = conn.execute(text(sql_query))
-                        logger.info(f"Transformacija np_del_stavbe: vplivala na {result.rowcount} vrstic")
+                        logger.info(f"Transformacija {table_prefix}_del_stavbe: vplivala na {result.rowcount} vrstic")
                         trans.commit()
                     except Exception as e:
                         trans.rollback()
-                        logger.error(f"Napaka pri transformaciji np_del_stavbe: {str(e)}")
+                        logger.error(f"Napaka pri transformaciji {table_prefix}_del_stavbe: {str(e)}")
                         raise
             except Exception as e:
-                logger.error(f"Napaka povezave pri transformaciji np_del_stavbe: {str(e)}")
+                logger.error(f"Napaka povezave pri transformaciji {table_prefix}_del_stavbe: {str(e)}")
                 raise
             
-            # Pretvorba podatkov za np_posel
-            logger.info(f"Pretvarjanje podatkov v core.np_posel")
+            # Pretvorba podatkov za posel
+            logger.info(f"Pretvarjanje podatkov v core.{table_prefix}_posel")
             try:
                 with self.engine.connect() as conn:
                     trans = conn.begin()
                     try:
                         # Uporabimo originalno SQL poizvedbo
-                        sql_query = get_sql_query('np_posel_transform.sql')
+                        sql_query = get_sql_query(f'{table_prefix}_posel_transform.sql')
                         result = conn.execute(text(sql_query))
-                        logger.info(f"Transformacija np_posel: vplivala na {result.rowcount} vrstic")
+                        logger.info(f"Transformacija {table_prefix}_posel: vplivala na {result.rowcount} vrstic")
                         trans.commit()
                     except Exception as e:
                         trans.rollback()
-                        logger.error(f"Napaka pri transformaciji np_posel: {str(e)}")
+                        logger.error(f"Napaka pri transformaciji {table_prefix}_posel: {str(e)}")
                         raise
             except Exception as e:
-                logger.error(f"Napaka povezave pri transformaciji np_posel: {str(e)}")
+                logger.error(f"Napaka povezave pri transformaciji {table_prefix}_posel: {str(e)}")
                 raise
             
             # Preverjanje števila vnosov v core tabelah
-            np_del_stavbe_count = execute_sql_count(self.engine, 'core', 'np_del_stavbe')
-            np_posel_count = execute_sql_count(self.engine, 'core', 'np_posel')
+            del_stavbe_count = execute_sql_count(self.engine, 'core', f'{table_prefix}_del_stavbe')
+            posel_count = execute_sql_count(self.engine, 'core', f'{table_prefix}_posel')
             
-            logger.info(f"Pretvorba podatkov zaključena. Število vrstic: core.np_del_stavbe: {np_del_stavbe_count}, core.np_posel: {np_posel_count}")
+            logger.info(f"Pretvorba podatkov zaključena. Število vrstic: core.{table_prefix}_del_stavbe: {del_stavbe_count}, core.{table_prefix}_posel: {posel_count}")
             
-            if np_del_stavbe_count == 0 or np_posel_count == 0:
+            if del_stavbe_count == 0 or posel_count == 0:
                 logger.warning(f"Transformacija je bila izvedena brez napak, vendar podatki niso bili vstavljeni!")
             
         except Exception as e:
@@ -298,26 +337,31 @@ class DataIngestionService:
         except Exception as e:
             logger.error(f"Napaka pri čiščenju začasnega direktorija: {str(e)}")
     
-    async def run_ingestion(self, filter_param: str, filter_value: str, filter_year: str) -> Dict[str, Any]:
+    async def run_ingestion(self, filter_param: str, filter_value: str, filter_year: str, data_type: str = "np") -> Dict[str, Any]:
         """Zažene celoten proces vnosa podatkov."""
         try:
-
+            # Nastavimo vrednosti za logger
             year_filter.current_year = filter_year
+            year_filter.current_type = data_type
 
-            logger.info(f"Začenjam vnos podatkov")
+            logger.info(f"Začenjam vnos podatkov tipa {data_type}")
             
-            zip_path = await self.download_data(filter_param, filter_value, filter_year)
+            # Prenesi podatke s prilagojenim API URLjem glede na data_type
+            zip_path = await self.download_data(filter_param, filter_value, filter_year, data_type)
             temp_dir = os.path.dirname(zip_path)
             
-            csv_files = self.extract_files(zip_path)
+            # Ekstrahiraj datoteke s prilagojenimi vzorci imen datotek
+            csv_files = self.extract_files(zip_path, data_type)
             
-            self.import_to_staging(csv_files)
+            # Uvozi v staging tabele (različna skripta za np in kpp)
+            self.import_to_staging(csv_files, data_type)
             
-            self.transform_to_core(filter_year)
+            # Pretvori v core tabele (različna skripta za np in kpp)
+            self.transform_to_core(filter_year, data_type)
             
             self.cleanup(temp_dir)
             
-            return {"status": "success", "message": f"Vnos podatkov uspešno zaključen"}
+            return {"status": "success", "message": f"Vnos podatkov tipa {data_type} uspešno zaključen"}
             
         except Exception as e:
             logger.error(f"Napaka pri vnosu podatkov: {str(e)}")

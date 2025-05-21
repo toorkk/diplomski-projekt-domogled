@@ -78,7 +78,7 @@ export default function Zemljevid() {
             const bbox = `${currentBounds.getWest()},${currentBounds.getSouth()},${currentBounds.getEast()},${currentBounds.getNorth()}`;
 
             const currentZoom = map.current.getZoom();
-            const response = await fetch(`http://localhost:8000/properties/geojson?bbox=${bbox}&zoom=${currentZoom}`);
+            const response = await fetch(`http://localhost:8000/properties/geojson?bbox=${bbox}&zoom=${currentZoom}&data_source=np`);
 
             if (!response.ok) {
                 throw new Error(`HTTP error: ${response.status}`);

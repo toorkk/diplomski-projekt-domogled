@@ -32,7 +32,7 @@ CREATE TABLE staging.np_del_stavbe (
   nakupovalni_center                          SMALLINT,
   povrsina_oddanih_prostorov                  NUMERIC(10,2),
   povrsina_oddanih_prostorov_enaka_delu_stavbe BOOLEAN,
-  pogodbena_najemnina_posameznih_oddanih_prostorov NUMERIC(10,2),
+  pogodbena_najemnina_posameznih_oddanih_prostorov NUMERIC,
   opombe_o_oddanih_prostorih                   TEXT,
   leto_izgradnje_stavbe                       INTEGER,
   dejanska_raba_dela_stavbe                   TEXT,
