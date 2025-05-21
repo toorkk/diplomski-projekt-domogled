@@ -55,7 +55,7 @@ SELECT
 
   d.VRSTA_ODDANIH_PROSTOROV,
   s1.opis
-FROM staging.del_stavbe d
+FROM staging.np_del_stavbe d
 LEFT JOIN staging.sifranti s1 ON s1.sifrant='Vrsta oddanih prostorov' AND s1.numericna_vrednost=d.VRSTA_ODDANIH_PROSTOROV::TEXT;
 
 -- 4.2 napolni core.posel
@@ -106,7 +106,7 @@ SELECT
   TO_DATE(p.DATUM_ZADNJE_SPREMEMBE_POSLA, 'DD.MM.YYYY'),
   TO_DATE(p.DATUM_ZADNJE_UVELJAVITVE_POSLA, 'DD.MM.YYYY'),
   p.LETO
-FROM staging.posel p
+FROM staging.np_posel p
 LEFT JOIN staging.sifranti s1 ON s1.sifrant='Vrsta najemnega posla' AND s1.numericna_vrednost=p.VRSTA_NAJEMNEGA_POSLA::TEXT
 LEFT JOIN staging.sifranti s3 ON s3.sifrant='Tržnost posla' AND s3.numericna_vrednost=p.TRZNOST_POSLA::TEXT
 LEFT JOIN staging.sifranti s4 ON s4.sifrant='Vrsta akta' AND s4.numericna_vrednost=p.VRSTA_AKTA::TEXT;

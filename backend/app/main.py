@@ -26,7 +26,7 @@ Base = declarative_base()
 
 #definicija sheme baze
 class DelStavbe(Base):
-    __tablename__ = "del_stavbe"
+    __tablename__ = "np_del_stavbe"
     __table_args__ = {"schema": "core"}
     
     del_stavbe_id = Column(Integer, primary_key=True)

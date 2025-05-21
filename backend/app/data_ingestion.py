@@ -128,8 +128,8 @@ class DataIngestionService:
                 # Preslikava pričakovanih CSV datotek v tabele
                 csv_mapping = {
                     'sifranti': None,
-                    'del_stavbe': None,
-                    'posel': None
+                    'np_del_stavbe': None,
+                    'np_posel': None
                 }
                 
                 # Iskanje CSV datotek v ekstrahirani vsebini
@@ -137,10 +137,10 @@ class DataIngestionService:
                     if file.endswith('.csv'):
                         if 'sifranti' in file.lower():
                             csv_mapping['sifranti'] = os.path.join(extract_dir, file)
-                        elif 'delistavb' in file.lower():
-                            csv_mapping['del_stavbe'] = os.path.join(extract_dir, file)
-                        elif 'posli' in file.lower():
-                            csv_mapping['posel'] = os.path.join(extract_dir, file)
+                        elif 'np_delistavb' in file.lower():
+                            csv_mapping['np_del_stavbe'] = os.path.join(extract_dir, file)
+                        elif 'np_posli' in file.lower():
+                            csv_mapping['np_posel'] = os.path.join(extract_dir, file)
             
             # Preverjanje, ali so vse zahtevane datoteke najdene
             missing_files = [k for k, v in csv_mapping.items() if v is None]
@@ -207,19 +207,19 @@ class DataIngestionService:
         """Pretvori podatke iz staging v core tabele."""
         try:
             # Preverjanje, ali so staging tabele napolnjene
-            staging_del_stavbe_count = execute_sql_count(self.engine, 'staging', 'del_stavbe')
-            staging_posel_count = execute_sql_count(self.engine, 'staging', 'posel')
-            logger.info(f"Podatki v staging: del_stavbe={staging_del_stavbe_count}, posel={staging_posel_count}")
+            staging_np_del_stavbe_count = execute_sql_count(self.engine, 'staging', 'np_del_stavbe')
+            staging_np_posel_count = execute_sql_count(self.engine, 'staging', 'np_posel')
+            logger.info(f"Podatki v staging: np_del_stavbe={staging_np_del_stavbe_count}, np_posel={staging_np_posel_count}")
             
-            if staging_del_stavbe_count == 0 or staging_posel_count == 0:
+            if staging_np_del_stavbe_count == 0 or staging_np_posel_count == 0:
                 logger.warning(f"Staging tabele so prazne! Ne morem nadaljevati s transformacijo.")
                 return
             
             # Preverjanje, koliko zapisov ima vrsta_oddanih_prostorov = 1 ali 2
             try:
                 with self.engine.connect() as conn:
-                    count_filtered = conn.execute(text("SELECT COUNT(*) FROM staging.del_stavbe WHERE vrsta_oddanih_prostorov IN (1, 2)")).scalar()
-                    logger.info(f"Število zapisov v staging.del_stavbe z vrsta_oddanih_prostorov IN (1, 2): {count_filtered} od {staging_del_stavbe_count} ({round(count_filtered/staging_del_stavbe_count*100, 2)}%)")
+                    count_filtered = conn.execute(text("SELECT COUNT(*) FROM staging.np_del_stavbe WHERE vrsta_oddanih_prostorov IN (1, 2)")).scalar()
+                    logger.info(f"Število zapisov v staging.np_del_stavbe z vrsta_oddanih_prostorov IN (1, 2): {count_filtered} od {staging_np_del_stavbe_count} ({round(count_filtered/staging_np_del_stavbe_count*100, 2)}%)")
             except Exception as e:
                 logger.warning(f"Napaka pri štetju filtriranih zapisov: {str(e)}")
             
@@ -228,10 +228,10 @@ class DataIngestionService:
                 with self.engine.connect() as conn:
                     trans = conn.begin()
                     try:
-                        del_result = conn.execute(text(f"DELETE FROM core.del_stavbe WHERE leto = {filter_year}"))
-                        posel_result = conn.execute(text(f"DELETE FROM core.posel WHERE leto = {filter_year}"))
+                        del_result = conn.execute(text(f"DELETE FROM core.np_del_stavbe WHERE leto = {filter_year}"))
+                        np_posel_result = conn.execute(text(f"DELETE FROM core.np_posel WHERE leto = {filter_year}"))
                         trans.commit()
-                        logger.info(f"Obstoječi podatki so bili izbrisani iz core tabel. Izbrisanih del_stavbe: {del_result.rowcount}, posel: {posel_result.rowcount}")
+                        logger.info(f"Obstoječi podatki so bili izbrisani iz core tabel. Izbrisanih np_del_stavbe: {del_result.rowcount}, np_posel: {np_posel_result.rowcount}")
                     except Exception as e:
                         trans.rollback()
                         logger.error(f"Napaka pri brisanju obstoječih podatkov: {str(e)}")
@@ -240,50 +240,50 @@ class DataIngestionService:
                 logger.error(f"Napaka povezave pri brisanju obstoječih podatkov: {str(e)}")
                 raise
             
-            # Pretvorba podatkov za del_stavbe
-            logger.info(f"Pretvarjanje podatkov v core.del_stavbe")
+            # Pretvorba podatkov za np_del_stavbe
+            logger.info(f"Pretvarjanje podatkov v core.np_del_stavbe")
             try:
                 with self.engine.connect() as conn:
                     trans = conn.begin()
                     try:
-                        sql_query = get_sql_query('del_stavbe_transform.sql')
+                        sql_query = get_sql_query('np_del_stavbe_transform.sql')
                         result = conn.execute(text(sql_query))
-                        logger.info(f"Transformacija del_stavbe: vplivala na {result.rowcount} vrstic")
+                        logger.info(f"Transformacija np_del_stavbe: vplivala na {result.rowcount} vrstic")
                         trans.commit()
                     except Exception as e:
                         trans.rollback()
-                        logger.error(f"Napaka pri transformaciji del_stavbe: {str(e)}")
+                        logger.error(f"Napaka pri transformaciji np_del_stavbe: {str(e)}")
                         raise
             except Exception as e:
-                logger.error(f"Napaka povezave pri transformaciji del_stavbe: {str(e)}")
+                logger.error(f"Napaka povezave pri transformaciji np_del_stavbe: {str(e)}")
                 raise
             
-            # Pretvorba podatkov za posel
-            logger.info(f"Pretvarjanje podatkov v core.posel")
+            # Pretvorba podatkov za np_posel
+            logger.info(f"Pretvarjanje podatkov v core.np_posel")
             try:
                 with self.engine.connect() as conn:
                     trans = conn.begin()
                     try:
                         # Uporabimo originalno SQL poizvedbo
-                        sql_query = get_sql_query('posel_transform.sql')
+                        sql_query = get_sql_query('np_posel_transform.sql')
                         result = conn.execute(text(sql_query))
-                        logger.info(f"Transformacija posel: vplivala na {result.rowcount} vrstic")
+                        logger.info(f"Transformacija np_posel: vplivala na {result.rowcount} vrstic")
                         trans.commit()
                     except Exception as e:
                         trans.rollback()
-                        logger.error(f"Napaka pri transformaciji posel: {str(e)}")
+                        logger.error(f"Napaka pri transformaciji np_posel: {str(e)}")
                         raise
             except Exception as e:
-                logger.error(f"Napaka povezave pri transformaciji posel: {str(e)}")
+                logger.error(f"Napaka povezave pri transformaciji np_posel: {str(e)}")
                 raise
             
             # Preverjanje števila vnosov v core tabelah
-            del_stavbe_count = execute_sql_count(self.engine, 'core', 'del_stavbe')
-            posel_count = execute_sql_count(self.engine, 'core', 'posel')
+            np_del_stavbe_count = execute_sql_count(self.engine, 'core', 'np_del_stavbe')
+            np_posel_count = execute_sql_count(self.engine, 'core', 'np_posel')
             
-            logger.info(f"Pretvorba podatkov zaključena. Število vrstic: core.del_stavbe: {del_stavbe_count}, core.posel: {posel_count}")
+            logger.info(f"Pretvorba podatkov zaključena. Število vrstic: core.np_del_stavbe: {np_del_stavbe_count}, core.np_posel: {np_posel_count}")
             
-            if del_stavbe_count == 0 or posel_count == 0:
+            if np_del_stavbe_count == 0 or np_posel_count == 0:
                 logger.warning(f"Transformacija je bila izvedena brez napak, vendar podatki niso bili vstavljeni!")
             
         except Exception as e:
