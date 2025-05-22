@@ -101,7 +101,7 @@ CREATE TABLE core.kpp_del_stavbe (
     povrsina_atrija NUMERIC(10,2),
     opombe TEXT,
     dejanska_raba VARCHAR(310),
-    lega_v_stavbi VARCHAR(20),
+    lega_v_stavbi VARCHAR(50),
     stevilo_sob INTEGER,
     povrsina NUMERIC(10,2),
     povrsina_uporabna NUMERIC(10,2),

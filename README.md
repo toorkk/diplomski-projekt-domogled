@@ -52,3 +52,5 @@ POST call
 
 POST /api/ingest-data?data_type=np&start_year=2013&end_year=2025
 POST /api/ingest-data?data_type=kpp&start_year=2007&end_year=2025
+
+definicije vseh endpointov si lahko pogledas v http://localhost:8000/docs

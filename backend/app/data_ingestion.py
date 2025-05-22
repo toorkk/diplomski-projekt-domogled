@@ -13,16 +13,27 @@ import json
 from .sql_utils import get_sql_query, execute_sql_file, execute_sql_count
 
 class YearFilter(logging.Filter):
-    """Filter ki doda leto podatkov k vsem log-om."""
-    def __init__(self, name=''):
-        super().__init__(name)
-        self.current_year = "N/A"
-        self.current_type = "N/A"
-        
-    def filter(self, record):
-        record.ingestion_year = self.current_year
-        record.ingestion_type = self.current_type
-        return True
+   """Filter ki doda leto podatkov k vsem log-om."""
+   def __init__(self, name=''):
+       super().__init__(name)
+       self.current_year = "N/A"
+       self.current_type = "N/A"
+       
+   def filter(self, record):
+       if record.getMessage().startswith("="):
+           record.is_separator = True
+       else:
+           record.ingestion_year = self.current_year
+           record.ingestion_type = self.current_type
+           record.is_separator = False
+       return True
+
+class ConditionalFormatter(logging.Formatter):
+   def format(self, record):
+       if hasattr(record, 'is_separator') and record.is_separator:
+           return record.getMessage()
+       else:
+           return super().format(record)
 
 year_filter = YearFilter()
 
@@ -32,27 +43,39 @@ stream_handler = logging.StreamHandler(sys.stdout)
 file_handler.addFilter(year_filter)
 stream_handler.addFilter(year_filter)
 
+formatter = ConditionalFormatter(
+   '%(asctime)s - %(levelname)s - [leto:%(ingestion_year)s] [%(ingestion_type)s] - %(message)s'
+)
+
+file_handler.setFormatter(formatter)
+stream_handler.setFormatter(formatter)
+
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - [leto:%(ingestion_year)s][tip:%(ingestion_type)s] - %(message)s',
-    handlers=[file_handler, stream_handler]
+   level=logging.INFO,
+   handlers=[file_handler, stream_handler]
 )
 logger = logging.getLogger("data_ingestion")
+
 
 class DataIngestionService:
     def __init__(self, db_url: str):
         self.db_url = db_url
         self.engine = create_engine(db_url)
-        
-    async def download_data(self, filter_param: str, filter_value: str, filter_year: str, data_type: str) -> str:
+    
+    
+
+    async def download_data(self, filter_year: str, data_type: str) -> str:
         """Prenese podatke iz API-ja in vrne pot do prenesene datoteke."""
         try:
-            # Določanje pravega API URL-ja glede na tip podatkov
+
+            # parametri ki jih zahteva api
+            filter_param = "DRZAVA"
+            filter_value = "1"
+
             if data_type == "np":
-                # API URL za najemne posle (np)
                 api_url = "https://ipi.eprostor.gov.si/jgp-service-api/display-views/groups/127/composite-products/322/file"
             else:
-                # API URL za kupoprodajne posle (kpp)
+                # kpp
                 api_url = "https://ipi.eprostor.gov.si/jgp-service-api/display-views/groups/127/composite-products/321/file"
             
             params = {
@@ -60,9 +83,7 @@ class DataIngestionService:
                 "filterValue": filter_value,
                 "filterYear": filter_year
             }
-            
-            logger.info(f"Prenašanje {data_type} metapodatkov. Parametri: {params}")
-            
+                        
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
                 "Accept": "*/*"
@@ -126,6 +147,9 @@ class DataIngestionService:
             logger.error(f"Napaka pri prenosu podatkov: {str(e)}")
             raise
 
+
+
+
     def extract_files(self, zip_path: str, data_type: str) -> Dict[str, str]:
         """Razbere datoteke iz ZIP arhiva in vrne poti."""
         try:
@@ -181,16 +205,12 @@ class DataIngestionService:
             logger.error(f"Napaka pri ekstrahiranju datotek: {str(e)}")
             raise
     
+
+
+
     def import_to_staging(self, csv_files: Dict[str, str], data_type: str):
         """Uvozi CSV podatke v staging tabele."""
         try:
-            # Ustvarjanje staging tabel za ustrezen tip podatkov
-            logger.info(f"Ustvarjanje staging tabel za {data_type}")
-            if data_type == "np":
-                execute_sql_file(self.engine, 'np_staging.sql')
-            else:
-                execute_sql_file(self.engine, 'kpp_staging.sql')
-            
             # Uvoz CSV datotek v ustrezne staging tabele
             for table_name, file_path in csv_files.items():
                 if not file_path or not os.path.exists(file_path):
@@ -199,9 +219,9 @@ class DataIngestionService:
                     
                 logger.info(f"Uvažanje {file_path} v staging.{table_name}")
                 
-                # Branje CSV datoteke z ustreznim kodiranjem
+                # Branje CSV datotek
                 try:
-                    df = pd.read_csv(file_path, encoding='utf-8')
+                    df = pd.read_csv(file_path, encoding='utf-8', low_memory=False)
 
                     # Preimenovanje stolpcev v male črke
                     df.columns = [col.lower() for col in df.columns]
@@ -217,11 +237,11 @@ class DataIngestionService:
                         name=table_name,
                         schema="staging",
                         con=self.engine,
-                        if_exists="replace",
-                        index=False
+                        if_exists="append",
+                        index=False,
                     )
+                    #                        method='multi'
                     
-                    # Preverjanje uspešnosti uvoza
                     row_count = execute_sql_count(self.engine, 'staging', table_name)
                     logger.info(f"Uspešno naloženih {row_count} vrstic v staging.{table_name}")
                     
@@ -232,6 +252,7 @@ class DataIngestionService:
         except Exception as e:
             logger.error(f"Napaka pri uvozu v staging: {str(e)}")
             raise
+
 
 
     def transform_to_core(self, filter_year: str, data_type: str):
@@ -329,6 +350,9 @@ class DataIngestionService:
             logger.error(f"Napaka pri pretvorbi v core: {str(e)}")
             raise
     
+
+
+
     def cleanup(self, temp_dir: str):
         """Počisti začasen direktorij."""
         try:
@@ -337,28 +361,42 @@ class DataIngestionService:
         except Exception as e:
             logger.error(f"Napaka pri čiščenju začasnega direktorija: {str(e)}")
     
-    async def run_ingestion(self, filter_param: str, filter_value: str, filter_year: str, data_type: str = "np") -> Dict[str, Any]:
+
+
+
+    async def run_ingestion(self, filter_year: str, data_type: str = "np") -> Dict[str, Any]:
         """Zažene celoten proces vnosa podatkov."""
         try:
             # Nastavimo vrednosti za logger
             year_filter.current_year = filter_year
             year_filter.current_type = data_type
 
+            logger.info("=" + "/" * 50 + '=')
+
             logger.info(f"Začenjam vnos podatkov tipa {data_type}")
             
             # Prenesi podatke s prilagojenim API URLjem glede na data_type
-            zip_path = await self.download_data(filter_param, filter_value, filter_year, data_type)
+            zip_path = await self.download_data(filter_year, data_type)
             temp_dir = os.path.dirname(zip_path)
+
+            logger.info("=" * 50)
             
             # Ekstrahiraj datoteke s prilagojenimi vzorci imen datotek
             csv_files = self.extract_files(zip_path, data_type)
+
+            logger.info("=" * 50)
             
             # Uvozi v staging tabele (različna skripta za np in kpp)
             self.import_to_staging(csv_files, data_type)
+
+            logger.info("=" * 50)
             
             # Pretvori v core tabele (različna skripta za np in kpp)
             self.transform_to_core(filter_year, data_type)
+
+            logger.info("=" * 50)
             
+            #počisti temp direktorij
             self.cleanup(temp_dir)
             
             return {"status": "success", "message": f"Vnos podatkov tipa {data_type} uspešno zaključen"}
