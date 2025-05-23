@@ -144,9 +144,9 @@ export default function Zemljevid() {
                 });
 
                 // Razlicne barve clusterjev glede na datasource
-                const clusterColors = currentDataSourceType === 'prodaja' 
-                    ? ['#51bbd6', '#f1c40f', '#e67e22', '#e74c3c']
-                    : ['#34D399', '#10B981', '#059669', '#047857'];
+             const clusterColors = currentDataSourceType === 'prodaja' 
+    ? ['#3B82F6', '#2563EB', '#1D4ED8', '#1E40AF'] // Blue gradient
+    : ['#34D399', '#10B981', '#059669', '#047857'];
 
                 map.current.addLayer({
                     id: 'clusters-layer',
@@ -230,6 +230,11 @@ export default function Zemljevid() {
     // Effect da realoada data ko se datasource change-a
     useEffect(() => {
         if (map.current && map.current.loaded()) {
+            // Posodobite PopupManager z novim tipom
+            if (popupManager.current) {
+                popupManager.current.updateDataSourceType(dataSourceType);
+            }
+            
             console.log(`Data source type spremenjen na: ${dataSourceType}, reload podatkov`);
             fetchPropertiesForViewport();
         }

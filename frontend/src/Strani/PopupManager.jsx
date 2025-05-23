@@ -7,6 +7,12 @@ class PopupManager {
     constructor(map) {
         this.map = map;
         this.currentPopup = null;
+        this.currentDataSourceType = 'prodaja'; // default
+    }
+
+    // Dodajte metodo za posodobitev data source type
+    updateDataSourceType(newType) {
+        this.currentDataSourceType = newType;
     }
 
     // Setup dogodkov za klike na različne sloje
@@ -47,7 +53,10 @@ class PopupManager {
 
     // Prikaz popupa za posamezno nepremičnino
     showPropertyPopup(lngLat, properties, onPropertySelect) {
-        const popupContent = IndividualPopup({ properties });
+        const popupContent = IndividualPopup({ 
+            properties, 
+            dataSourceType: this.currentDataSourceType // posredujemo dataSourceType
+        });
 
         // Zapremo prejšnji popup, če obstaja
         if (this.currentPopup) {

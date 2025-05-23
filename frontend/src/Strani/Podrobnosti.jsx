@@ -48,6 +48,36 @@ export default function Podrobnosti({ propertyId, onClose, initialData = null })
     return parts.join(' ');
   };
 
+  // Pridobivanje cene glede na data source
+  const getPrice = () => {
+    if (!property) return null;
+    
+    // Določi data source type na podlagi podatkov
+    const isKpp = property.data_source === 'kpp' || property.cena || property.pogodbena_cena;
+    
+    if (isKpp) {
+      // Za kupoprodaje
+      return property.cena || property.pogodbena_cena;
+    } else {
+      // Za najemnine
+      return property.najemnina;
+    }
+  };
+
+  // Formatiranje cene
+  const formatPrice = (price) => {
+    if (!price) return null;
+    return Math.round(price).toLocaleString('sl-SI');
+  };
+
+  // Določi tip podatkov za label
+  const getPriceLabel = () => {
+    if (!property) return '';
+    
+    const isKpp = property.data_source === 'kpp' || property.cena || property.pogodbena_cena;
+    return isKpp ? 'Cena' : 'Najemnina';
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center top-20">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-7xl max-h-[90vh] overflow-auto">
@@ -58,10 +88,16 @@ export default function Podrobnosti({ propertyId, onClose, initialData = null })
               <h2 className="text-2xl font-bold">
                 {loading ? 'Nalaganje...' : getFullAddress() || 'Nepremičnina'}
               </h2>
-              {!loading && property && property.povrsina && (
+              {!loading && property && (
                 <div className="mt-2 text-white text-lg">
-                  Površina: {property.povrsina} m²
-                  {property.cena && <span className="ml-4">{property.cena.toLocaleString()} €</span>}
+                  {property.povrsina && (
+                    <span>Površina: {property.povrsina} m²</span>
+                  )}
+                  {getPrice() && (
+                    <span className="ml-4">
+                      {getPriceLabel()}: {formatPrice(getPrice())} €
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -88,13 +124,80 @@ export default function Podrobnosti({ propertyId, onClose, initialData = null })
             <div className="space-y-6">
               {/* Zgornji del - razdeljen v tri stolpce */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Stroški */}
+                {/* Finančne informacije */}
                 <div className="bg-blue-100 p-4 rounded-lg">
-                  <h3 className="font-bold text-lg text-gray-800 mb-4">Stroški</h3>
+                  <h3 className="font-bold text-lg text-gray-800 mb-4">Finančne informacije</h3>
                   <div className="space-y-2">
-                    {/* Tu dodajte vaše podatke o stroških */}
-                    <div className="text-center py-4">
-                      {/* Placeholder za vsebino */}
+                    <div className="grid grid-cols-2 gap-y-2 gap-x-2 text-sm">
+                      {/* Cena */}
+                      {getPrice() && (
+                        <>
+                          <div className="text-gray-600">{getPriceLabel()}:</div>
+                          <div className="font-medium text-lg text-green-600">
+                            {formatPrice(getPrice())} €
+                          </div>
+                        </>
+                      )}
+                      
+                      {/* Dodatne finančne informacije za najemnine */}
+                      {property.data_source === 'np' && (
+                        <>
+                          {property.vkljuceno_stroski !== null && (
+                            <>
+                              <div className="text-gray-600">Vključeni stroški:</div>
+                              <div className="font-medium">{property.vkljuceno_stroski ? 'Da' : 'Ne'}</div>
+                            </>
+                          )}
+                          {property.vkljuceno_ddv !== null && (
+                            <>
+                              <div className="text-gray-600">Vključen DDV:</div>
+                              <div className="font-medium">{property.vkljuceno_ddv ? 'Da' : 'Ne'}</div>
+                            </>
+                          )}
+                          {property.trajanje_najemanja && (
+                            <>
+                              <div className="text-gray-600">Trajanje najema:</div>
+                              <div className="font-medium">{property.trajanje_najemanja} mesecev</div>
+                            </>
+                          )}
+                        </>
+                      )}
+                      
+                      {/* Dodatne finančne informacije za kupoprodaje */}
+                      {property.data_source === 'kpp' && (
+                        <>
+                          {property.vkljuceno_ddv !== null && (
+                            <>
+                              <div className="text-gray-600">Vključen DDV:</div>
+                              <div className="font-medium">{property.vkljuceno_ddv ? 'Da' : 'Ne'}</div>
+                            </>
+                          )}
+                          {property.pogodbena_cena && property.cena && property.pogodbena_cena !== property.cena && (
+                            <>
+                              <div className="text-gray-600">Pogodbena cena:</div>
+                              <div className="font-medium">{formatPrice(property.pogodbena_cena)} €</div>
+                            </>
+                          )}
+                        </>
+                      )}
+                      
+                      {/* Datum sklenitve */}
+                      {property.datum_sklenitve && (
+                        <>
+                          <div className="text-gray-600">Datum sklenitve:</div>
+                          <div className="font-medium">
+                            {new Date(property.datum_sklenitve).toLocaleDateString('sl-SI')}
+                          </div>
+                        </>
+                      )}
+                      
+                      {/* Posredovanje agencije */}
+                      {property.posredovanje_agencije !== null && (
+                        <>
+                          <div className="text-gray-600">Agencija:</div>
+                          <div className="font-medium">{property.posredovanje_agencije ? 'Da' : 'Ne'}</div>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -103,7 +206,6 @@ export default function Podrobnosti({ propertyId, onClose, initialData = null })
                 <div className="bg-blue-100 p-4 rounded-lg">
                   <h3 className="font-bold text-lg text-gray-800 mb-4">Podrobne informacije</h3>
                   <div className="space-y-2">
-                    {/* Osnovni podatki iz originalnega dizajna */}
                     <div className="grid grid-cols-2 gap-y-2 gap-x-2 text-sm">
                       {property.obcina && (
                         <>
@@ -119,12 +221,31 @@ export default function Podrobnosti({ propertyId, onClose, initialData = null })
                         </>
                       )}
                       
-                      {/* Površino smo premaknili v glavo, lahko pa jo pustimo tudi tukaj */}
+                      {property.povrsina && (
+                        <>
+                          <div className="text-gray-600">Površina:</div>
+                          <div className="font-medium">{property.povrsina} m²</div>
+                        </>
+                      )}
+                      
+                      {property.stevilo_sob && (
+                        <>
+                          <div className="text-gray-600">Število sob:</div>
+                          <div className="font-medium">{property.stevilo_sob}</div>
+                        </>
+                      )}
                       
                       {property.leto && (
                         <>
                           <div className="text-gray-600">Leto izgradnje:</div>
                           <div className="font-medium">{property.leto}</div>
+                        </>
+                      )}
+                      
+                      {property.leto_izgradnje_dela_stavbe && (
+                        <>
+                          <div className="text-gray-600">Leto izgradnje dela:</div>
+                          <div className="font-medium">{property.leto_izgradnje_dela_stavbe}</div>
                         </>
                       )}
                       
@@ -142,9 +263,8 @@ export default function Podrobnosti({ propertyId, onClose, initialData = null })
                 <div className="bg-blue-100 p-4 rounded-lg">
                   <h3 className="font-bold text-lg text-gray-800 mb-4">Storitve v bližini</h3>
                   <div className="space-y-2">
-                    {/* Tu dodajte vaše podatke o storitvah v bližini */}
-                    <div className="text-center py-4">
-                      {/* Placeholder za vsebino */}
+                    <div className="text-center py-4 text-gray-500">
+                      Podatki o storitvah v bližini bodo dodani v prihodnje
                     </div>
                   </div>
                 </div>
@@ -154,7 +274,7 @@ export default function Podrobnosti({ propertyId, onClose, initialData = null })
               <div>
                 <h3 className="font-bold text-lg text-gray-800 mb-4">Podobne nepremičnine</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  {/* Podobna nepremičnina 1 */}
+                  {/* Placeholder za podobne nepremičnine */}
                   <div className="bg-blue-100 p-4 rounded-lg">
                     <div className="space-y-2">
                       <div className="font-medium">Naslov: trg ob reki 3</div>
@@ -169,7 +289,6 @@ export default function Podrobnosti({ propertyId, onClose, initialData = null })
                     </div>
                   </div>
                   
-                  {/* Podobna nepremičnina 2 */}
                   <div className="bg-blue-100 p-4 rounded-lg">
                     <div className="space-y-2">
                       <div className="font-medium">Naslov: trg ob reki 3</div>
@@ -184,7 +303,6 @@ export default function Podrobnosti({ propertyId, onClose, initialData = null })
                     </div>
                   </div>
                   
-                  {/* Podobna nepremičnina 3 */}
                   <div className="bg-blue-100 p-4 rounded-lg">
                     <div className="space-y-2">
                       <div className="font-medium">Naslov: trg ob reki 3</div>
@@ -199,7 +317,6 @@ export default function Podrobnosti({ propertyId, onClose, initialData = null })
                     </div>
                   </div>
                   
-                  {/* Podobna nepremičnina 4 */}
                   <div className="bg-blue-100 p-4 rounded-lg">
                     <div className="space-y-2">
                       <div className="font-medium">Naslov: trg ob reki 3</div>

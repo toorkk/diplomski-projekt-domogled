@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from geoalchemy2.functions import ST_SetSRID, ST_MakeEnvelope, ST_Intersects, ST_AsGeoJSON, ST_X, ST_Y
 
 from .clustering_utils import calculate_cluster_resolution, get_property_model
+from .models import NpPosel, KppPosel
 
 
 class PropertyService:
@@ -132,24 +133,67 @@ class PropertyService:
 
     @staticmethod
     def _get_individual_property_feature(db: Session, PropertyModel, property_id: int, data_source: str):
-        """helper za pridobitev podatkov enega dela stavbe"""
-        individual_property = db.query(
-            PropertyModel.del_stavbe_id,
-            PropertyModel.obcina,
-            PropertyModel.naselje,
-            PropertyModel.ulica,
-            PropertyModel.hisna_stevilka,
-            PropertyModel.povrsina,
-            PropertyModel.dejanska_raba,
-            PropertyModel.leto,
-            ST_AsGeoJSON(PropertyModel.coordinates).label('geom_json')
-        ).filter(PropertyModel.del_stavbe_id == property_id).first()
+        """helper za pridobitev podatkov enega dela stavbe z JOIN na posel tabelo"""
+        
+        if data_source.lower() == "np":
+            # JOIN z najemnimi posli
+            individual_property = db.query(
+                PropertyModel.del_stavbe_id,
+                PropertyModel.obcina,
+                PropertyModel.naselje,
+                PropertyModel.ulica,
+                PropertyModel.hisna_stevilka,
+                PropertyModel.dodatek_hs,
+                PropertyModel.povrsina,
+                PropertyModel.dejanska_raba,
+                PropertyModel.leto,
+                PropertyModel.posel_id,
+                # Podatki iz np_posel tabele
+                NpPosel.najemnina,
+                NpPosel.datum_sklenitve,
+                NpPosel.vkljuceno_stroski,
+                NpPosel.vkljuceno_ddv,
+                NpPosel.trajanje_najemanja,
+                NpPosel.datum_zacetka_najemanja,
+                NpPosel.posredovanje_agencije,
+                ST_AsGeoJSON(PropertyModel.coordinates).label('geom_json')
+            ).join(
+                NpPosel, PropertyModel.posel_id == NpPosel.posel_id
+            ).filter(PropertyModel.del_stavbe_id == property_id).first()
+            
+        else:  # kpp
+            # JOIN s kupoprodajnimi posli
+            individual_property = db.query(
+                PropertyModel.del_stavbe_id,
+                PropertyModel.obcina,
+                PropertyModel.naselje,
+                PropertyModel.ulica,
+                PropertyModel.hisna_stevilka,
+                PropertyModel.dodatek_hs,
+                PropertyModel.povrsina,
+                PropertyModel.dejanska_raba,
+                PropertyModel.leto,
+                PropertyModel.posel_id,
+                PropertyModel.pogodbena_cena,
+                PropertyModel.stevilo_sob,
+                PropertyModel.leto_izgradnje_dela_stavbe,
+                # Podatki iz kpp_posel tabele
+                KppPosel.cena,
+                KppPosel.datum_sklenitve,
+                KppPosel.vkljuceno_ddv,
+                KppPosel.posredovanje_agencije,
+                KppPosel.trznost_posla,
+                ST_AsGeoJSON(PropertyModel.coordinates).label('geom_json')
+            ).join(
+                KppPosel, PropertyModel.posel_id == KppPosel.posel_id
+            ).filter(PropertyModel.del_stavbe_id == property_id).first()
         
         if not individual_property:
             return None
             
         geom_dict = json.loads(individual_property.geom_json)
         
+        # Osnovni podatki (skupni za np in kpp)
         properties = {
             "id": individual_property.del_stavbe_id,
             "type": "individual",
@@ -157,25 +201,34 @@ class PropertyService:
             "naselje": individual_property.naselje,
             "ulica": individual_property.ulica,
             "hisna_stevilka": individual_property.hisna_stevilka,
+            "dodatek_hs": individual_property.dodatek_hs,
             "povrsina": float(individual_property.povrsina) if individual_property.povrsina else None,
             "dejanska_raba": individual_property.dejanska_raba,
             "leto": individual_property.leto,
-            "data_source": data_source
+            "posel_id": individual_property.posel_id,
+            "data_source": data_source,
+            "datum_sklenitve": individual_property.datum_sklenitve.isoformat() if individual_property.datum_sklenitve else None,
+            "posredovanje_agencije": individual_property.posredovanje_agencije
         }
         
-        # kpp specificni fields
-        if data_source.lower() == "kpp":
-
-            kpp_property = db.query(PropertyModel).filter(
-                PropertyModel.del_stavbe_id == property_id
-            ).first()
-            
-            if kpp_property:
-                properties.update({
-                    "pogodbena_cena": float(kpp_property.pogodbena_cena) if kpp_property.pogodbena_cena else None,
-                    "stevilo_sob": kpp_property.stevilo_sob,
-                    "leto_izgradnje_dela_stavbe": kpp_property.leto_izgradnje_dela_stavbe
-                })
+        # Dodaj specifične podatke glede na data_source
+        if data_source.lower() == "np":
+            properties.update({
+                "najemnina": float(individual_property.najemnina) if individual_property.najemnina else None,
+                "vkljuceno_stroski": individual_property.vkljuceno_stroski,
+                "vkljuceno_ddv": individual_property.vkljuceno_ddv,
+                "trajanje_najemanja": individual_property.trajanje_najemanja,
+                "datum_zacetka_najemanja": individual_property.datum_zacetka_najemanja.isoformat() if individual_property.datum_zacetka_najemanja else None
+            })
+        else:  # kpp
+            properties.update({
+                "pogodbena_cena": float(individual_property.pogodbena_cena) if individual_property.pogodbena_cena else None,
+                "cena": float(individual_property.cena) if individual_property.cena else None,
+                "stevilo_sob": individual_property.stevilo_sob,
+                "leto_izgradnje_dela_stavbe": individual_property.leto_izgradnje_dela_stavbe,
+                "vkljuceno_ddv": individual_property.vkljuceno_ddv,
+                "trznost_posla": individual_property.trznost_posla
+            })
         
         return {
             "type": "Feature",
