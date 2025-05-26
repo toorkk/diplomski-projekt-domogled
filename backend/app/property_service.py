@@ -235,3 +235,54 @@ class PropertyService:
             "geometry": geom_dict,
             "properties": properties
         }
+    
+
+    # Metoda da pridobima vse podatke ki spadajo pod cluster (cluster ki je zdruzil nepremicnine glede stavbo)
+    @staticmethod
+    def get_building_cluster_properties(sifra_ko: int, stevilka_stavbe: int, db: Session, data_source: str = "np"):
+        """
+        Pridobi vse nepremičnine v določeni stavbi - z error handling
+        """
+        PropertyModel = get_property_model(data_source)
+        
+        # Poiščemo vse property_ids v tej stavbi
+        property_ids = db.query(PropertyModel.del_stavbe_id).filter(
+            PropertyModel.sifra_ko == sifra_ko,
+            PropertyModel.stevilka_stavbe == stevilka_stavbe
+        ).all()
+        
+        print(f"Found {len(property_ids)} property IDs in building")  # Debug
+        
+        features = []
+        skipped_properties = 0
+        
+        for prop_id_row in property_ids:
+            try:
+                # Ponovno uporabimo obstoječo funkcijo za vsako nepremičnino
+                feature = PropertyService._get_individual_property_feature(
+                    db, PropertyModel, prop_id_row.del_stavbe_id, data_source
+                )
+                if feature:
+                    features.append(feature)
+                else:
+                    print(f"Property ID {prop_id_row.del_stavbe_id} returned None - skipping")
+                    skipped_properties += 1
+            except Exception as e:
+                print(f"Error processing property ID {prop_id_row.del_stavbe_id}: {str(e)}")
+                skipped_properties += 1
+                continue
+        
+        if skipped_properties > 0:
+            print(f"Warning: Skipped {skipped_properties} properties due to missing JOIN data")
+        
+        return {
+            "type": "FeatureCollection", 
+            "features": features,
+            "cluster_info": {
+                "cluster_id": f"b_{sifra_ko}_{stevilka_stavbe}",
+                "total_properties": len(features),
+                "skipped_properties": skipped_properties,
+                "sifra_ko": sifra_ko,
+                "stevilka_stavbe": stevilka_stavbe
+            }
+        }

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes import ingest_data, ingestion_status, get_properties_geojson
+from .routes import ingest_data, ingestion_status, get_properties_geojson, get_cluster_properties
 
 app = FastAPI(
     title="Domogled API",
@@ -24,6 +24,7 @@ app.add_middleware(
 app.post("/api/ingest-data")(ingest_data)
 app.get("/api/ingestion-status")(ingestion_status)
 app.get("/properties/geojson")(get_properties_geojson)
+app.get("/cluster/{cluster_id}/properties")(get_cluster_properties)
 
 ###############
 

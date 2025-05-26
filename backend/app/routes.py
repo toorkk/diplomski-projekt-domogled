@@ -126,3 +126,50 @@ def get_properties_geojson(
         raise HTTPException(status_code=400, detail=f"neveljavni parametri: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"db error: {str(e)}")
+    
+
+
+# =============================================================================
+# CLUSTER ENDPOINTI  
+# =============================================================================
+
+def get_cluster_properties(
+    cluster_id: str,
+    data_source: str = Query(default="np", description="Data source: 'np' za najemne 'kpp' za kupoprodajne"),
+    db: Session = Depends(get_db)
+):
+    """
+    Pridobi vse nepremičnine ki spadajo pod določen building cluster
+    """
+    try:
+        print(f"Received cluster_id: {cluster_id}")  # Debug
+        
+        if data_source.lower() not in ["np", "kpp"]:
+            raise ValueError("data_source mora bit 'np' ali 'kpp'")
+        
+        # Podporni samo building clustri
+        if cluster_id.startswith('b_'):
+            # Building cluster: b_sifra_ko_stevilka_stavbe
+            parts = cluster_id[2:].split('_')
+            print(f"Building cluster parts: {parts}")  # Debug
+            
+            if len(parts) >= 2:
+                sifra_ko = int(parts[0])
+                stevilka_stavbe = int(parts[1])
+                
+                print(f"Looking for sifra_ko: {sifra_ko}, stevilka_stavbe: {stevilka_stavbe}")  # Debug
+                
+                return PropertyService.get_building_cluster_properties(sifra_ko, stevilka_stavbe, db, data_source)
+                
+        elif cluster_id.startswith('d_'):
+            # Distance clustri niso podprti za expansion
+            raise ValueError("Distance clustri ne podpirajo expansion funkcionalnosti")
+        
+        else:
+            raise ValueError(f"Nepodprt tip clusterja: {cluster_id}")
+            
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"neveljavni parametri: {str(e)}")
+    except Exception as e:
+        print(f"Error in get_cluster_properties: {str(e)}")  # Debug
+        raise HTTPException(status_code=500, detail=f"db error: {str(e)}")
