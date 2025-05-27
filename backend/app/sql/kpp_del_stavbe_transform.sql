@@ -38,11 +38,11 @@ INSERT INTO core.kpp_del_stavbe (
 SELECT
     id_posla,
     sifra_ko,
-    ime_ko,
-    obcina,
+    TRIM(ime_ko) as ime_ko,
+    TRIM(obcina) as obcina,
     stevilka_stavbe,
     stevilka_dela_stavbe,
-    naselje,
+    TRIM(naselje) as naselje,
     ulica,
     hisna_stevilka,
     dodatek_hs,
@@ -61,8 +61,8 @@ SELECT
     atrij,
     povrsina_atrija,
     opombe_o_nepremicnini,
-    dejanska_raba_dela_stavbe,
-    lega_dela_stavbe_v_stavbi,
+    LOWER(TRIM(dejanska_raba_dela_stavbe)) as dejanska_raba_dela_stavbe,
+    LOWER(TRIM(lega_dela_stavbe_v_stavbi)) as lega_dela_stavbe_v_stavbi,
     stevilo_sob,
     povrsina_dela_stavbe,
     uporabna_povrsina,
@@ -73,6 +73,4 @@ SELECT
     ST_Transform(ST_SetSRID(ST_MakePoint(e_centroid, n_centroid), 3794), 4326),
     leto
 FROM staging.kpp_del_stavbe
--- WHERE d.vrsta_dela_stavbe IN (1, 2) AND sifra_ko IS NOT NULL AND posel_id IS NOT NULL
-WHERE sifra_ko IS NOT NULL;
-
+WHERE vrsta_dela_stavbe IN (1, 2) AND sifra_ko IS NOT NULL AND stevilka_stavbe IS NOT NULL AND stevilka_dela_stavbe IS NOT NULL AND id_posla IS NOT NULL

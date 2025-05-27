@@ -1,4 +1,5 @@
-from .models import NpDelStavbe, KppDelStavbe
+from .models import NpDelStavbe, KppDelStavbe, KppDelStavbeDeduplicated, NpDelStavbeDeduplicated
+
 
 def calculate_cluster_resolution(zoom_level: float) -> float:
     """
@@ -12,6 +13,7 @@ def calculate_cluster_resolution(zoom_level: float) -> float:
     zoom_factor = 2 ** (12 - zoom_level)
     return base_resolution * zoom_factor
 
+
 def get_property_model(data_source: str):
     """
     vrne model odvisno od tega če pošiljaš kpp ali np podatke na frontend
@@ -20,3 +22,13 @@ def get_property_model(data_source: str):
         return KppDelStavbe
     else:
         return NpDelStavbe
+    
+
+def get_deduplicated_property_model(data_source: str):
+    """
+    vrne deduplicirani model odvisno od tega če pošiljaš kpp ali np podatke na frontend
+    """
+    if data_source.lower() == "kpp":
+        return KppDelStavbeDeduplicated
+    else:
+        return NpDelStavbeDeduplicated

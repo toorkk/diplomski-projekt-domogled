@@ -6,9 +6,11 @@ from sqlalchemy.orm import Session
 from .database import get_db, DATABASE_URL
 from .property_service import PropertyService
 from .data_ingestion import DataIngestionService
-
+from .deduplication import DeduplicationService
 
 ingestion_service = DataIngestionService(DATABASE_URL)
+
+deduplication_service = DeduplicationService(DATABASE_URL)
 
 # =============================================================================
 # DATA INGESTION ENDPOINTI
@@ -58,6 +60,11 @@ async def ingest_data(
                 "params": {
                     "data_type": data_type,
                     "years": list(range(start_year, end_year + 1))
+                },
+                "next_step": {
+                    "message": "Ko je vnos končan, zaženi deduplication",
+                    "endpoint": "/api/fill-deduplicated-tables",
+                    "note": "Deduplication gre skozi vse leta in se more zagnat po tem ko je vnos podatkov ČISTO končan. Reflektiral bo samo leta ki so trenutno naložena v bazo"
                 }
             }
         )
@@ -66,6 +73,8 @@ async def ingest_data(
             status_code=500,
             content={"status": "error", "message": str(e)}
         )
+
+
 
 async def ingestion_status():
     """Preveri status vnosa podatkov"""
@@ -88,6 +97,90 @@ async def ingestion_status():
             status_code=500,
             content={"status": "error", "message": str(e)}
         )
+
+
+
+async def fill_deduplicated_tables(
+    background_tasks: BackgroundTasks,
+    data_type: str = Query(None, description="Tip podatkov (np, kpp, ali all za oba)")
+):
+    """
+    API endpoint za ustvarjanje deduplicirane tabele po končanem vnosu podatkov.
+    Zaženi to ENKRAT po tem, ko so vsi podatki za vsa leta vnešeni.
+    """
+    try:
+        if data_type and data_type.lower() not in ["np", "kpp", "all"]:
+            return JSONResponse(
+                status_code=400,
+                content={"status": "error", "message": "Data type mora biti 'np', 'kpp' ali 'all'"}
+            )
+
+        if data_type is None or data_type.lower() == "all":
+            # Obdelaj oba tipa podatkov
+            background_tasks.add_task(
+                deduplication_service.create_all_deduplicated_properties,
+                ["np", "kpp"]
+            )
+            message = "Dedupliciranje se je začelo za podatke NP in KPP"
+        else:
+            # Obdelaj en tip podatkov
+            background_tasks.add_task(
+                deduplication_service.create_deduplicated_properties,
+                data_type.lower()
+            )
+            message = f"Dedupliciranje se je začelo za podatke {data_type.upper()}"
+
+        return JSONResponse(
+            status_code=202,
+            content={
+                "status": "accepted",
+                "message": message,
+                "note": "Ta proces bo analiziral VSE letne podatke in ustvaril deduplicirane lastnosti za hiter prikaz na zemljevidu"
+            }
+        )
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+        )
+
+
+
+async def deduplication_status(
+    data_type: str = Query(None, description="Tip podatkov (np, kpp, ali all)")
+):
+    """
+    API endpoint za pridobitev statistike deduplikacije.
+    """
+    try:
+        if data_type and data_type.lower() not in ["np", "kpp", "all"]:
+            return JSONResponse(
+                status_code=400,
+                content={"status": "error", "message": "Data type mora biti 'np', 'kpp' ali 'all'"}
+            )
+
+        if data_type and data_type.lower() != "all":
+            stats = deduplication_service.get_deduplication_stats(data_type.lower())
+        else:
+            stats = deduplication_service.get_deduplication_stats()
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": "success",
+                "deduplication_stats": stats
+            }
+        )
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+        )
+
+
+
 
 # =============================================================================
 # PROPERTY ENDPOINTI
@@ -128,7 +221,32 @@ def get_properties_geojson(
         raise HTTPException(status_code=500, detail=f"db error: {str(e)}")
     
 
-
+def get_property_details(
+    deduplicated_id: int,
+    data_source: str = Query(default="np", description="Data source: 'np' za najemne 'kpp' za kupoprodajne"),
+    db: Session = Depends(get_db)
+):
+    """
+    Po kliku na zemljevid pridobite vse podrobnosti za določeno deduplicirano nepremičnino.
+    Vrne VSE povezane posle in dele_stavb.
+    """
+    try:
+        if data_source.lower() not in ["np", "kpp"]:
+            raise ValueError("data_source mora bit 'np' ali 'kpp'")
+        
+        property_details = PropertyService.get_property_details(deduplicated_id, data_source, db)
+        
+        if not property_details:
+            raise HTTPException(status_code=404, detail="Property not found")
+        
+        return property_details
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"neveljavni parametri: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"db error: {str(e)}")
+    
+    
 # =============================================================================
 # CLUSTER ENDPOINTI  
 # =============================================================================

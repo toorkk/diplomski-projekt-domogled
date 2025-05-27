@@ -1,11 +1,11 @@
-from sqlalchemy import Column, Integer, Text, Numeric, SmallInteger, String, Date, Boolean
+from sqlalchemy import Column, Integer, Text, Date, Numeric, Boolean, SmallInteger, String, ARRAY, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from geoalchemy2 import Geometry
 
 Base = declarative_base()
 
 
-# Definicija sheme tabele np_del_stavbe
+
 class NpDelStavbe(Base):
     __tablename__ = "np_del_stavbe"
     __table_args__ = {"schema": "core"}
@@ -38,7 +38,31 @@ class NpDelStavbe(Base):
     leto = Column(Integer)
 
 
-# Definicija sheme tabele np_posel
+
+class NpDelStavbeDeduplicated(Base):
+    __tablename__ = "np_del_stavbe_deduplicated"
+    __table_args__ = (
+        UniqueConstraint('sifra_ko', 'stevilka_stavbe', 'stevilka_dela_stavbe', 'dejanska_raba', name='uq_stavbe_deduplicated'),
+        {'schema': 'core'}
+    )
+
+    del_stavbe_id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # ID / composite ključ
+    sifra_ko = Column(SmallInteger, nullable=False)
+    stevilka_stavbe = Column(Integer, nullable=False)
+    stevilka_dela_stavbe = Column(Integer, nullable=False)
+    dejanska_raba = Column(String(310), nullable=False)
+    
+    povezani_del_stavbe_ids = Column(ARRAY(Integer), nullable=False)
+    povezani_posel_ids = Column(ARRAY(Integer), nullable=False)
+    najnovejsi_del_stavbe_id = Column(Integer, nullable=False)
+    
+    coordinates = Column(Geometry('Point', 4326), nullable=False)
+
+
+
+
 class NpPosel(Base):
     __tablename__ = "np_posel"
     __table_args__ = {"schema": "core"}
@@ -64,7 +88,8 @@ class NpPosel(Base):
     trznost_posla = Column(SmallInteger)
     leto = Column(Integer)
 
-# Definicija sheme tabele kpp_del_stavbe
+
+
 class KppDelStavbe(Base):
     __tablename__ = "kpp_del_stavbe"
     __table_args__ = {"schema": "core"}
@@ -109,7 +134,30 @@ class KppDelStavbe(Base):
     leto = Column(Integer)
 
 
-# Definicija sheme tabele kpp_posel
+
+class KppDelStavbeDeduplicated(Base):
+    __tablename__ = "kpp_del_stavbe_deduplicated"
+    __table_args__ = (
+        UniqueConstraint('sifra_ko', 'stevilka_stavbe', 'stevilka_dela_stavbe', 'dejanska_raba', name='uq_stavbe_deduplicated'),
+        {'schema': 'core'}
+    )
+
+    del_stavbe_id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # ID / composite ključ
+    sifra_ko = Column(SmallInteger, nullable=False)
+    stevilka_stavbe = Column(Integer, nullable=False)
+    stevilka_dela_stavbe = Column(Integer, nullable=False)
+    dejanska_raba = Column(String(310), nullable=False)
+    
+    povezani_del_stavbe_ids = Column(ARRAY(Integer), nullable=False)
+    povezani_posel_ids = Column(ARRAY(Integer), nullable=False)
+    najnovejsi_del_stavbe_id = Column(Integer, nullable=False)
+    
+    coordinates = Column(Geometry('Point', 4326), nullable=False)
+
+
+
 class KppPosel(Base):
     __tablename__ = "kpp_posel"
     __table_args__ = {"schema": "core"}

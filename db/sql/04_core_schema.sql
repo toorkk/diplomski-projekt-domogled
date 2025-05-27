@@ -4,7 +4,6 @@ CREATE SCHEMA IF NOT EXISTS core;
 DROP TABLE IF EXISTS core.np_del_stavbe;
 CREATE TABLE core.np_del_stavbe (
   del_stavbe_id         SERIAL      PRIMARY KEY,
-  posel_id              INTEGER     NOT NULL,
   sifra_ko              SMALLINT    NOT NULL,
   ime_ko                VARCHAR(100),
   obcina                VARCHAR(100),
@@ -37,6 +36,7 @@ CREATE TABLE core.np_del_stavbe (
 DROP TABLE IF EXISTS core.np_posel;
 CREATE TABLE core.np_posel (
   posel_id                     INTEGER     PRIMARY KEY,
+  del_stavbe_id
   vrsta_posla                  SMALLINT,
 
   datum_uveljavitve            DATE,
@@ -61,13 +61,13 @@ CREATE TABLE core.np_posel (
 );
 
 
-DROP INDEX IF EXISTS np_del_stavbe_coordinates_idx;
-DROP INDEX IF EXISTS np_del_stavbe_ko_stavba_idx;
-DROP INDEX IF EXISTS np_del_stavbe_posel_id_idx;
+DROP INDEX IF EXISTS idx_np_del_stavbe_coordinates;
+DROP INDEX IF EXISTS idx_np_del_stavbe_ko_stavba;
+DROP INDEX IF EXISTS idx_np_del_stavbe_posel_id;
 
-CREATE INDEX np_del_stavbe_coordinates_idx ON core.np_del_stavbe USING GIST(coordinates);
-CREATE INDEX np_del_stavbe_ko_stavba_idx ON core.np_del_stavbe(sifra_ko, stevilka_stavbe);
-CREATE INDEX np_del_stavbe_posel_id_idx ON core.np_del_stavbe(posel_id);
+CREATE INDEX idx_np_del_stavbe_coordinates ON core.np_del_stavbe USING GIST(coordinates);
+CREATE INDEX idx_np_del_stavbe_ko_stavba ON core.np_del_stavbe(sifra_ko, stevilka_stavbe);
+CREATE INDEX idx_np_del_stavbe_posel_id ON core.np_del_stavbe(posel_id);
 
 
 
@@ -140,10 +140,67 @@ CREATE TABLE core.kpp_posel (
 );
 
 
-DROP INDEX IF EXISTS kpp_del_stavbe_coordinates_idx;
-DROP INDEX IF EXISTS kpp_del_stavbe_ko_stavba_idx;
-DROP INDEX IF EXISTS kpp_del_stavbe_posel_id_idx;
+DROP INDEX IF EXISTS idx_kpp_del_stavbe_coordinates;
+DROP INDEX IF EXISTS idx_kpp_del_stavbe_ko_stavba;
+DROP INDEX IF EXISTS idx_kpp_del_stavbe_posel_id;
 
-CREATE INDEX kpp_del_stavbe_coordinates_idx ON core.kpp_del_stavbe USING GIST(coordinates);
-CREATE INDEX kpp_del_stavbe_ko_stavba_idx ON core.kpp_del_stavbe(sifra_ko, stevilka_stavbe);
-CREATE INDEX kpp_del_stavbe_posel_id_idx ON core.kpp_del_stavbe(posel_id);
+CREATE INDEX idx_kpp_del_stavbe_coordinates ON core.kpp_del_stavbe USING GIST(coordinates);
+CREATE INDEX idx_kpp_del_stavbe_ko_stavba ON core.kpp_del_stavbe(sifra_ko, stevilka_stavbe);
+CREATE INDEX idx_kpp_del_stavbe_posel_id ON core.kpp_del_stavbe(posel_id);
+
+
+DROP TABLE IF EXISTS core.np_del_stavbe_deduplicated;
+CREATE TABLE core.np_del_stavbe_deduplicated (
+    del_stavbe_id SERIAL PRIMARY KEY,
+    
+    -- ID / composite ključ
+    sifra_ko SMALLINT NOT NULL,
+    stevilka_stavbe INTEGER NOT NULL,
+    stevilka_dela_stavbe INTEGER NOT NULL,
+    dejanska_raba VARCHAR(310) NOT NULL,
+    
+    povezani_del_stavbe_ids INTEGER[] NOT NULL,
+    povezani_posel_ids INTEGER[] NOT NULL,
+    najnovejsi_del_stavbe_id INTEGER NOT NULL,
+    
+    coordinates GEOMETRY(Point, 4326) NOT NULL,
+    
+    CONSTRAINT uq_np_stavbe_deduplicated UNIQUE(sifra_ko, stevilka_stavbe, stevilka_dela_stavbe, dejanska_raba)
+);
+
+
+DROP TABLE IF EXISTS core.kpp_del_stavbe_deduplicated;
+CREATE TABLE core.kpp_del_stavbe_deduplicated (
+    del_stavbe_id SERIAL PRIMARY KEY,
+    
+    -- ID / composite ključ
+    sifra_ko SMALLINT NOT NULL,
+    stevilka_stavbe INTEGER NOT NULL,
+    stevilka_dela_stavbe INTEGER NOT NULL,
+    dejanska_raba VARCHAR(310) NOT NULL,
+    
+    povezani_del_stavbe_ids INTEGER[] NOT NULL,
+    povezani_posel_ids INTEGER[] NOT NULL,
+    najnovejsi_del_stavbe_id INTEGER NOT NULL,
+    
+    coordinates GEOMETRY(Point, 4326) NOT NULL,
+    
+    CONSTRAINT uq_kpp_deduplicated UNIQUE(sifra_ko, stevilka_stavbe, stevilka_dela_stavbe, dejanska_raba)
+);
+
+
+DROP INDEX IF EXISTS core.idx_np_del_stavbe_deduplicated_building;
+DROP INDEX IF EXISTS core.idx_np_del_stavbe_deduplicated_coords;
+DROP INDEX IF EXISTS core.idx_np_del_stavbe_deduplicated_related_ids;
+
+DROP INDEX IF EXISTS core.idx_kpp_del_stavbe_deduplicated_building;
+DROP INDEX IF EXISTS core.idx_kpp_del_stavbe_deduplicated_coords;
+DROP INDEX IF EXISTS core.idx_kpp_del_stavbe_deduplicated_related_ids;
+
+CREATE INDEX idx_np_del_stavbe_deduplicated_building ON core.np_del_stavbe_deduplicated (sifra_ko, stevilka_stavbe);
+CREATE INDEX idx_np_del_stavbe_deduplicated_coords ON core.np_del_stavbe_deduplicated USING GIST (coordinates);
+CREATE INDEX idx_np_del_stavbe_deduplicated_related_ids ON core.np_del_stavbe_deduplicated USING GIN (povezani_del_stavbe_ids);
+
+CREATE INDEX idx_kpp_del_stavbe_deduplicated_building ON core.kpp_del_stavbe_deduplicated (sifra_ko, stevilka_stavbe);
+CREATE INDEX idx_kpp_del_stavbe_deduplicated_coords ON core.kpp_del_stavbe_deduplicated USING GIST (coordinates);
+CREATE INDEX idx_kpp_del_stavbe_deduplicated_related_ids ON core.kpp_del_stavbe_deduplicated USING GIN (povezani_del_stavbe_ids);
