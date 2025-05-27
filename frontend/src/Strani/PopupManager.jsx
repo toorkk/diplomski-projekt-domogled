@@ -69,14 +69,66 @@ class PopupManager {
         // NOVO: Zapri vse druge expanded clustre
         this.collapseAllClusters();
 
-        // Če ni building cluster, prikaži normalni popup
-        if (!clusterId.startsWith('b_')) {
+        // Preverimo tip clusterja
+        if (clusterId.startsWith('b_')) {
+            console.log('Building cluster detected, attempting expansion...');
+            // Za building clustre uporabimo API klic
+            await this.expandCluster(clusterId, clusterProperties);
+        } else if (clusterId.startsWith('d_')) {
+            console.log('Distance cluster detected, showing popup...');
+            // Distance clustri niso expandabilni, prikaži popup
             this.showClusterPopup(lngLat, clusterProperties);
-            return;
+        } else {
+            console.log('Unknown cluster type, showing popup...');
+            this.showClusterPopup(lngLat, clusterProperties);
         }
+    }
 
-        // Poskusi expandirati building cluster
-        await this.expandCluster(clusterId, clusterProperties);
+    async expandClusterWithIds(clusterId, clusterProperties) {
+        const dataSource = this.currentDataSourceType === 'prodaja' ? 'kpp' : 'np';
+        
+        console.log('Deduplicated IDs:', clusterProperties.deduplicated_ids);
+        console.log('Data source:', dataSource);
+        
+        try {
+            // Ustvarjanje features iz dedupliciranih_idov
+            const features = [];
+            
+            for (const deduplicatedId of clusterProperties.deduplicated_ids) {
+                try {
+                    const feature = {
+                        type: "Feature",
+                        geometry: {
+                            type: "Point",
+                            coordinates: [0, 0]
+                        },
+                        properties: {
+                            id: deduplicatedId,
+                            type: "individual",
+                            data_source: dataSource,
+                            cluster_expanded: true
+                        }
+                    };
+                    features.push(feature);
+                } catch (error) {
+                    console.error(`Error processing deduplicated ID ${deduplicatedId}:`, error);
+                }
+            }
+            
+            if (features.length > 0) {
+                this.createExpandedLayer(clusterId, features, clusterProperties);
+                this.expandedClusters.add(clusterId);
+            } else {
+                console.log('No valid features created from deduplicated_ids');
+                this.showClusterPopup(null, clusterProperties);
+            }
+            
+        } catch (error) {
+            console.error('Error expanding cluster with IDs:', error);
+            this.showClusterPopup(null, clusterProperties);
+        }
+        
+        console.log('=== END CLUSTER EXPANSION WITH IDs ===');
     }
 
     // NOVA funkcija: Zapri vse expanded clustre
@@ -89,16 +141,17 @@ class PopupManager {
         console.log(`Collapsed ${clustersToCollapse.length} clusters`);
     }
 
-    // NOVA funkcija: Expandiraj cluster
+    // Expandiraj cluster z API klicem (fallback)
     async expandCluster(clusterId, clusterProperties) {
         const dataSource = this.currentDataSourceType === 'prodaja' ? 'kpp' : 'np';
+        const currentZoom = this.map.getZoom();
         
         console.log(`=== EXPANDING CLUSTER ${clusterId} ===`);
         console.log('Data source:', dataSource);
         console.log('Cluster properties:', clusterProperties);
         
         try {
-            const url = `http://localhost:8000/cluster/${clusterId}/properties?data_source=${dataSource}`;
+            const url = `http://localhost:8000/cluster/${clusterId}/properties?data_source=${dataSource}&zoom=${currentZoom}`;
             console.log('Fetching from URL:', url);
             
             const response = await fetch(url);
@@ -126,51 +179,69 @@ class PopupManager {
                     console.log(`Feature ${index}: coordinates =`, feature.geometry?.coordinates);
                 });
                 
-                this.createExpandedLayer(clusterId, data.features);
+                this.createExpandedLayer(clusterId, data.features, clusterProperties);
                 this.expandedClusters.add(clusterId);
                 console.log(`✓ Successfully expanded cluster ${clusterId} with ${data.features.length} properties`);
             } else {
-                console.log('❌ No valid properties found in cluster response');
+                console.log('No valid properties found in cluster response');
                 this.showClusterPopup(null, clusterProperties);
             }
             
         } catch (error) {
-            console.error('❌ Error expanding cluster:', error);
+            console.error('Error expanding cluster:', error);
             this.showClusterPopup(null, clusterProperties);
         }
         
         console.log('=== END CLUSTER EXPANSION ===');
     }
 
-    // NOVA funkcija: Ustvari vizualni layer za expanded properties
-    createExpandedLayer(clusterId, properties) {
+    // Ustvari vizualni layer za expanded properties
+    createExpandedLayer(clusterId, properties, originalClusterProperties = null) {
         const sourceId = `expanded-${clusterId}`;
         const layerId = `expanded-layer-${clusterId}`;
         
         console.log(`Creating expanded layer for ${clusterId}...`);
         console.log('Properties to display:', properties.length);
         
-        // Izračunaj center pozicijo (povprečje koordinat)
+        // Izračunaj center pozicijo
         let centerLng = 0, centerLat = 0;
-        properties.forEach(prop => {
-            if (prop.geometry && prop.geometry.coordinates) {
-                centerLng += prop.geometry.coordinates[0];
-                centerLat += prop.geometry.coordinates[1];
-            }
-        });
-        centerLng /= properties.length;
-        centerLat /= properties.length;
         
-        console.log(`Center position: [${centerLng}, ${centerLat}]`);
+        // Najprej poskusi dobiti center iz originalnih cluster properties
+        if (originalClusterProperties && originalClusterProperties.geometry) {
+            centerLng = originalClusterProperties.geometry.coordinates[0];
+            centerLat = originalClusterProperties.geometry.coordinates[1];
+            console.log(`Using cluster geometry center: [${centerLng}, ${centerLat}]`);
+        } else {
+            // Če nimamo cluster geometrije, izračunaj povprečje iz vseh properties
+            let validCoords = 0;
+            properties.forEach(prop => {
+                if (prop.geometry && prop.geometry.coordinates && 
+                    prop.geometry.coordinates[0] !== 0 && prop.geometry.coordinates[1] !== 0) {
+                    centerLng += prop.geometry.coordinates[0];
+                    centerLat += prop.geometry.coordinates[1];
+                    validCoords++;
+                }
+            });
+            if (validCoords > 0) {
+                centerLng /= validCoords;
+                centerLat /= validCoords;
+                console.log(`Calculated center from ${validCoords} valid coordinates: [${centerLng}, ${centerLat}]`);
+            } else {
+                console.error('No valid coordinates found for cluster expansion!');
+                return;
+            }
+        }
+        
+        console.log(`Final center position: [${centerLng}, ${centerLat}]`);
         
         // Izračunaj polmer glede na zoom level
         const zoom = this.map.getZoom();
-        const baseRadius = 0.001; // Povečan polmer (prej 0.0001)
-        const radius = baseRadius / Math.pow(2, Math.max(0, zoom - 15));
+        const baseRadius = 0.005; 
+        const radius = baseRadius / Math.pow(2, Math.max(0, zoom - 13));
         
         console.log(`Calculated radius: ${radius} (zoom: ${zoom})`);
         
-        // Razporedi nepremičnine v krog okoli centra
+        // Razporedi nepremičnine v krog okoli cluster centra
         const modifiedProperties = properties.map((prop, index) => {
             const angle = (2 * Math.PI * index) / properties.length;
             const offsetLng = centerLng + (radius * Math.cos(angle));
@@ -192,7 +263,7 @@ class PopupManager {
             type: 'FeatureCollection',
             features: modifiedProperties
         };
-        
+                
         // Preverimo če layer/source že obstaja
         if (this.map.getSource(sourceId)) {
             console.log(`Source ${sourceId} already exists, removing...`);
@@ -231,21 +302,20 @@ class PopupManager {
                         'interpolate',
                         ['linear'],
                         ['zoom'],
-                        8, 6,
-                        12, 10,
-                        16, 15
+                        8, 8,
+                        12, 12,
+                        16, 18
                     ],
                     'circle-color': circleColor,
-                    'circle-opacity': 0.85,
-                    'circle-stroke-width': 2,
+                    'circle-opacity': 0.9,
+                    'circle-stroke-width': 3,
                     'circle-stroke-color': strokeColor
                 }
             });
-            console.log(`Added layer: ${layerId}`);
             
             // Preverimo ali je layer res dodan
             const addedLayer = this.map.getLayer(layerId);
-            console.log('Layer added successfully:', !!addedLayer);
+            console.log('Layer dodan uspesno:', !!addedLayer);
             
         } catch (error) {
             console.error(`Error adding layer ${layerId}:`, error);
@@ -275,7 +345,6 @@ class PopupManager {
         // Shrani handler reference za cleanup
         this.map[`_${layerId}_clickHandler`] = expandedClickHandler;
         
-        console.log(`✓ Successfully created expanded layer ${layerId} with ${properties.length} properties arranged in circle`);
     }
 
     // NOVA funkcija: Collapse cluster
@@ -307,7 +376,7 @@ class PopupManager {
         console.log(`Collapsed cluster ${clusterId}`);
     }
 
-    // Prikaz popupa za posamezno nepremičnino (ostane enako)
+    // Prikaz popupa za posamezno nepremičnino
     showPropertyPopup(lngLat, properties, onPropertySelect) {
         const popupContent = IndividualPopup({ 
             properties, 
@@ -332,7 +401,13 @@ class PopupManager {
             const detailsButton = document.getElementById(`btnShowDetails_${properties.id}`);
             if (detailsButton) {
                 detailsButton.addEventListener('click', () => {
-                    onPropertySelect(properties);
+                    // Pass both the property data and the data source
+                    const dataSource = this.currentDataSourceType === 'prodaja' ? 'kpp' : 'np';
+                    onPropertySelect({
+                        ...properties,
+                        dataSource: dataSource,
+                        deduplicatedId: properties.id // Make sure we use the deduplicated ID
+                    });
                     
                     if (this.currentPopup) {
                         this.currentPopup.remove();
@@ -382,7 +457,7 @@ class PopupManager {
         }, 100);
     }
 
-    // Debug funkcija (ostane enaka)
+    // Debug funkcija (POSODOBLJENA za deduplicated podatke)
     async debugClusterProperties(clusterProperties) {
         const clusterId = clusterProperties.cluster_id;
         const dataSource = this.currentDataSourceType === 'prodaja' ? 'kpp' : 'np';
@@ -392,14 +467,16 @@ class PopupManager {
         console.log('Cluster type:', clusterProperties.cluster_type);
         console.log('Point count:', clusterProperties.point_count);
         console.log('Data source:', dataSource);
+        console.log('Deduplicated IDs:', clusterProperties.deduplicated_ids);
         
-        if (!clusterId.startsWith('b_')) {
-            console.log('Distance cluster - ni podrobnih podatkov');
+        if (!clusterId.startsWith('b_') && !clusterId.startsWith('d_')) {
+            console.log('Unknown cluster type - ni podrobnih podatkov');
             return;
         }
         
         try {
-            const url = `http://localhost:8000/cluster/${clusterId}/properties?data_source=${dataSource}`;
+            const currentZoom = this.map.getZoom();
+            const url = `http://localhost:8000/cluster/${clusterId}/properties?data_source=${dataSource}&zoom=${currentZoom}`;
             console.log('Fetching cluster details from:', url);
             
             const response = await fetch(url);
@@ -411,19 +488,16 @@ class PopupManager {
             
             const data = await response.json();
             console.log('=== CLUSTER PROPERTIES ===');
-            console.log(`Found ${data.features.length} properties in building:`);
+            console.log(`Found ${data.features.length} deduplicated properties in cluster:`);
             
             data.features.forEach((feature, index) => {
                 const props = feature.properties;
                 const address = `${props.ulica || ''} ${props.hisna_stevilka || ''}`.trim() || 'Brez naslova';
-                const cena = dataSource === 'kpp' 
-                    ? (props.cena || props.pogodbena_cena) 
-                    : props.najemnina;
                 
                 console.log(`${index + 1}. ${address}`);
-                console.log(`   - ID: ${props.id}`);
+                console.log(`   - Deduplicated ID: ${props.id}`);
                 console.log(`   - Površina: ${props.povrsina || 'N/A'} m²`);
-                console.log(`   - ${dataSource === 'kpp' ? 'Cena' : 'Najemnina'}: ${cena ? Math.round(cena).toLocaleString('sl-SI') + ' €' : 'N/A'}`);
+                console.log(`   - Contracts: ${props.contract_count || 1}`);
                 console.log(`   - Koordinate: [${feature.geometry.coordinates[0].toFixed(6)}, ${feature.geometry.coordinates[1].toFixed(6)}]`);
                 console.log('   ---');
             });

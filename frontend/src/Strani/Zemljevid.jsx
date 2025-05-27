@@ -15,8 +15,6 @@ export default function Zemljevid() {
     // Use ref to track current data source type for event handlers
     const dataSourceTypeRef = useRef('prodaja');
     
-    const [searchVisible, setSearchVisible] = useState(false);
-    const [searchQuery, setSearchQuery] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [propertiesLoaded, setPropertiesLoaded] = useState(false);
     const [lastBounds, setLastBounds] = useState(null);
@@ -49,7 +47,11 @@ export default function Zemljevid() {
 
     // Handler za izbiro nepremičnine
     const handlePropertySelect = useCallback((propertyData) => {
-        setSelectedProperty(propertyData);
+        console.log('Property selected:', propertyData);
+                
+        setSelectedProperty({
+            ...propertyData,
+        });
         setShowPropertyDetails(true);
     }, []);
 
@@ -98,7 +100,10 @@ export default function Zemljevid() {
             const individualFeatures = geojson.features.filter(f => f.properties.type === 'individual');
             const clusterFeatures = geojson.features.filter(f => f.properties.type === 'cluster');
 
-            // Add individualni deli stavb
+            // Debug logging
+            console.log('Individual features:', individualFeatures.length);
+            console.log('Cluster features:', clusterFeatures.length);
+
             if (individualFeatures.length > 0) {
                 map.current.addSource('properties', {
                     type: 'geojson',
@@ -108,7 +113,7 @@ export default function Zemljevid() {
                     }
                 });
 
-                // Different colors based on data source type - use ref value
+                // razlicne barve glede na data source
                 const circleColor = currentDataSourceType === 'prodaja' ? '#3B82F6' : '#10B981';
                 const strokeColor = currentDataSourceType === 'prodaja' ? '#1D4ED8' : '#059669';
 
@@ -133,7 +138,6 @@ export default function Zemljevid() {
                 });
             }
 
-            // Add deli stavb clusterje
             if (clusterFeatures.length > 0) {
                 map.current.addSource('clusters', {
                     type: 'geojson',
@@ -144,9 +148,9 @@ export default function Zemljevid() {
                 });
 
                 // Razlicne barve clusterjev glede na datasource
-             const clusterColors = currentDataSourceType === 'prodaja' 
-    ? ['#3B82F6', '#2563EB', '#1D4ED8', '#1E40AF'] // Blue gradient
-    : ['#34D399', '#10B981', '#059669', '#047857'];
+                const clusterColors = currentDataSourceType === 'prodaja' 
+                    ? ['#3B82F6', '#2563EB', '#1D4ED8', '#1E40AF'] // modro
+                    : ['#34D399', '#10B981', '#059669', '#047857']; // zeleno
 
                 map.current.addLayer({
                     id: 'clusters-layer',
@@ -208,7 +212,7 @@ export default function Zemljevid() {
             setLastBounds(currentBounds);
             setLastZoom(currentZoom);
 
-            console.log(`Naložil ${geojson.features.length} del stavb za tip: ${currentDataSourceType}`);
+            console.log(`Naložil ${geojson.features.length} deduplicated del stavb za tip: ${currentDataSourceType}`);
             setPropertiesLoaded(true);
 
         } catch (error) {
@@ -369,7 +373,7 @@ export default function Zemljevid() {
             {showPropertyDetails && selectedProperty && (
                 <Podrobnosti
                     propertyId={selectedProperty.id}
-                    initialData={selectedProperty}
+                    dataSource={selectedProperty.dataSource || (dataSourceType === 'prodaja' ? 'kpp' : 'np')} /* to porihtaj da bo samo en */
                     onClose={() => {
                         setShowPropertyDetails(false);
                         setSelectedProperty(null);

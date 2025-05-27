@@ -3,7 +3,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from geoalchemy2.functions import ST_SetSRID, ST_MakeEnvelope, ST_Intersects, ST_AsGeoJSON, ST_X, ST_Y
 
-from .clustering_utils import calculate_cluster_resolution, get_property_model
+from .clustering_utils import calculate_cluster_resolution, get_deduplicated_property_model, get_property_model
 from .models import NpPosel, KppPosel
 
 
@@ -12,40 +12,37 @@ class PropertyService:
     @staticmethod
     def get_building_clustered_properties(west: float, south: float, east: float, north: float, db: Session, data_source: str = "np"):
         """
-        Pridobi nepremičnine združene po: sifra_ko, stevilka_stavbe (naredi cluster za vsako stavbo)
+        Pridobi deduplicirane nepremičnine združene po: sifra_ko, stevilka_stavbe (naredi cluster za vsako stavbo)
         Uporabljeno ko si zoomed in blizu
         """
-        PropertyModel = get_property_model(data_source)
+        DeduplicatedModel = get_deduplicated_property_model(data_source)
         bbox_geom = ST_SetSRID(ST_MakeEnvelope(west, south, east, north), 4326)
         
-
         cluster_query = db.query(
-            func.count(PropertyModel.del_stavbe_id).label('point_count'),
-            func.avg(ST_X(PropertyModel.coordinates)).label('avg_lng'),
-            func.avg(ST_Y(PropertyModel.coordinates)).label('avg_lat'),
-            PropertyModel.sifra_ko,
-            PropertyModel.stevilka_stavbe,
-            func.avg(PropertyModel.povrsina).label('avg_povrsina'),
-            func.array_agg(PropertyModel.obcina.distinct()).label('obcine'),
-            func.array_agg(PropertyModel.del_stavbe_id).label('property_ids')
+            func.count(DeduplicatedModel.del_stavbe_id).label('point_count'),
+            func.avg(ST_X(DeduplicatedModel.coordinates)).label('avg_lng'),
+            func.avg(ST_Y(DeduplicatedModel.coordinates)).label('avg_lat'),
+            DeduplicatedModel.sifra_ko,
+            DeduplicatedModel.stevilka_stavbe,
+            func.array_agg(DeduplicatedModel.del_stavbe_id).label('deduplicated_ids')
         ).filter(
-            ST_Intersects(PropertyModel.coordinates, bbox_geom)
+            ST_Intersects(DeduplicatedModel.coordinates, bbox_geom)
         ).group_by(
-            PropertyModel.sifra_ko,
-            PropertyModel.stevilka_stavbe
+            DeduplicatedModel.sifra_ko,
+            DeduplicatedModel.stevilka_stavbe
         ).all()
         
         features = []
         for row in cluster_query:
             if row.point_count == 1:
-                # Single point
-                feature = PropertyService._get_individual_property_feature(
-                    db, PropertyModel, row.property_ids[0], data_source
+                # Single point - vrni kot individualno dedupliciran del_stavbe (še vedno predstavlja eno stavbo)
+                feature = PropertyService._get_individual_deduplicated_property_feature(
+                    db, DeduplicatedModel, row.deduplicated_ids[0], data_source
                 )
                 if feature:
                     features.append(feature)
             else:
-                # Multi-point
+                # Multi-point cluster
                 feature = {
                     "type": "Feature",
                     "geometry": {
@@ -56,12 +53,11 @@ class PropertyService:
                         "type": "cluster",
                         "cluster_type": "building",
                         "point_count": row.point_count,
-                        "avg_povrsina": float(row.avg_povrsina) if row.avg_povrsina else None,
-                        "obcine": [obcina for obcina in row.obcine if obcina] if row.obcine else [],
-                        "cluster_id": f"b_{row.sifra_ko}_{row.stevilka_stavbe}",  # Building-level cluster id
+                        "cluster_id": f"b_{row.sifra_ko}_{row.stevilka_stavbe}",
                         "sifra_ko": row.sifra_ko,
                         "stevilka_stavbe": row.stevilka_stavbe,
-                        "data_source": data_source
+                        "data_source": data_source,
+                        "deduplicated_ids": row.deduplicated_ids  # vsi deduplicirani id-ji za ta cluster
                     }
                 }
                 features.append(feature)
@@ -74,40 +70,38 @@ class PropertyService:
     @staticmethod
     def get_distance_clustered_properties(west: float, south: float, east: float, north: float, zoom: float, db: Session, data_source: str = "np"):
         """
-        Pridobi nepremičnine združene po: razdalji med sabo
+        Pridobi deduplicirane nepremičnine združene po: razdalji med sabo
         Uporabljeno ko si zoomed srednje
         """
-        PropertyModel = get_property_model(data_source)
+        DeduplicatedModel = get_deduplicated_property_model(data_source)
         resolution = calculate_cluster_resolution(zoom)
         bbox_geom = ST_SetSRID(ST_MakeEnvelope(west, south, east, north), 4326)
         
         cluster_query = db.query(
-            func.count(PropertyModel.del_stavbe_id).label('point_count'),
-            func.avg(ST_X(PropertyModel.coordinates)).label('avg_lng'),
-            func.avg(ST_Y(PropertyModel.coordinates)).label('avg_lat'),
-            func.floor(ST_X(PropertyModel.coordinates) / resolution).label('cluster_x'),
-            func.floor(ST_Y(PropertyModel.coordinates) / resolution).label('cluster_y'),
-            func.avg(PropertyModel.povrsina).label('avg_povrsina'),
-            func.array_agg(PropertyModel.obcina.distinct()).label('obcine'),
-            func.array_agg(PropertyModel.del_stavbe_id).label('property_ids')
+            func.count(DeduplicatedModel.del_stavbe_id).label('point_count'),
+            func.avg(ST_X(DeduplicatedModel.coordinates)).label('avg_lng'),
+            func.avg(ST_Y(DeduplicatedModel.coordinates)).label('avg_lat'),
+            func.floor(ST_X(DeduplicatedModel.coordinates) / resolution).label('cluster_x'),
+            func.floor(ST_Y(DeduplicatedModel.coordinates) / resolution).label('cluster_y'),
+            func.array_agg(DeduplicatedModel.del_stavbe_id).label('deduplicated_ids')
         ).filter(
-            ST_Intersects(PropertyModel.coordinates, bbox_geom)
+            ST_Intersects(DeduplicatedModel.coordinates, bbox_geom)
         ).group_by(
-            func.floor(ST_X(PropertyModel.coordinates) / resolution),
-            func.floor(ST_Y(PropertyModel.coordinates) / resolution)
+            func.floor(ST_X(DeduplicatedModel.coordinates) / resolution),
+            func.floor(ST_Y(DeduplicatedModel.coordinates) / resolution)
         ).all()
         
         features = []
         for row in cluster_query:
             if row.point_count == 1:
-                # Single point
-                feature = PropertyService._get_individual_property_feature(
-                    db, PropertyModel, row.property_ids[0], data_source
+                # Single point - vrni kot individualno dedupliciran del_stavbe (še vedno predstavlja eno stavbo)
+                feature = PropertyService._get_individual_deduplicated_property_feature(
+                    db, DeduplicatedModel, row.deduplicated_ids[0], data_source
                 )
                 if feature:
                     features.append(feature)
             else:
-                # Multi-point
+                # Multi-point cluster
                 feature = {
                     "type": "Feature",
                     "geometry": {
@@ -118,10 +112,9 @@ class PropertyService:
                         "type": "cluster",
                         "cluster_type": "distance",
                         "point_count": row.point_count,
-                        "avg_povrsina": float(row.avg_povrsina) if row.avg_povrsina else None,
-                        "obcine": [obcina for obcina in row.obcine if obcina] if row.obcine else [],
-                        "cluster_id": f"d_{row.cluster_x}_{row.cluster_y}",  # Distance-based cluster id
-                        "data_source": data_source
+                        "cluster_id": f"d_{row.cluster_x}_{row.cluster_y}",
+                        "data_source": data_source,
+                        "deduplicated_ids": row.deduplicated_ids  # vsi deduplicirani id-ji za ta cluster
                     }
                 }
                 features.append(feature)
@@ -132,148 +125,94 @@ class PropertyService:
         }
 
     @staticmethod
-    def _get_individual_property_feature(db: Session, PropertyModel, property_id: int, data_source: str):
-        """helper za pridobitev podatkov enega dela stavbe z JOIN na posel tabelo"""
-        
-        if data_source.lower() == "np":
-            # JOIN z najemnimi posli
-            individual_property = db.query(
-                PropertyModel.del_stavbe_id,
-                PropertyModel.obcina,
-                PropertyModel.naselje,
-                PropertyModel.ulica,
-                PropertyModel.hisna_stevilka,
-                PropertyModel.dodatek_hs,
-                PropertyModel.povrsina,
-                PropertyModel.dejanska_raba,
-                PropertyModel.leto,
-                PropertyModel.posel_id,
-                # Podatki iz np_posel tabele
-                NpPosel.najemnina,
-                NpPosel.datum_sklenitve,
-                NpPosel.vkljuceno_stroski,
-                NpPosel.vkljuceno_ddv,
-                NpPosel.trajanje_najemanja,
-                NpPosel.datum_zacetka_najemanja,
-                NpPosel.posredovanje_agencije,
-                ST_AsGeoJSON(PropertyModel.coordinates).label('geom_json')
-            ).join(
-                NpPosel, PropertyModel.posel_id == NpPosel.posel_id
-            ).filter(PropertyModel.del_stavbe_id == property_id).first()
-            
-        else:  # kpp
-            # JOIN s kupoprodajnimi posli
-            individual_property = db.query(
-                PropertyModel.del_stavbe_id,
-                PropertyModel.obcina,
-                PropertyModel.naselje,
-                PropertyModel.ulica,
-                PropertyModel.hisna_stevilka,
-                PropertyModel.dodatek_hs,
-                PropertyModel.povrsina,
-                PropertyModel.dejanska_raba,
-                PropertyModel.leto,
-                PropertyModel.posel_id,
-                PropertyModel.pogodbena_cena,
-                PropertyModel.stevilo_sob,
-                PropertyModel.leto_izgradnje_dela_stavbe,
-                # Podatki iz kpp_posel tabele
-                KppPosel.cena,
-                KppPosel.datum_sklenitve,
-                KppPosel.vkljuceno_ddv,
-                KppPosel.posredovanje_agencije,
-                KppPosel.trznost_posla,
-                ST_AsGeoJSON(PropertyModel.coordinates).label('geom_json')
-            ).join(
-                KppPosel, PropertyModel.posel_id == KppPosel.posel_id
-            ).filter(PropertyModel.del_stavbe_id == property_id).first()
-        
-        if not individual_property:
-            return None
-            
-        geom_dict = json.loads(individual_property.geom_json)
-        
-        # Osnovni podatki (skupni za np in kpp)
-        properties = {
-            "id": individual_property.del_stavbe_id,
-            "type": "individual",
-            "obcina": individual_property.obcina,
-            "naselje": individual_property.naselje,
-            "ulica": individual_property.ulica,
-            "hisna_stevilka": individual_property.hisna_stevilka,
-            "dodatek_hs": individual_property.dodatek_hs,
-            "povrsina": float(individual_property.povrsina) if individual_property.povrsina else None,
-            "dejanska_raba": individual_property.dejanska_raba,
-            "leto": individual_property.leto,
-            "posel_id": individual_property.posel_id,
-            "data_source": data_source,
-            "datum_sklenitve": individual_property.datum_sklenitve.isoformat() if individual_property.datum_sklenitve else None,
-            "posredovanje_agencije": individual_property.posredovanje_agencije
-        }
-        
-        # Dodaj specifične podatke glede na data_source
-        if data_source.lower() == "np":
-            properties.update({
-                "najemnina": float(individual_property.najemnina) if individual_property.najemnina else None,
-                "vkljuceno_stroski": individual_property.vkljuceno_stroski,
-                "vkljuceno_ddv": individual_property.vkljuceno_ddv,
-                "trajanje_najemanja": individual_property.trajanje_najemanja,
-                "datum_zacetka_najemanja": individual_property.datum_zacetka_najemanja.isoformat() if individual_property.datum_zacetka_najemanja else None
-            })
-        else:  # kpp
-            properties.update({
-                "pogodbena_cena": float(individual_property.pogodbena_cena) if individual_property.pogodbena_cena else None,
-                "cena": float(individual_property.cena) if individual_property.cena else None,
-                "stevilo_sob": individual_property.stevilo_sob,
-                "leto_izgradnje_dela_stavbe": individual_property.leto_izgradnje_dela_stavbe,
-                "vkljuceno_ddv": individual_property.vkljuceno_ddv,
-                "trznost_posla": individual_property.trznost_posla
-            })
-        
-        return {
-            "type": "Feature",
-            "geometry": geom_dict,
-            "properties": properties
-        }
-    
-
-    # Metoda da pridobima vse podatke ki spadajo pod cluster (cluster ki je zdruzil nepremicnine glede stavbo)
-    @staticmethod
-    def get_building_cluster_properties(sifra_ko: int, stevilka_stavbe: int, db: Session, data_source: str = "np"):
+    def _get_individual_deduplicated_property_feature(db: Session, DeduplicatedModel, deduplicated_id: int, data_source: str):
         """
-        Pridobi vse nepremičnine v določeni stavbi - z error handling
+        Helper za pridobitev osnovnih podatkov deduplicirane nepremičnine za prikaz na zemljevidu
+        (brez vseh podrobnosti - te pridobiš z get_property_details)
         """
         PropertyModel = get_property_model(data_source)
         
-        # Poiščemo vse property_ids v tej stavbi
-        property_ids = db.query(PropertyModel.del_stavbe_id).filter(
-            PropertyModel.sifra_ko == sifra_ko,
-            PropertyModel.stevilka_stavbe == stevilka_stavbe
+        # Pridobi deduplicirani zapis
+        dedup_property = db.query(
+            DeduplicatedModel,
+            ST_X(DeduplicatedModel.coordinates).label('longitude'),
+            ST_Y(DeduplicatedModel.coordinates).label('latitude')
+        ).filter(
+            DeduplicatedModel.del_stavbe_id == deduplicated_id
+        ).first()
+        
+        if not dedup_property:
+            return None
+        
+        # Pridobi reprezentativni del_stavbe zapis za osnovne podatke
+        representative_property = db.query(PropertyModel).filter(
+            PropertyModel.del_stavbe_id == dedup_property[0].najnovejsi_del_stavbe_id
+        ).first()
+        
+        if not representative_property:
+            return None
+        
+        return {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [float(dedup_property.longitude), float(dedup_property.latitude)]
+            },
+            "properties": {
+                "id": dedup_property[0].del_stavbe_id,  # deduplicated ID
+                "type": "individual",
+                "sifra_ko": dedup_property[0].sifra_ko,
+                "stevilka_stavbe": dedup_property[0].stevilka_stavbe,
+                "stevilka_dela_stavbe": dedup_property[0].stevilka_dela_stavbe,
+                "dejanska_raba": dedup_property[0].dejanska_raba,
+                "obcina": representative_property.obcina,
+                "naselje": representative_property.naselje,
+                "ulica": representative_property.ulica,
+                "hisna_stevilka": representative_property.hisna_stevilka,
+                "dodatek_hs": representative_property.dodatek_hs,
+                "povrsina": float(representative_property.povrsina) if representative_property.povrsina else None,
+                "data_source": data_source,
+                "contract_count": len(dedup_property[0].povezani_posel_ids),
+                "has_multiple_contracts": len(dedup_property[0].povezani_posel_ids) > 1
+            }
+        }
+    
+
+    @staticmethod
+    def get_building_cluster_properties(sifra_ko: int, stevilka_stavbe: int, db: Session, data_source: str = "np"):
+        """
+        Pridobi vse deduplicirane nepremičnine v določeni stavbi
+        """
+        DeduplicatedModel = get_deduplicated_property_model(data_source)
+        
+        # Poiščemo vse deduplicirane property_ids v tej stavbi
+        deduplicated_properties = db.query(DeduplicatedModel).filter(
+            DeduplicatedModel.sifra_ko == sifra_ko,
+            DeduplicatedModel.stevilka_stavbe == stevilka_stavbe
         ).all()
         
-        print(f"Found {len(property_ids)} property IDs in building")  # Debug
+        print(f"Found {len(deduplicated_properties)} deduplicated properties in building")  # Debug
         
         features = []
         skipped_properties = 0
         
-        for prop_id_row in property_ids:
+        for dedup_prop in deduplicated_properties:
             try:
-                # Ponovno uporabimo obstoječo funkcijo za vsako nepremičnino
-                feature = PropertyService._get_individual_property_feature(
-                    db, PropertyModel, prop_id_row.del_stavbe_id, data_source
+                feature = PropertyService._get_individual_deduplicated_property_feature(
+                    db, DeduplicatedModel, dedup_prop.del_stavbe_id, data_source
                 )
                 if feature:
                     features.append(feature)
                 else:
-                    print(f"Property ID {prop_id_row.del_stavbe_id} returned None - skipping")
+                    print(f"Deduplicated property ID {dedup_prop.del_stavbe_id} returned None - skipping")
                     skipped_properties += 1
             except Exception as e:
-                print(f"Error processing property ID {prop_id_row.del_stavbe_id}: {str(e)}")
+                print(f"Error processing deduplicated property ID {dedup_prop.del_stavbe_id}: {str(e)}")
                 skipped_properties += 1
                 continue
         
         if skipped_properties > 0:
-            print(f"Warning: Skipped {skipped_properties} properties due to missing JOIN data")
+            print(f"Warning: Skipped {skipped_properties} deduplicated properties")
         
         return {
             "type": "FeatureCollection", 
@@ -284,5 +223,139 @@ class PropertyService:
                 "skipped_properties": skipped_properties,
                 "sifra_ko": sifra_ko,
                 "stevilka_stavbe": stevilka_stavbe
+            }
+        }
+    
+    @staticmethod
+    def get_property_details(deduplicated_id: int, data_source: str, db: Session):
+        """
+        NOVA METODA: Pridobi popolne podrobnosti za določeno deduplicirano nepremičnino, ko jo kliknemo na zemljevidu.
+        Vrne VSE povezane pogodbe in del_stavbe zapise.
+        """
+        DeduplicatedModel = get_deduplicated_property_model(data_source)
+        PropertyModel = get_property_model(data_source)
+        
+        # Pridobi deduplicirani zapis nepremičnine
+        dedup_property = db.query(
+            DeduplicatedModel,
+            ST_X(DeduplicatedModel.coordinates).label('longitude'),
+            ST_Y(DeduplicatedModel.coordinates).label('latitude')
+        ).filter(
+            DeduplicatedModel.del_stavbe_id == deduplicated_id
+        ).first()
+        
+        if not dedup_property:
+            return None
+        
+        # Pridobi VSE povezane del_stavbe zapise z uporabo povezani_del_stavbe_ids polja
+        all_del_stavbe = db.query(PropertyModel).filter(
+            PropertyModel.del_stavbe_id.in_(dedup_property[0].povezani_del_stavbe_ids)
+        ).all()
+        
+        # Pridobi VSE povezane zapise pogodb z uporabo povezani_posel_ids polja
+        if data_source.lower() == "np":
+            PoselModel = NpPosel
+            all_contracts = db.query(PoselModel).filter(
+                PoselModel.posel_id.in_(dedup_property[0].povezani_posel_ids)
+            ).all()
+        else:
+            PoselModel = KppPosel
+            all_contracts = db.query(PoselModel).filter(
+                PoselModel.posel_id.in_(dedup_property[0].povezani_posel_ids)
+            ).all()
+        
+        # Pridobi reprezentativni zapis za osnovne podatke nepremičnine
+        representative_del_stavbe = db.query(PropertyModel).filter(
+            PropertyModel.del_stavbe_id == dedup_property[0].najnovejsi_del_stavbe_id
+        ).first()
+        
+        if not representative_del_stavbe:
+            return None
+        
+        # Sestavi odgovor z VSEMI povezanimi podatki
+        del_stavbe_records = []
+        for record in all_del_stavbe:
+            del_stavbe_record = {
+                "del_stavbe_id": record.del_stavbe_id,
+                "posel_id": record.posel_id,
+                "leto": record.leto,
+                "povrsina": float(record.povrsina) if record.povrsina else None,
+                "povrsina_uporabna": float(record.povrsina_uporabna) if record.povrsina_uporabna else None,
+                "opombe": record.opombe
+            }
+            
+            # Dodaj polja specifična za vir podatkov
+            if data_source.lower() == "np":
+                del_stavbe_record["opremljenost"] = record.opremljenost
+                del_stavbe_record["leto_izgradnje_stavbe"] = record.leto_izgradnje_stavbe
+            else:
+                del_stavbe_record["stevilo_sob"] = record.stevilo_sob
+                del_stavbe_record["leto_izgradnje_dela_stavbe"] = record.leto_izgradnje_dela_stavbe
+            
+            del_stavbe_records.append(del_stavbe_record)
+        
+        # Sestavi zapise pogodb
+        contract_records = []
+        for contract in all_contracts:
+            contract_record = {
+                "posel_id": contract.posel_id,
+                "datum_sklenitve": contract.datum_sklenitve.isoformat() if contract.datum_sklenitve else None,
+                "posredovanje_agencije": contract.posredovanje_agencije
+            }
+            
+            if data_source.lower() == "np":
+                contract_record.update({
+                    "najemnina": float(contract.najemnina) if contract.najemnina else None,
+                    "vkljuceno_stroski": contract.vkljuceno_stroski,
+                    "vkljuceno_ddv": contract.vkljuceno_ddv,
+                    "trajanje_najemanja": contract.trajanje_najemanja,
+                    "datum_zacetka_najemanja": contract.datum_zacetka_najemanja.isoformat() if contract.datum_zacetka_najemanja else None,
+                    "datum_prenehanja_najemanja": contract.datum_prenehanja_najemanja.isoformat() if contract.datum_prenehanja_najemanja else None
+                })
+            else:
+                contract_record.update({
+                    "cena": float(contract.cena) if contract.cena else None,
+                    "vkljuceno_ddv": contract.vkljuceno_ddv,
+                    "trznost_posla": contract.trznost_posla
+                })
+            
+            contract_records.append(contract_record)
+        
+        # Glavni odgovor z reprezentativnimi podatki + vsi povezani zapisi
+        return {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    float(dedup_property.longitude),
+                    float(dedup_property.latitude)
+                ]
+            },
+            "properties": {
+                "deduplicated_id": dedup_property[0].del_stavbe_id,
+                "type": "individual",
+                
+                # Osnovni podatki nepremičnine iz reprezentativnega zapisa
+                "sifra_ko": representative_del_stavbe.sifra_ko,
+                "stevilka_stavbe": representative_del_stavbe.stevilka_stavbe,
+                "stevilka_dela_stavbe": representative_del_stavbe.stevilka_dela_stavbe,
+                "dejanska_raba": representative_del_stavbe.dejanska_raba,
+                "obcina": representative_del_stavbe.obcina,
+                "naselje": representative_del_stavbe.naselje,
+                "ulica": representative_del_stavbe.ulica,
+                "hisna_stevilka": representative_del_stavbe.hisna_stevilka,
+                "dodatek_hs": representative_del_stavbe.dodatek_hs,
+                "stev_stanovanja": representative_del_stavbe.stev_stanovanja,
+                "vrsta": representative_del_stavbe.vrsta,
+                "povrsina": float(representative_del_stavbe.povrsina) if representative_del_stavbe.povrsina else None,
+                "data_source": data_source,
+                
+                # Povzetek informacij
+                "contract_count": len(dedup_property[0].povezani_posel_ids),
+                "has_multiple_contracts": len(dedup_property[0].povezani_posel_ids) > 1,
+                
+                # VSI povezani podatki za podrobno analizo
+                "all_del_stavbe_records": del_stavbe_records,
+                "all_contracts": contract_records
             }
         }
