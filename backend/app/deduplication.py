@@ -101,7 +101,7 @@ class DeduplicationService:
             if dedup_count == 0:
                 logger.warning(f"Nobene deduplicirane lastnosti ustvarjene za {table_prefix}!")
             elif dedup_count > original_count:
-                logger.warning(f"Več dedupliciranih lastnosti kot originalnih zapisov - preveri logiko!")
+                logger.warning("Več dedupliciranih lastnosti kot originalnih zapisov - preveri logiko!")
             
         except Exception as e:
             logger.error(f"Napaka pri preverjanju rezultatov dedupliciranja: {str(e)}")

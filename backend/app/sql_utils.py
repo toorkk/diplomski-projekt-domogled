@@ -73,7 +73,6 @@ def execute_sql_count(engine, schema, table):
         Število vrstic v tabeli
     """
     count_query = f"SELECT COUNT(*) FROM {schema}.{table}"
-    logger.info(f"Štetje vrstic v {schema}.{table}")
     
     try:
         with engine.connect() as conn:
@@ -117,7 +116,7 @@ def execute_sql_query(engine, query, params=None):
                 
                 # Potrditev transakcije
                 trans.commit()
-                logger.info(f"SQL poizvedba uspešno zaključena in potrjena")
+                logger.info("SQL poizvedba uspešno zaključena in potrjena")
                 return result
             except Exception as e:
                 # Razveljavitev ob napaki

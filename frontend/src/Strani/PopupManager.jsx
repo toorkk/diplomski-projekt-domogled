@@ -497,7 +497,7 @@ class PopupManager {
                 console.log(`${index + 1}. ${address}`);
                 console.log(`   - Deduplicated ID: ${props.id}`);
                 console.log(`   - Površina: ${props.povrsina || 'N/A'} m²`);
-                console.log(`   - Contracts: ${props.contract_count || 1}`);
+                console.log(`   - Posli: ${props.stevilo_poslov || 1}`);
                 console.log(`   - Koordinate: [${feature.geometry.coordinates[0].toFixed(6)}, ${feature.geometry.coordinates[1].toFixed(6)}]`);
                 console.log('   ---');
             });

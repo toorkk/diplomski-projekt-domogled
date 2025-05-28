@@ -50,7 +50,6 @@ async def ingest_data(
                 filter_year=str(year),
                 data_type=data_type
             )
-            pass
         
         return JSONResponse(
             status_code=202,

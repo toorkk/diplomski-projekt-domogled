@@ -5,7 +5,6 @@ from geoalchemy2 import Geometry
 Base = declarative_base()
 
 
-
 class NpDelStavbe(Base):
     __tablename__ = "np_del_stavbe"
     __table_args__ = {"schema": "core"}
@@ -13,14 +12,14 @@ class NpDelStavbe(Base):
     del_stavbe_id = Column(Integer, primary_key=True)
     posel_id = Column(Integer, nullable=False)
     sifra_ko = Column(SmallInteger, nullable=False)
-    ime_ko = Column(String(100))
-    obcina = Column(String(100))
+    ime_ko = Column(String(101))
+    obcina = Column(String(102))
     stevilka_stavbe = Column(Integer)
     stevilka_dela_stavbe = Column(Integer)
 
-    naselje = Column(String(100))
-    ulica = Column(String(100))
-    hisna_stevilka = Column(String(20))
+    naselje = Column(String(103))
+    ulica = Column(String(300))
+    hisna_stevilka = Column(String(40))
     dodatek_hs = Column(String(10))
     stev_stanovanja = Column(Integer)
     vrsta = Column(SmallInteger)
@@ -38,11 +37,10 @@ class NpDelStavbe(Base):
     leto = Column(Integer)
 
 
-
 class NpDelStavbeDeduplicated(Base):
     __tablename__ = "np_del_stavbe_deduplicated"
     __table_args__ = (
-        UniqueConstraint('sifra_ko', 'stevilka_stavbe', 'stevilka_dela_stavbe', 'dejanska_raba', name='uq_stavbe_deduplicated'),
+        UniqueConstraint('sifra_ko', 'stevilka_stavbe', 'stevilka_dela_stavbe', 'dejanska_raba', name='uq_np_deduplicated'),
         {'schema': 'core'}
     )
 
@@ -54,13 +52,29 @@ class NpDelStavbeDeduplicated(Base):
     stevilka_dela_stavbe = Column(Integer, nullable=False)
     dejanska_raba = Column(String(310), nullable=False)
     
+    obcina = Column(String(102))
+    naselje = Column(String(103))
+    ulica = Column(String(300))
+    hisna_stevilka = Column(String(40))
+    dodatek_hs = Column(String(10))
+    stev_stanovanja = Column(Integer)
+    
+    povrsina = Column(Numeric(10, 2))
+    povrsina_uporabna = Column(Numeric(10, 2))
+    leto_izgradnje_stavbe = Column(Integer)
+    opremljenost = Column(SmallInteger)
+    
+    zadnja_najemnina = Column(Numeric(20, 2))
+    zadnje_vkljuceno_stroski = Column(Boolean)
+    zadnje_vkljuceno_ddv = Column(Boolean)
+    zadnja_stopnja_ddv = Column(Numeric(5, 2))
+    zadnje_leto = Column(Integer)
+    
     povezani_del_stavbe_ids = Column(ARRAY(Integer), nullable=False)
     povezani_posel_ids = Column(ARRAY(Integer), nullable=False)
     najnovejsi_del_stavbe_id = Column(Integer, nullable=False)
     
     coordinates = Column(Geometry('Point', 4326), nullable=False)
-
-
 
 
 class NpPosel(Base):
@@ -71,7 +85,7 @@ class NpPosel(Base):
     vrsta_posla = Column(SmallInteger)
     datum_uveljavitve = Column(Date)
     datum_sklenitve = Column(Date)
-    najemnina = Column(Numeric)
+    najemnina = Column(Numeric(20, 2))
     vkljuceno_stroski = Column(Boolean)
     vkljuceno_ddv = Column(Boolean)
     stopnja_ddv = Column(Numeric(5, 2))
@@ -87,7 +101,6 @@ class NpPosel(Base):
     vrsta_akta = Column(SmallInteger)
     trznost_posla = Column(SmallInteger)
     leto = Column(Integer)
-
 
 
 class KppDelStavbe(Base):
@@ -108,7 +121,7 @@ class KppDelStavbe(Base):
     dodatek_hs = Column(String(10))
     stev_stanovanja = Column(Integer)
     vrsta = Column(SmallInteger)
-    leto_izgradnje_dela_stavbe = Column(Integer)
+    leto_izgradnje_stavbe = Column(Integer)
     stavba_je_dokoncana = Column(Integer)
     gradbena_faza = Column(Integer)
     novogradnja = Column(Integer)
@@ -122,23 +135,22 @@ class KppDelStavbe(Base):
     povrsina_atrija = Column(Numeric(10, 2))
     opombe = Column(Text)
     dejanska_raba = Column(String(310))
-    lega_v_stavbi = Column(String(20))
+    lega_v_stavbi = Column(String(50))
     stevilo_sob = Column(Integer)
     povrsina = Column(Numeric(10, 2))
     povrsina_uporabna = Column(Numeric(10, 2))
     prostori = Column(Text)
-    pogodbena_cena = Column(Numeric(12, 2))
+    pogodbena_cena = Column(Numeric(20, 2))
     stopnja_ddv = Column(Numeric(5, 2))
     
     coordinates = Column(Geometry('Point', 4326))
     leto = Column(Integer)
 
 
-
 class KppDelStavbeDeduplicated(Base):
     __tablename__ = "kpp_del_stavbe_deduplicated"
     __table_args__ = (
-        UniqueConstraint('sifra_ko', 'stevilka_stavbe', 'stevilka_dela_stavbe', 'dejanska_raba', name='uq_stavbe_deduplicated'),
+        UniqueConstraint('sifra_ko', 'stevilka_stavbe', 'stevilka_dela_stavbe', 'dejanska_raba', name='uq_kpp_deduplicated'),
         {'schema': 'core'}
     )
 
@@ -150,12 +162,28 @@ class KppDelStavbeDeduplicated(Base):
     stevilka_dela_stavbe = Column(Integer, nullable=False)
     dejanska_raba = Column(String(310), nullable=False)
     
+    obcina = Column(String(102))
+    naselje = Column(String(103))
+    ulica = Column(String(300))
+    hisna_stevilka = Column(String(40))
+    dodatek_hs = Column(String(10))
+    stev_stanovanja = Column(Integer)
+    
+    povrsina = Column(Numeric(10, 2))
+    povrsina_uporabna = Column(Numeric(10, 2))
+    leto_izgradnje_stavbe = Column(Integer)
+    stevilo_sob = Column(Integer)
+    
+    zadnja_cena = Column(Numeric(20, 2))
+    zadnje_vkljuceno_ddv = Column(Boolean)
+    zadnja_stopnja_ddv = Column(Numeric(5, 2))
+    zadnje_leto = Column(Integer)
+    
     povezani_del_stavbe_ids = Column(ARRAY(Integer), nullable=False)
     povezani_posel_ids = Column(ARRAY(Integer), nullable=False)
     najnovejsi_del_stavbe_id = Column(Integer, nullable=False)
     
     coordinates = Column(Geometry('Point', 4326), nullable=False)
-
 
 
 class KppPosel(Base):
@@ -171,8 +199,8 @@ class KppPosel(Base):
     stopnja_ddv = Column(Numeric(5, 2))
     opombe = Column(Text)
     posredovanje_agencije = Column(Boolean)
-    trznost_posla = Column(SmallInteger)
-    vrsta_akta = Column(SmallInteger)
     datum_zadnje_spremembe = Column(Date)
     datum_zadnje_uveljavitve = Column(Date)
+    trznost_posla = Column(SmallInteger)
+    vrsta_akta = Column(SmallInteger)
     leto = Column(Integer)

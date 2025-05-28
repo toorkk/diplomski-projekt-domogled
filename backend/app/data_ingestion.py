@@ -208,7 +208,7 @@ class DataIngestionService:
 
 
 
-    def import_to_staging(self, csv_files: Dict[str, str], data_type: str):
+    def import_to_staging(self, csv_files: Dict[str, str]):
         """Uvozi CSV podatke v staging tabele."""
         try:
             # Uvoz CSV datotek v ustrezne staging tabele
@@ -271,7 +271,7 @@ class DataIngestionService:
             logger.info(f"Podatki v staging: {table_prefix}_del_stavbe={staging_del_stavbe_count}, {table_prefix}_posel={staging_posel_count}")
             
             if staging_del_stavbe_count == 0 or staging_posel_count == 0:
-                logger.warning(f"Staging tabele so prazne! Ne morem nadaljevati s transformacijo.")
+                logger.warning("Staging tabele so prazne! Ne morem nadaljevati s transformacijo.")
                 return
             
             # Preverjanje, koliko zapisov ima vrsta_oddanih_prostorov = 1 ali 2 (samo za np)
@@ -344,7 +344,7 @@ class DataIngestionService:
             logger.info(f"Pretvorba podatkov zaključena. Število vrstic: core.{table_prefix}_del_stavbe: {del_stavbe_count}, core.{table_prefix}_posel: {posel_count}")
             
             if del_stavbe_count == 0 or posel_count == 0:
-                logger.warning(f"Transformacija je bila izvedena brez napak, vendar podatki niso bili vstavljeni!")
+                logger.warning("Transformacija je bila izvedena brez napak, vendar podatki niso bili vstavljeni!")
             
         except Exception as e:
             logger.error(f"Napaka pri pretvorbi v core: {str(e)}")
@@ -387,7 +387,7 @@ class DataIngestionService:
             logger.info("=" * 50)
             
             # Uvozi v staging tabele (različna skripta za np in kpp)
-            self.import_to_staging(csv_files, data_type)
+            self.import_to_staging(csv_files)
 
             logger.info("=" * 50)
             

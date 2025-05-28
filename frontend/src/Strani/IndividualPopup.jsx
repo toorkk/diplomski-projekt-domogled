@@ -1,19 +1,52 @@
 const IndividualPopup = ({ properties, dataSourceType = 'prodaja' }) => {
-    // Sestavi naslov z ulico in hišno številko, če obstajata
+
     const naslov = `${properties.ulica || ''} ${properties.hisna_stevilka || ''} ${properties.dodatek_hs || ''}`.trim();
     
-    const contractCount = properties.contract_count || 1;
-    const hasMultipleContracts = properties.has_multiple_contracts || false;
+    const contractCount = properties.stevilo_poslov || 1;
+    const hasMultipleContracts = properties.ima_vec_poslov || false;
+    
+
+    const getLatestPriceInfo = () => {
+        if (dataSourceType === 'prodaja' || properties.data_source === 'kpp') {
+            // KPP
+            const cena = properties.zadnja_cena;
+            return {
+                hasPrice: !!cena,
+                priceText: cena ? `€${cena.toLocaleString('sl-SI')}` : null,
+                priceLabel: 'Prodajna cena:',
+                vatInfo: properties.zadnje_vkljuceno_ddv ? 
+                    `z DDV${properties.zadnja_stopnja_ddv ? ` (${properties.zadnja_stopnja_ddv}%)` : ' (% neznan)'}` : 
+                    'brez DDV'
+            };
+        } else {
+            // NP
+            const najemnina = properties.zadnja_najemnina;
+            return {
+                hasPrice: !!najemnina,
+                priceText: najemnina ? `€${najemnina.toLocaleString('sl-SI')}/mesec` : null,
+                priceLabel: 'Najemnina:',
+                vatInfo: properties.zadnje_vkljuceno_ddv ? 
+                    `z DDV${properties.zadnja_stopnja_ddv ? ` (${properties.zadnja_stopnja_ddv}%)` : ''}` : 
+                    'brez DDV',
+                costsInfo: properties.zadnje_vkljuceno_stroski ? 'stroški vključeni' : 'stroški niso vključeni'
+            };
+        }
+    };
+    
+    const priceInfo = getLatestPriceInfo();
     
     return `
         <div class="font-sans bg-white rounded-lg overflow-hidden w-80">
             <!-- Modro zglavje -->
             <div class="bg-[rgb(59,130,246)] text-white p-4">
                 ${naslov ? `<h3 class="font-bold text-lg mb-1">${naslov}</h3>` :
-                properties.naselje ? `<p class="text-white">${properties.naselje}</p>` : ''}
+                properties.naselje ? `<h3 class="font-bold text-lg mb-1">${properties.naselje}</h3>` : ''}
+                
+                ${properties.obcina && properties.obcina !== properties.naselje ? 
+                    `<p class="text-blue-100 text-sm">${properties.obcina}</p>` : ''}
                 
                 ${hasMultipleContracts ? `
-                <div class="mt-1">
+                <div class="mt-2">
                     <span class="bg-blue-600 px-2 py-1 rounded text-xs">
                         ${contractCount}x poslov
                     </span>
@@ -23,72 +56,92 @@ const IndividualPopup = ({ properties, dataSourceType = 'prodaja' }) => {
 
             <!-- Vsebina -->
             <div class="p-4">
-                <div class="grid grid-cols-2 gap-y-2 text-sm">
+                <div class="grid grid-cols-2 gap-y-2 text-sm mb-4">
                     
-                    ${properties.obcina ? `
-                    <div class="text-gray-600">Občina:</div>
-                    <div class="font-medium">${properties.obcina}</div>
-                    ` : ''}
-                    
-                    ${properties.naselje ? `
-                    <div class="text-gray-600">Naselje:</div>
-                    <div class="font-medium">${properties.naselje}</div>
-                    ` : ''}
-                    
-                    ${(properties.ulica && !naslov) ? `
-                    <div class="text-gray-600">Ulica:</div>
-                    <div class="font-medium">${properties.ulica}</div>
-                    ` : ''}
-                    
-                    ${(properties.hisna_stevilka && !naslov) ? `
-                    <div class="text-gray-600">Hišna številka:</div>
-                    <div class="font-medium">${properties.hisna_stevilka}</div>
-                    ` : ''}
-
                     ${properties.povrsina ? `
                     <div class="text-gray-600">Površina:</div>
                     <div class="font-medium">${properties.povrsina} m²</div>
                     ` : ''}
                     
-                    ${properties.sifra_ko ? `
-                    <div class="text-gray-600">Šifra KO:</div>
-                    <div class="font-medium">${properties.sifra_ko}</div>
+                    ${properties.povrsina_uporabna ? `
+                    <div class="text-gray-600">Uporabna površina:</div>
+                    <div class="font-medium">${properties.povrsina_uporabna} m²</div>
                     ` : ''}
                     
-                    ${properties.stevilka_stavbe ? `
-                    <div class="text-gray-600">Št. stavbe:</div>
-                    <div class="font-medium">${properties.stevilka_stavbe}</div>
+                    ${properties.leto_izgradnje_stavbe ? `
+                    <div class="text-gray-600">Leto izgradnje:</div>
+                    <div class="font-medium">${properties.leto_izgradnje_stavbe}</div>
                     ` : ''}
                     
-                    ${properties.stevilka_dela_stavbe ? `
-                    <div class="text-gray-600">Št. dela stavbe:</div>
-                    <div class="font-medium">${properties.stevilka_dela_stavbe}</div>
+                    ${properties.stevilo_sob ? `
+                    <div class="text-gray-600">Število sob:</div>
+                    <div class="font-medium">${properties.stevilo_sob}</div>
+                    ` : ''}
+                    
+                    ${properties.opremljenost ? `
+                    <div class="text-gray-600">Opremljenost:</div>
+                    <div class="font-medium">${properties.opremljenost}/5</div>
+                    ` : ''}
+                    
+                    ${properties.stev_stanovanja ? `
+                    <div class="text-gray-600">Št. stanovanja:</div>
+                    <div class="font-medium">${properties.stev_stanovanja}</div>
                     ` : ''}
                     
                     ${properties.dejanska_raba ? `
-                    <div class="text-gray-600">Opis objekta:</div>
-                    <div class="font-medium">${properties.dejanska_raba}</div>
+                    <div class="text-gray-600">Tip objekta:</div>
+                    <div class="font-medium capitalize">${properties.dejanska_raba}</div>
+                    ` : ''}
+                    
+                    ${properties.zadnje_leto ? `
+                    <div class="text-gray-600">Zadnji posel:</div>
+                    <div class="font-medium">${properties.zadnje_leto}</div>
                     ` : ''}
                     
                 </div>
                 
-                <!-- Črta kot separator -->
-                <hr class="my-4 border-gray-200">
-                
-                <!-- Cena nepremičnine - simplified for deduplicated data -->
+                <!-- Cena nepremičnine -->
                 <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
                     <div class="text-center">
                         <div class="text-gray-600 text-sm mb-1">
-                            ${dataSourceType === 'prodaja' ? 'Cena nakupa:' : 'Cena najemnine:'}
+                            ${priceInfo.priceLabel}
                         </div>
-                        <div class="font-bold text-lg text-gray-600">Kliknite za podrobnosti</div>
+                        ${priceInfo.hasPrice ? `
+                        <div class="font-bold text-xl text-gray-800 mb-1">
+                            ${priceInfo.priceText}
+                        </div>
+                        <div class="text-xs text-gray-500">
+                            ${priceInfo.vatInfo}
+                            ${priceInfo.costsInfo ? ` • ${priceInfo.costsInfo}` : ''}
+                        </div>
+                        ` : `
+                        <div class="font-bold text-lg text-gray-600">Podatek ni na voljo</div>
+                        `}
+                        
                         ${hasMultipleContracts ? `
-                        <div class="text-xs text-blue-600 mt-1">
-                            Več poslov na voljo
+                        <div class="text-xs text-blue-600 mt-2">
+                            ${contractCount - 1} ${contractCount === 2 ? 'dodatni posel' : 'dodatnih poslov'} na voljo
                         </div>
                         ` : ''}
                     </div>
                 </div>
+                
+                <!-- Tehnični podatki (skrčeni) -->
+                <details class="mb-4">
+                    <summary class="text-sm text-gray-600 cursor-pointer hover:text-gray-800">
+                        Tehnični podatki
+                    </summary>
+                    <div class="grid grid-cols-2 gap-y-1 text-xs mt-2 pl-2">
+                        <div class="text-gray-500">Šifra KO:</div>
+                        <div class="font-mono">${properties.sifra_ko || 'N/A'}</div>
+                        
+                        <div class="text-gray-500">Št. stavbe:</div>
+                        <div class="font-mono">${properties.stevilka_stavbe || 'N/A'}</div>
+                        
+                        <div class="text-gray-500">Št. dela stavbe:</div>
+                        <div class="font-mono">${properties.stevilka_dela_stavbe || 'N/A'}</div>
+                    </div>
+                </details>
                 
                 <!-- Moder gumb za podrobnosti -->
                 <div class="text-center">
@@ -96,7 +149,7 @@ const IndividualPopup = ({ properties, dataSourceType = 'prodaja' }) => {
                         class="bg-[rgb(59,130,246)] hover:bg-[rgb(29,100,216)] text-white py-2 px-4 rounded text-sm transition-colors duration-200 w-full"
                         id="btnShowDetails_${properties.id}"
                     >
-                        Podrobnosti
+                        ${hasMultipleContracts ? 'Prikaži vse posle' : 'Več podrobnosti'}
                     </button>
                 </div>
             </div>

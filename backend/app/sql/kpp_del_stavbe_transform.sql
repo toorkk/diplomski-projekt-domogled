@@ -11,7 +11,7 @@ INSERT INTO core.kpp_del_stavbe (
     dodatek_hs,
     stev_stanovanja,
     vrsta,
-    leto_izgradnje_dela_stavbe,
+    leto_izgradnje_stavbe,
     stavba_je_dokoncana,
     gradbena_faza,
     novogradnja,

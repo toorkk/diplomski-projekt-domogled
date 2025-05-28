@@ -111,9 +111,9 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
                       {getPriceLabel()}: {formatPrice(getPrice())} €
                     </span>
                   )}
-                  {property.contract_count > 1 && (
+                  {property.stevilo_poslov > 1 && (
                     <span className="ml-4 bg-blue-600 px-2 py-1 rounded text-sm">
-                      {property.contract_count}x poslov
+                      {property.stevilo_poslov}x poslov
                     </span>
                   )}
                 </div>
@@ -141,9 +141,9 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
           ) : (
             <div className="space-y-6">
               {/* ko je več poslov warning */}
-              {property.has_multiple_contracts && (
+              {property.ima_vec_poslov && (
                 <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
-                  <p className="font-medium">Ta nepremičnina ima {property.contract_count} poslov</p>
+                  <p className="font-medium">Ta nepremičnina ima {property.stevilo_poslov} poslov</p>
                   <p className="text-sm">Prikazani so podatki iz najnovejšega posla. Vsi posli so navedeni spodaj.</p>
                 </div>
               )}

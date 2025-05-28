@@ -26,7 +26,7 @@ class PropertyService:
             DeduplicatedModel.stevilka_stavbe,
             func.array_agg(DeduplicatedModel.del_stavbe_id).label('deduplicated_ids')
         ).filter(
-            ST_Intersects(DeduplicatedModel.coordinates, bbox_geom)
+            ST_Intersects(DeduplicatedModel.coordinates, bbox_geom),
         ).group_by(
             DeduplicatedModel.sifra_ko,
             DeduplicatedModel.stevilka_stavbe
@@ -130,27 +130,37 @@ class PropertyService:
         Helper za pridobitev osnovnih podatkov deduplicirane nepremičnine za prikaz na zemljevidu
         (brez vseh podrobnosti - te pridobiš z get_property_details)
         """
-        PropertyModel = get_property_model(data_source)
         
-        # Pridobi deduplicirani zapis
+
         dedup_property = db.query(
             DeduplicatedModel,
             ST_X(DeduplicatedModel.coordinates).label('longitude'),
             ST_Y(DeduplicatedModel.coordinates).label('latitude')
         ).filter(
-            DeduplicatedModel.del_stavbe_id == deduplicated_id
+            DeduplicatedModel.del_stavbe_id == deduplicated_id,
         ).first()
         
         if not dedup_property:
             return None
         
-        # Pridobi reprezentativni del_stavbe zapis za osnovne podatke
-        representative_property = db.query(PropertyModel).filter(
-            PropertyModel.del_stavbe_id == dedup_property[0].najnovejsi_del_stavbe_id
-        ).first()
+        # Določi stevilo_poslov na podlagi podatkov v tabeli
+        stevilo_poslov = len(dedup_property[0].povezani_posel_ids) if dedup_property[0].povezani_posel_ids else 0
         
-        if not representative_property:
-            return None
+        # Priprava osnovnih contract podatkov glede na data_source
+        zadnji_posel_info = {}
+        if data_source.lower() == "np":
+            zadnji_posel_info = {
+                "zadnja_najemnina": float(dedup_property[0].zadnja_najemnina),
+                "zadnje_vkljuceno_stroski": dedup_property[0].zadnje_vkljuceno_stroski,
+                "zadnje_vkljuceno_ddv": dedup_property[0].zadnje_vkljuceno_ddv,
+                "zadnja_stopnja_ddv": float(dedup_property[0].zadnja_stopnja_ddv) if dedup_property[0].zadnja_stopnja_ddv else None,
+            }
+        else:  # kpp
+            zadnji_posel_info = {
+                "zadnja_cena": float(dedup_property[0].zadnja_cena),
+                "zadnje_vkljuceno_ddv": dedup_property[0].zadnje_vkljuceno_ddv,
+                "zadnja_stopnja_ddv": float(dedup_property[0].zadnja_stopnja_ddv) if dedup_property[0].zadnja_stopnja_ddv else None,
+            }
         
         return {
             "type": "Feature",
@@ -159,21 +169,35 @@ class PropertyService:
                 "coordinates": [float(dedup_property.longitude), float(dedup_property.latitude)]
             },
             "properties": {
-                "id": dedup_property[0].del_stavbe_id,  # deduplicated ID
+                "id": dedup_property[0].del_stavbe_id,
                 "type": "individual",
+                
                 "sifra_ko": dedup_property[0].sifra_ko,
                 "stevilka_stavbe": dedup_property[0].stevilka_stavbe,
                 "stevilka_dela_stavbe": dedup_property[0].stevilka_dela_stavbe,
                 "dejanska_raba": dedup_property[0].dejanska_raba,
-                "obcina": representative_property.obcina,
-                "naselje": representative_property.naselje,
-                "ulica": representative_property.ulica,
-                "hisna_stevilka": representative_property.hisna_stevilka,
-                "dodatek_hs": representative_property.dodatek_hs,
-                "povrsina": float(representative_property.povrsina) if representative_property.povrsina else None,
-                "data_source": data_source,
-                "contract_count": len(dedup_property[0].povezani_posel_ids),
-                "has_multiple_contracts": len(dedup_property[0].povezani_posel_ids) > 1
+                
+                "obcina": dedup_property[0].obcina,
+                "naselje": dedup_property[0].naselje,
+                "ulica": dedup_property[0].ulica,
+                "hisna_stevilka": dedup_property[0].hisna_stevilka,
+                "dodatek_hs": dedup_property[0].dodatek_hs,
+                "stev_stanovanja": dedup_property[0].stev_stanovanja,
+                
+                "povrsina": float(dedup_property[0].povrsina) if dedup_property[0].povrsina else None,
+                "povrsina_uporabna": float(dedup_property[0].povrsina_uporabna) if dedup_property[0].povrsina_uporabna else None,
+                "leto_izgradnje_stavbe": dedup_property[0].leto_izgradnje_stavbe,
+                
+                **({"opremljenost": dedup_property[0].opremljenost} if data_source.lower() == "np" else {}),
+                **({"stevilo_sob": dedup_property[0].stevilo_sob} if data_source.lower() == "kpp" else {}),
+                
+                "stevilo_poslov": stevilo_poslov,
+                "ima_vec_poslov": stevilo_poslov > 1,
+                "zadnje_leto": dedup_property[0].zadnje_leto,
+                
+                **zadnji_posel_info,
+                
+                "data_source": data_source
             }
         }
     
@@ -290,7 +314,7 @@ class PropertyService:
                 del_stavbe_record["leto_izgradnje_stavbe"] = record.leto_izgradnje_stavbe
             else:
                 del_stavbe_record["stevilo_sob"] = record.stevilo_sob
-                del_stavbe_record["leto_izgradnje_dela_stavbe"] = record.leto_izgradnje_dela_stavbe
+                del_stavbe_record["leto_izgradnje_stavbe"] = record.leto_izgradnje_stavbe
             
             del_stavbe_records.append(del_stavbe_record)
         
@@ -351,8 +375,8 @@ class PropertyService:
                 "data_source": data_source,
                 
                 # Povzetek informacij
-                "contract_count": len(dedup_property[0].povezani_posel_ids),
-                "has_multiple_contracts": len(dedup_property[0].povezani_posel_ids) > 1,
+                "stevilo_poslov": len(dedup_property[0].povezani_posel_ids),
+                "ima_vec_poslov": len(dedup_property[0].povezani_posel_ids) > 1,
                 
                 # VSI povezani podatki za podrobno analizo
                 "all_del_stavbe_records": del_stavbe_records,
