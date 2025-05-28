@@ -45,59 +45,56 @@ const IndividualPopup = ({ properties, dataSourceType = 'prodaja' }) => {
                 ${properties.obcina && properties.obcina !== properties.naselje ? 
                     `<p class="text-blue-100 text-sm">${properties.obcina}</p>` : ''}
                 
-                ${hasMultipleContracts ? `
-                <div class="mt-2">
-                    <span class="bg-blue-600 px-2 py-1 rounded text-xs">
+                <div class="mt-2 flex gap-2">
+                    ${properties.zadnje_leto ? `
+                    <span class="bg-gray-50 px-2 py-1 rounded text-xs text-gray-800 h-6 flex items-center">
+                        ${properties.zadnje_leto}
+                    </span>
+                    ` : ''}
+                    ${hasMultipleContracts ? `
+                    <span class="bg-blue-600 px-2 py-1 rounded text-xs h-6 flex items-center">
                         ${contractCount}x poslov
                     </span>
+                    ` : ''}
                 </div>
-                ` : ''}
             </div>
 
             <!-- Vsebina -->
             <div class="p-4">
-                <div class="grid grid-cols-2 gap-y-2 text-sm mb-4">
-                    
-                    ${properties.povrsina ? `
-                    <div class="text-gray-600">Površina:</div>
-                    <div class="font-medium">${properties.povrsina} m²</div>
-                    ` : ''}
-                    
-                    ${properties.povrsina_uporabna ? `
-                    <div class="text-gray-600">Uporabna površina:</div>
-                    <div class="font-medium">${properties.povrsina_uporabna} m²</div>
-                    ` : ''}
-                    
-                    ${properties.leto_izgradnje_stavbe ? `
-                    <div class="text-gray-600">Leto izgradnje:</div>
-                    <div class="font-medium">${properties.leto_izgradnje_stavbe}</div>
-                    ` : ''}
-                    
-                    ${properties.stevilo_sob ? `
-                    <div class="text-gray-600">Število sob:</div>
-                    <div class="font-medium">${properties.stevilo_sob}</div>
-                    ` : ''}
-                    
-                    ${properties.opremljenost ? `
-                    <div class="text-gray-600">Opremljenost:</div>
-                    <div class="font-medium">${properties.opremljenost}/5</div>
-                    ` : ''}
-                    
-                    ${properties.stev_stanovanja ? `
-                    <div class="text-gray-600">Št. stanovanja:</div>
-                    <div class="font-medium">${properties.stev_stanovanja}</div>
-                    ` : ''}
-                    
+                <div class="text-sm mb-4">
+                    <div class="grid grid-cols-2 gap-y-2 mb-2">
+                        
+                        ${properties.povrsina ? `
+                        <div class="text-gray-600">Površina / Uporabna:</div>
+                        <div class="font-medium">${properties.povrsina} m² / ${properties.povrsina_uporabna} m²</div>
+                        ` : ''}
+                        
+                        ${properties.leto_izgradnje_stavbe ? `
+                        <div class="text-gray-600">Leto izgradnje:</div>
+                        <div class="font-medium">${properties.leto_izgradnje_stavbe}</div>
+                        ` : ''}
+                        
+                        ${properties.stevilo_sob ? `
+                        <div class="text-gray-600">Število sob:</div>
+                        <div class="font-medium">${properties.stevilo_sob}</div>
+                        ` : ''}
+                        
+                        ${properties.opremljenost ? `
+                        <div class="text-gray-600">Opremljenost:</div>
+                        <div class="font-medium">${properties.opremljenost}</div>
+                        ` : ''}
+                        
+                        ${properties.stev_stanovanja ? `
+                        <div class="text-gray-600">Št. stanovanja:</div>
+                        <div class="font-medium">${properties.stev_stanovanja}</div>
+                        ` : ''}
+                        
+                    </div>
+
                     ${properties.dejanska_raba ? `
-                    <div class="text-gray-600">Tip objekta:</div>
-                    <div class="font-medium capitalize">${properties.dejanska_raba}</div>
+                    <div class="text-gray-600 mb-1">Tip objekta:</div>
+                    <div class="font-medium">${properties.dejanska_raba}</div>
                     ` : ''}
-                    
-                    ${properties.zadnje_leto ? `
-                    <div class="text-gray-600">Zadnji posel:</div>
-                    <div class="font-medium">${properties.zadnje_leto}</div>
-                    ` : ''}
-                    
                 </div>
                 
                 <!-- Cena nepremičnine -->
