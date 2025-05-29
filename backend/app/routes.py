@@ -1,16 +1,21 @@
 import os
 from fastapi import Depends, HTTPException, Query, BackgroundTasks
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .database import get_db, DATABASE_URL
 from .property_service import PropertyService
 from .data_ingestion import DataIngestionService
 from .deduplication import DeduplicationService
+from .energetska_izkaznica_ingestion import EnergetskaIzkaznicaIngestionService
+
 
 ingestion_service = DataIngestionService(DATABASE_URL)
 
 deduplication_service = DeduplicationService(DATABASE_URL)
+
+ei_ingestion_service = EnergetskaIzkaznicaIngestionService(DATABASE_URL)
 
 # =============================================================================
 # DATA INGESTION ENDPOINTI
@@ -179,7 +184,74 @@ async def deduplication_status(
         )
 
 
+async def ingest_energetske_izkaznice(
+    background_tasks: BackgroundTasks,
+    url: str = Query(None, description="Opcijski direktni URL do CSV datoteke")
+):
+    """
+    API endpoint za uvoz energetskih izkaznic.
+    Če URL ni podan, bo avtomatsko generiral URL za trenutni mesec.
+    """
+    try:
+        background_tasks.add_task(
+            ei_ingestion_service.run_ingestion,
+            url=url
+        )
+        
+        return JSONResponse(
+            status_code=202,
+            content={
+                "status": "accepted",
+                "message": "Uvoz energetskih izkaznic se je začel",
+                "note": "Preveri status z /api/energetske-izkaznice/status endpointom"
+            }
+        )
+        
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+        )
 
+async def energetske_izkaznice_status():
+    """Preveri status uvoza energetskih izkaznic"""
+    try:
+        # Preberi zadnje vrstice iz log datoteke
+        if os.path.exists("energetska_izkaznica_ingestion.log"):
+            with open("energetska_izkaznica_ingestion.log", "r", encoding='utf-8') as f:
+                last_lines = f.readlines()[-20:]
+        else:
+            last_lines = ["Uvoz energetskih izkaznic še ni bil zagnan."]
+        
+        # Preveri tudi število zapisov v bazi
+        try:
+            with ei_ingestion_service.engine.connect() as conn:
+                count = conn.execute(text("SELECT COUNT(*) FROM core.energetska_izkaznica")).scalar()
+                last_updated = conn.execute(text(
+                    "SELECT MAX(datum_uvoza) FROM core.energetska_izkaznica"
+                )).scalar()
+        except:
+            count = 0
+            last_updated = None
+        
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": "success",
+                "database_stats": {
+                    "total_records": count,
+                    "last_updated": str(last_updated) if last_updated else None
+                },
+                "last_logs": last_lines
+            }
+        )
+        
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+        )
+    
 
 # =============================================================================
 # PROPERTY ENDPOINTI

@@ -1,8 +1,33 @@
 import logging
+import sys
 from sqlalchemy import create_engine, text
 from .sql_utils import get_sql_query, execute_sql_count
 
-logger = logging.getLogger(__name__)
+
+def setup_logger(name: str, log_file: str, prefix: str):
+    """Nastavi logger z datoteko in konzolo."""
+    logger = logging.getLogger(name)
+    
+    if logger.handlers:
+        return logger
+        
+    logger.setLevel(logging.INFO)
+    formatter = logging.Formatter(f'%(asctime)s - %(levelname)s - [{prefix}] - %(message)s')
+    
+    for handler in [
+        logging.FileHandler(log_file, encoding='utf-8'),
+        logging.StreamHandler(sys.stdout)
+    ]:
+        handler.setLevel(logging.INFO)
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+    
+    logger.propagate = False
+    return logger
+
+# Setup logger na vrhu modula
+logger = setup_logger("deduplication", "deduplication.log", "DEDUP")
+
 
 class DeduplicationService:
     """
@@ -13,6 +38,7 @@ class DeduplicationService:
     def __init__(self, db_url: str):
         self.db_url = db_url
         self.engine = create_engine(db_url)
+
     
     def create_deduplicated_properties(self, data_type: str):
         """
@@ -73,6 +99,26 @@ class DeduplicationService:
         except Exception as e:
             logger.error(f"Napaka povezave z bazo podatkov med dedupliciranjem: {str(e)}")
             raise
+
+    def _update_energetske_izkaznice(self):
+        """Posodobi energetske izkaznice v deduplikacijskih tabelah"""
+        try:
+            logger.info("Posodabljam energetske izkaznice v deduplikacijskih tabelah")
+            
+            with self.engine.connect() as conn:
+                trans = conn.begin()
+                try:
+                    sql_query = get_sql_query('dodaj_ei_deduplication.sql')
+                    result = conn.execute(text(sql_query))
+                    logger.info("Energetske izkaznice uspešno posodobljene v vseh deduplikacijskih tabelah")
+                    trans.commit()
+                except Exception as e:
+                    trans.rollback()
+                    logger.error(f"Napaka pri posodabljanju energetskih izkaznic: {str(e)}")
+                    raise
+        except Exception as e:
+            logger.error(f"Napaka povezave z bazo podatkov pri posodabljanju energetskih izkaznic: {str(e)}")
+            raise
     
     def _verify_deduplication_results(self, table_prefix: str):
         """Preveri rezultate dedupliciranja in zabeleži statistike"""
@@ -114,7 +160,9 @@ class DeduplicationService:
         if data_types is None:
             data_types = ["np", "kpp"]
         
-        logger.info("Začenjam dedupliciranje za vse tipe podatkov")
+        logger.info("=" * 60)
+        logger.info("ZAČETEK DEDUPLICIRANJA LASTNOSTI")
+        logger.info("=" * 60)
         
         for data_type in data_types:
             try:
@@ -125,9 +173,20 @@ class DeduplicationService:
                 logger.error(f"Neuspešno ustvarjanje dedupliciranih lastnosti za {data_type}: {str(e)}")
                 # Nadaljuj z drugimi tipi podatkov, tudi če eden ne uspe
                 continue
-        
+
+        # Posodobi energetske izkaznice za vse deduplicirane lastnosti na koncu
         logger.info("=" * 50)
-        logger.info("Proces dedupliciranja dokončan za vse tipe podatkov")
+        logger.info("Posodabljam energetske izkaznice za vse deduplicirane lastnosti")
+        try:
+            self._update_energetske_izkaznice()
+        except Exception as e:
+            logger.error(f"Napaka pri posodabljanju energetskih izkaznic: {str(e)}")
+            # Ne prekinjaj procesa, samo zabeleži napako
+
+        
+        logger.info("=" * 60)
+        logger.info("DEDUPLICIRANJE USPEŠNO ZAKLJUČENO")
+        logger.info("=" * 60)
     
     def get_deduplication_stats(self, data_type: str = None):
         """
@@ -140,6 +199,7 @@ class DeduplicationService:
         else:
             data_types = ["np", "kpp"]
         
+
         for dt in data_types:
             try:
                 table_prefix = dt.lower()
@@ -161,6 +221,12 @@ class DeduplicationService:
                     "deduplicated_properties": dedup_count,
                     "deduplication_ratio_percent": round(dedup_ratio, 1)
                 }
+                
+                logger.info(f"Statistike za {dt.upper()}:")
+                logger.info(f"  - Del stavbe zapisi: {original_count:,}")
+                logger.info(f"  - Posel zapisi: {posel_count:,}")
+                logger.info(f"  - Deduplicirane lastnosti: {dedup_count:,}")
+                logger.info(f"  - Razmerje dedupliciranja: {dedup_ratio:.1f}%")
                 
             except Exception as e:
                 logger.error(f"Napaka pri pridobivanju statistik za {dt}: {str(e)}")

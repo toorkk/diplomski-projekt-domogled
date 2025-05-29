@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes import deduplication_status, fill_deduplicated_tables, get_property_details, ingest_data, ingestion_status, get_properties_geojson, get_cluster_properties
+from .routes import deduplication_status, energetske_izkaznice_status, fill_deduplicated_tables, get_property_details, ingest_data, ingest_energetske_izkaznice, ingestion_status, get_properties_geojson, get_cluster_properties
 
 app = FastAPI(
     title="Domogled API",
@@ -21,11 +21,14 @@ app.add_middleware(
 # registriraj endpointe
 ############
 
-app.post("/api/ingest-data")(ingest_data)
-app.get("/api/ingestion-status")(ingestion_status)
+app.post("/api/deli-stavb/ingest")(ingest_data)
+app.get("/api/deli-stavb/status")(ingestion_status)
 
-app.post("/api/fill-deduplicated-tables")(fill_deduplicated_tables)
-app.get("/api/deduplicated-status")(deduplication_status)
+app.post("/api/deduplication/ingest")(fill_deduplicated_tables)
+app.get("/api/deduplication/status")(deduplication_status)
+
+app.post("/api/energetske-izkaznice/ingest")(ingest_energetske_izkaznice)
+app.get("/api/energetske-izkaznice/status")(energetske_izkaznice_status)
 
 app.get("/properties/geojson")(get_properties_geojson)
 app.get("/property-details/{deduplicated_id}")(get_property_details)
