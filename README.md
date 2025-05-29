@@ -48,9 +48,16 @@ ce si v vs code installiraj Tailwind CSS IntelliSense plugin
 ------------------------
 DATA INGESTION:
 
-POST call 
 
-POST /api/ingest-data?data_type=np&start_year=2013&end_year=2025
-POST /api/ingest-data?data_type=kpp&start_year=2007&end_year=2025
+POST /api/deli-stavb/ingest?data_type=np   -- tu zraven se lahko das start_year in end_year
+POST /api/deli-stavb/ingest?data_type=kpp
+GET /api/deli-stavb/status
+
+POST /api/energetske-izkaznice/ingest?data_type=all
+GET  /api/energetske-izkaznice/status
+
+POST /api/deduplication/ingest
+GET /api/deduplication/status
 
 definicije vseh endpointov si lahko pogledas v http://localhost:8000/docs
+

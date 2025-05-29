@@ -167,6 +167,7 @@ CREATE TABLE core.np_del_stavbe_deduplicated (
     povezani_del_stavbe_ids     INTEGER[]       NOT NULL,
     povezani_posel_ids          INTEGER[]       NOT NULL,
     najnovejsi_del_stavbe_id    INTEGER         NOT NULL,
+    energetske_izkaznice        INTEGER[],
     
     coordinates                 GEOMETRY(Point, 4326) NOT NULL,
     
@@ -204,10 +205,36 @@ CREATE TABLE core.kpp_del_stavbe_deduplicated (
     povezani_del_stavbe_ids     INTEGER[]       NOT NULL,
     povezani_posel_ids          INTEGER[]       NOT NULL,
     najnovejsi_del_stavbe_id    INTEGER         NOT NULL,
+    energetske_izkaznice        INTEGER[],
     
     coordinates                 GEOMETRY(Point, 4326) NOT NULL,
     
     CONSTRAINT uq_kpp_deduplicated UNIQUE(sifra_ko, stevilka_stavbe, stevilka_dela_stavbe, dejanska_raba)
+);
+
+
+
+DROP TABLE IF EXISTS core.energetska_izkaznica;
+CREATE TABLE core.energetska_izkaznica (
+    id SERIAL PRIMARY KEY,
+    ei_id VARCHAR(25) NOT NULL,  -- drzavni id energetske izkaznice
+    datum_izdelave DATE,
+    velja_do DATE,
+    sifra_ko SMALLINT,
+    stevilka_stavbe INTEGER,
+    stevilka_dela_stavbe INTEGER,
+    tip_izkaznice VARCHAR(10),
+    potrebna_toplota_ogrevanje NUMERIC(10,2),
+    dovedena_energija_delovanje NUMERIC(10,2),
+    celotna_energija NUMERIC(15,2),
+    dovedena_elektricna_energija NUMERIC(15,2),
+    primarna_energija NUMERIC(15,2),
+    emisije_co2 NUMERIC(10,2),
+    kondicionirana_povrsina NUMERIC(10,2),
+    energijski_razred VARCHAR(3),
+    epbd_tip VARCHAR(15),
+    
+    CONSTRAINT uq_ei_id UNIQUE(ei_id)
 );
 
 
@@ -246,3 +273,8 @@ DROP INDEX IF EXISTS core.idx_kpp_del_stavbe_deduplicated_related_ids;
 CREATE INDEX idx_kpp_del_stavbe_deduplicated_building       ON core.kpp_del_stavbe_deduplicated (sifra_ko, stevilka_stavbe);
 CREATE INDEX idx_kpp_del_stavbe_deduplicated_coords         ON core.kpp_del_stavbe_deduplicated USING GIST (coordinates);
 CREATE INDEX idx_kpp_del_stavbe_deduplicated_related_ids    ON core.kpp_del_stavbe_deduplicated USING GIN (povezani_del_stavbe_ids);
+
+
+DROP INDEX IF EXISTS core.idx_energetska_izkaznica_ko_stavba;
+
+CREATE INDEX idx_energetska_izkaznica_ko_stavba ON core.energetska_izkaznica(sifra_ko, stevilka_stavbe, stevilka_dela_stavbe);

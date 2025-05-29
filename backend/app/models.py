@@ -204,3 +204,26 @@ class KppPosel(Base):
     trznost_posla = Column(SmallInteger)
     vrsta_akta = Column(SmallInteger)
     leto = Column(Integer)
+
+
+class EnergetskiIzkaznica(Base):
+    __tablename__ = "energetska_izkaznica"
+    __table_args__ = {"schema": "core"}
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    ei_id = Column(String(25), nullable=False, unique=True)
+    datum_izdelave = Column(Date)
+    velja_do = Column(Date)
+    sifra_ko = Column(SmallInteger)
+    stevilka_stavbe = Column(Integer)
+    stevilka_dela_stavbe = Column(Integer)
+    tip_izkaznice = Column(String(10))
+    potrebna_toplota_ogrevanje = Column(Numeric(10, 2))
+    dovedena_energija_delovanje = Column(Numeric(10, 2))
+    celotna_energija = Column(Numeric(15, 2))
+    dovedena_elektricna_energija = Column(Numeric(15, 2))
+    primarna_energija = Column(Numeric(15, 2))
+    emisije_co2 = Column(Numeric(10, 2))
+    kondicionirana_povrsina = Column(Numeric(10, 2))
+    energijski_razred = Column(String(3))
+    epbd_tip = Column(String(15))
