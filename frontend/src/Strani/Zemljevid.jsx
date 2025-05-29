@@ -14,7 +14,7 @@ export default function Zemljevid() {
     const popupManager = useRef(null);
     // Use ref to track current data source type for event handlers
     const dataSourceTypeRef = useRef('prodaja');
-    
+
     const [isLoading, setIsLoading] = useState(false);
     const [propertiesLoaded, setPropertiesLoaded] = useState(false);
     const [lastBounds, setLastBounds] = useState(null);
@@ -48,7 +48,7 @@ export default function Zemljevid() {
     // Handler za izbiro nepremičnine
     const handlePropertySelect = useCallback((propertyData) => {
         console.log('Property selected:', propertyData);
-                
+
         setSelectedProperty({
             ...propertyData,
         });
@@ -75,9 +75,9 @@ export default function Zemljevid() {
             // Pridobivanje current data sourca
             const currentDataSourceType = dataSourceTypeRef.current;
             const dataSource = currentDataSourceType === 'prodaja' ? 'kpp' : 'np';
-            
+
             console.log(`Nalagam podatke za tip: ${currentDataSourceType}, data_source=${dataSource}`);
-            
+
             const response = await fetch(`http://localhost:8000/properties/geojson?bbox=${bbox}&zoom=${currentZoom}&data_source=${dataSource}`);
 
             if (!response.ok) {
@@ -88,7 +88,13 @@ export default function Zemljevid() {
 
             // odstrani stare layers
             if (map.current.getSource('properties')) {
-                map.current.removeLayer('properties-layer');
+                
+                if (map.current.getLayer('properties-text-layer')) {
+                    map.current.removeLayer('properties-text-layer');
+                }
+                if (map.current.getLayer('properties-layer')) {
+                    map.current.removeLayer('properties-layer');
+                }
                 map.current.removeSource('properties');
             }
             if (map.current.getSource('clusters')) {
@@ -136,6 +142,35 @@ export default function Zemljevid() {
                         'circle-stroke-color': strokeColor
                     }
                 });
+
+                //TEXT LAYER za cene na individualnih nepremičninah
+                map.current.addLayer({
+                    id: 'properties-text-layer',
+                    type: 'symbol',
+                    source: 'properties',
+                    layout: {
+                        'text-field': formatPriceExpression(currentDataSourceType),
+                        'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                        'text-size': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            8, 6,
+                            12, 8,
+                            16, 10
+                        ],
+                        'text-allow-overlap': false,
+                        'text-ignore-placement': false,
+                        'text-anchor': 'center',
+                        'text-justify': 'center'
+                    },
+                    paint: {
+                        'text-color': '#ffffff',
+                        'text-halo-color': strokeColor,
+                        'text-halo-width': 1
+                    }
+                });
+
             }
 
             if (clusterFeatures.length > 0) {
@@ -148,7 +183,7 @@ export default function Zemljevid() {
                 });
 
                 // Razlicne barve clusterjev glede na datasource
-                const clusterColors = currentDataSourceType === 'prodaja' 
+                const clusterColors = currentDataSourceType === 'prodaja'
                     ? ['#3B82F6', '#2563EB', '#1D4ED8', '#1E40AF'] // modro
                     : ['#34D399', '#10B981', '#059669', '#047857']; // zeleno
 
@@ -204,6 +239,44 @@ export default function Zemljevid() {
                 });
             }
 
+            function formatPriceExpression(dataSourceType) {
+                if (dataSourceType === 'prodaja') {
+                    // Za prodajo prikaži zadnja_cena
+                    return [
+                        'case',
+                        ['has', 'zadnja_cena'],
+                        [
+                            'concat',
+                            '€',
+                            [
+                                'number-format',
+                                ['/', ['get', 'zadnja_cena'], 1000],
+                                { 'max-fraction-digits': 0 }
+                            ],
+                            'k'
+                        ],
+                        'N/A'
+                    ];
+                } else {
+                    // Za najem prikaži zadnja_najemnina
+                    return [
+                        'case',
+                        ['has', 'zadnja_najemnina'],
+                        [
+                            'concat',
+                            '€',
+                            [
+                                'number-format',
+                                ['get', 'zadnja_najemnina'],
+                                { 'max-fraction-digits': 0 }
+                            ],
+                            '/m'
+                        ],
+                        'N/A'
+                    ];
+                }
+            }
+
             // Nastavimo popupe in click handlere preko PopupManager
             if (popupManager.current) {
                 popupManager.current.setupEventHandlers(handlePropertySelect);
@@ -238,7 +311,7 @@ export default function Zemljevid() {
             if (popupManager.current) {
                 popupManager.current.updateDataSourceType(dataSourceType);
             }
-            
+
             console.log(`Data source type spremenjen na: ${dataSourceType}, reload podatkov`);
             fetchPropertiesForViewport();
         }
@@ -283,7 +356,7 @@ export default function Zemljevid() {
 
                 // Inicializacija PopupManager-a
                 popupManager.current = new PopupManager(map.current);
-                
+
                 fetchPropertiesForViewport();
             });
 
@@ -309,7 +382,7 @@ export default function Zemljevid() {
                 if (map.current._moveEndHandler) {
                     map.current.off('moveend', map.current._moveEndHandler);
                 }
-                
+
                 // Cleanup preko PopupManager
                 if (popupManager.current) {
                     popupManager.current.cleanup();

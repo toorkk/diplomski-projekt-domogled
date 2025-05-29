@@ -1,6 +1,7 @@
 import maplibregl from "maplibre-gl";
 import IndividualPopup from "./IndividualPopup";
 import ClusterPopup from "./ClusterPopup";
+import ClusterExpander from "./ClusterExpander";
 
 // Razred za upravljanje popupov
 class PopupManager {
@@ -8,15 +9,17 @@ class PopupManager {
         this.map = map;
         this.currentPopup = null;
         this.currentDataSourceType = 'prodaja';
-        this.expandedClusters = new Set(); // Track kateri clustri so expandirani
-        this.onPropertySelectCallback = null; // Shrani callback za poznejšo uporabo
+        this.onPropertySelectCallback = null;
+
+        // Inicializiraj ClusterExpander
+        this.ClusterExpander = new ClusterExpander(map);
     }
 
     updateDataSourceType(newType) {
-        // Zapri vse expanded clustre ko se spremeni data source
-        this.collapseAllClusters();
         this.currentDataSourceType = newType;
-        console.log(`Data source changed to: ${newType}, collapsed all clusters`);
+        // Posodobi tudi expansion manager
+        this.ClusterExpander.updateDataSourceType(newType);
+        console.log(`PopupManager: Data source changed to: ${newType}`);
     }
 
     setupEventHandlers(onPropertySelect) {
@@ -24,12 +27,9 @@ class PopupManager {
         this.onPropertySelectCallback = onPropertySelect;
 
         // Počistimo stare handlere
-        if (this.map._propertiesClickHandler) {
-            this.map.off('click', 'properties-layer', this.map._propertiesClickHandler);
-            this.map.off('click', 'clusters-layer', this.map._clustersClickHandler);
-        }
+        this.cleanupEventHandlers();
 
-        // Handler za individualne nepremičnine
+        // Handler za individualne nepremičnine - ENAK handler za oba layer-ja
         this.map._propertiesClickHandler = (e) => {
             const features = e.features[0];
             const properties = features.properties;
@@ -39,353 +39,63 @@ class PopupManager {
             }
         };
 
-        // POSODOBLJEN handler za clustre - zdaj z expansion funkcionalnostjo
-        this.map._clustersClickHandler = (e) => {
+        // Handler za clustre - sedaj z uporabo ClusterExpander
+        this.map._clustersClickHandler = async (e) => {
             const features = e.features[0];
             const properties = features.properties;
 
             if (properties.type === 'cluster') {
-                this.handleClusterClick(e.lngLat, properties);
+                await this.handleClusterClick(e.lngLat, properties);
             }
         };
 
-        // Dodamo click handlere za oba sloja
+        // Handler za expanded properties preko custom event
+        this.map._expandedPropertyHandler = (e) => {
+            const { lngLat, properties } = e.detail;
+            console.log('Handling expanded property click via custom event');
+            this.showPropertyPopup(lngLat, properties, onPropertySelect);
+        };
+
+        // POSODOBLJENO: Dodamo click handlere za oba properties layer-ja
         this.map.on('click', 'properties-layer', this.map._propertiesClickHandler);
+        this.map.on('click', 'properties-text-layer', this.map._propertiesClickHandler); // NOVO
         this.map.on('click', 'clusters-layer', this.map._clustersClickHandler);
+
+        // Dodamo handler za expanded properties
+        this.map.getContainer().addEventListener('expandedPropertyClick', this.map._expandedPropertyHandler);
 
         this.setupHoverHandlers();
     }
 
-    // NOVA funkcija: Handle cluster click z možnostjo expansion
+    // Glavna funkcija za handling cluster clickov
     async handleClusterClick(lngLat, clusterProperties) {
         const clusterId = clusterProperties.cluster_id;
-        
-        // Če je cluster že expandiran, ga collapse
-        if (this.expandedClusters.has(clusterId)) {
-            this.collapseCluster(clusterId);
-            return;
-        }
 
-        // NOVO: Zapri vse druge expanded clustre
-        this.collapseAllClusters();
+        console.log(`PopupManager: Handling cluster click for ${clusterId}`);
 
-        // Preverimo tip clusterja
-        if (clusterId.startsWith('b_')) {
-            console.log('Building cluster detected, attempting expansion...');
-            // Za building clustre uporabimo API klic
-            await this.expandCluster(clusterId, clusterProperties);
-        } else if (clusterId.startsWith('d_')) {
-            console.log('Distance cluster detected, showing popup...');
-            // Distance clustri niso expandabilni, prikaži popup
-            this.showClusterPopup(lngLat, clusterProperties);
-        } else {
-            console.log('Unknown cluster type, showing popup...');
+        try {
+            // Poskusi expandirati cluster preko ClusterExpander
+            const wasExpanded = await this.ClusterExpander.handleClusterClick(lngLat, clusterProperties);
+
+            // Če cluster ni bil expanded (npr. distance cluster), prikaži popup
+            if (!wasExpanded) {
+                this.showClusterPopup(lngLat, clusterProperties);
+            }
+        } catch (error) {
+            console.error('Error handling cluster click:', error);
+            // Fallback na običajen cluster popup
             this.showClusterPopup(lngLat, clusterProperties);
         }
-    }
-
-    async expandClusterWithIds(clusterId, clusterProperties) {
-        const dataSource = this.currentDataSourceType === 'prodaja' ? 'kpp' : 'np';
-        
-        console.log('Deduplicated IDs:', clusterProperties.deduplicated_ids);
-        console.log('Data source:', dataSource);
-        
-        try {
-            // Ustvarjanje features iz dedupliciranih_idov
-            const features = [];
-            
-            for (const deduplicatedId of clusterProperties.deduplicated_ids) {
-                try {
-                    const feature = {
-                        type: "Feature",
-                        geometry: {
-                            type: "Point",
-                            coordinates: [0, 0]
-                        },
-                        properties: {
-                            id: deduplicatedId,
-                            type: "individual",
-                            data_source: dataSource,
-                            cluster_expanded: true
-                        }
-                    };
-                    features.push(feature);
-                } catch (error) {
-                    console.error(`Error processing deduplicated ID ${deduplicatedId}:`, error);
-                }
-            }
-            
-            if (features.length > 0) {
-                this.createExpandedLayer(clusterId, features, clusterProperties);
-                this.expandedClusters.add(clusterId);
-            } else {
-                console.log('No valid features created from deduplicated_ids');
-                this.showClusterPopup(null, clusterProperties);
-            }
-            
-        } catch (error) {
-            console.error('Error expanding cluster with IDs:', error);
-            this.showClusterPopup(null, clusterProperties);
-        }
-        
-        console.log('=== END CLUSTER EXPANSION WITH IDs ===');
-    }
-
-    // NOVA funkcija: Zapri vse expanded clustre
-    collapseAllClusters() {
-        console.log('Collapsing all expanded clusters...');
-        const clustersToCollapse = Array.from(this.expandedClusters);
-        clustersToCollapse.forEach(clusterId => {
-            this.collapseCluster(clusterId);
-        });
-        console.log(`Collapsed ${clustersToCollapse.length} clusters`);
-    }
-
-    // Expandiraj cluster z API klicem (fallback)
-    async expandCluster(clusterId, clusterProperties) {
-        const dataSource = this.currentDataSourceType === 'prodaja' ? 'kpp' : 'np';
-        const currentZoom = this.map.getZoom();
-        
-        console.log(`=== EXPANDING CLUSTER ${clusterId} ===`);
-        console.log('Data source:', dataSource);
-        console.log('Cluster properties:', clusterProperties);
-        
-        try {
-            const url = `http://localhost:8000/cluster/${clusterId}/properties?data_source=${dataSource}&zoom=${currentZoom}`;
-            console.log('Fetching from URL:', url);
-            
-            const response = await fetch(url);
-            console.log('Response status:', response.status);
-            
-            if (!response.ok) {
-                console.error('Error fetching cluster properties:', response.status);
-                const errorText = await response.text();
-                console.error('Error details:', errorText);
-                // Fallback na normalni cluster popup
-                this.showClusterPopup(null, clusterProperties);
-                return;
-            }
-            
-            const data = await response.json();
-            console.log('API Response data:', data);
-            console.log('Features received:', data.features?.length || 0);
-            
-            if (data.features && data.features.length > 0) {
-                console.log('Sample feature:', data.features[0]);
-                
-                // Preveri geometrijo
-                data.features.forEach((feature, index) => {
-                    console.log(`Feature ${index}: geometry =`, feature.geometry);
-                    console.log(`Feature ${index}: coordinates =`, feature.geometry?.coordinates);
-                });
-                
-                this.createExpandedLayer(clusterId, data.features, clusterProperties);
-                this.expandedClusters.add(clusterId);
-                console.log(`✓ Successfully expanded cluster ${clusterId} with ${data.features.length} properties`);
-            } else {
-                console.log('No valid properties found in cluster response');
-                this.showClusterPopup(null, clusterProperties);
-            }
-            
-        } catch (error) {
-            console.error('Error expanding cluster:', error);
-            this.showClusterPopup(null, clusterProperties);
-        }
-        
-        console.log('=== END CLUSTER EXPANSION ===');
-    }
-
-    // Ustvari vizualni layer za expanded properties
-    createExpandedLayer(clusterId, properties, originalClusterProperties = null) {
-        const sourceId = `expanded-${clusterId}`;
-        const layerId = `expanded-layer-${clusterId}`;
-        
-        console.log(`Creating expanded layer for ${clusterId}...`);
-        console.log('Properties to display:', properties.length);
-        
-        // Izračunaj center pozicijo
-        let centerLng = 0, centerLat = 0;
-        
-        // Najprej poskusi dobiti center iz originalnih cluster properties
-        if (originalClusterProperties && originalClusterProperties.geometry) {
-            centerLng = originalClusterProperties.geometry.coordinates[0];
-            centerLat = originalClusterProperties.geometry.coordinates[1];
-            console.log(`Using cluster geometry center: [${centerLng}, ${centerLat}]`);
-        } else {
-            // Če nimamo cluster geometrije, izračunaj povprečje iz vseh properties
-            let validCoords = 0;
-            properties.forEach(prop => {
-                if (prop.geometry && prop.geometry.coordinates && 
-                    prop.geometry.coordinates[0] !== 0 && prop.geometry.coordinates[1] !== 0) {
-                    centerLng += prop.geometry.coordinates[0];
-                    centerLat += prop.geometry.coordinates[1];
-                    validCoords++;
-                }
-            });
-            if (validCoords > 0) {
-                centerLng /= validCoords;
-                centerLat /= validCoords;
-                console.log(`Calculated center from ${validCoords} valid coordinates: [${centerLng}, ${centerLat}]`);
-            } else {
-                console.error('No valid coordinates found for cluster expansion!');
-                return;
-            }
-        }
-        
-        console.log(`Final center position: [${centerLng}, ${centerLat}]`);
-        
-        // Izračunaj polmer glede na zoom level
-        const zoom = this.map.getZoom();
-        const baseRadius = 0.005; 
-        const radius = baseRadius / Math.pow(2, Math.max(0, zoom - 13));
-        
-        console.log(`Calculated radius: ${radius} (zoom: ${zoom})`);
-        
-        // Razporedi nepremičnine v krog okoli cluster centra
-        const modifiedProperties = properties.map((prop, index) => {
-            const angle = (2 * Math.PI * index) / properties.length;
-            const offsetLng = centerLng + (radius * Math.cos(angle));
-            const offsetLat = centerLat + (radius * Math.sin(angle));
-            
-            console.log(`Property ${index}: angle=${angle.toFixed(2)}, new coords=[${offsetLng.toFixed(6)}, ${offsetLat.toFixed(6)}]`);
-            
-            return {
-                ...prop,
-                geometry: {
-                    ...prop.geometry,
-                    coordinates: [offsetLng, offsetLat]
-                }
-            };
-        });
-        
-        // Pripravi GeoJSON podatke z novimi koordinatami
-        const geojsonData = {
-            type: 'FeatureCollection',
-            features: modifiedProperties
-        };
-                
-        // Preverimo če layer/source že obstaja
-        if (this.map.getSource(sourceId)) {
-            console.log(`Source ${sourceId} already exists, removing...`);
-            if (this.map.getLayer(layerId)) {
-                this.map.removeLayer(layerId);
-            }
-            this.map.removeSource(sourceId);
-        }
-        
-        // Dodaj source
-        try {
-            this.map.addSource(sourceId, {
-                type: 'geojson',
-                data: geojsonData
-            });
-            console.log(`Added source: ${sourceId}`);
-        } catch (error) {
-            console.error(`Error adding source ${sourceId}:`, error);
-            return;
-        }
-        
-        // Določi barve glede na data source
-        const circleColor = this.currentDataSourceType === 'prodaja' ? '#3B82F6' : '#10B981';
-        const strokeColor = this.currentDataSourceType === 'prodaja' ? '#1D4ED8' : '#059669';
-        
-        console.log(`Using colors: circle=${circleColor}, stroke=${strokeColor}`);
-        
-        // Dodaj layer za expanded properties
-        try {
-            this.map.addLayer({
-                id: layerId,
-                type: 'circle',
-                source: sourceId,
-                paint: {
-                    'circle-radius': [
-                        'interpolate',
-                        ['linear'],
-                        ['zoom'],
-                        8, 8,
-                        12, 12,
-                        16, 18
-                    ],
-                    'circle-color': circleColor,
-                    'circle-opacity': 0.9,
-                    'circle-stroke-width': 3,
-                    'circle-stroke-color': strokeColor
-                }
-            });
-            
-            // Preverimo ali je layer res dodan
-            const addedLayer = this.map.getLayer(layerId);
-            console.log('Layer dodan uspesno:', !!addedLayer);
-            
-        } catch (error) {
-            console.error(`Error adding layer ${layerId}:`, error);
-            return;
-        }
-        
-        // Dodaj click handler za expanded properties
-        const expandedClickHandler = (e) => {
-            console.log('Expanded property clicked:', e.features[0]);
-            const feature = e.features[0];
-            if (feature.properties.type === 'individual') {
-                this.showPropertyPopup(e.lngLat, feature.properties, this.onPropertySelectCallback);
-            }
-        };
-        
-        this.map.on('click', layerId, expandedClickHandler);
-        
-        // Hover effects za expanded layer
-        this.map.on('mouseenter', layerId, () => {
-            this.map.getCanvas().style.cursor = 'pointer';
-        });
-        
-        this.map.on('mouseleave', layerId, () => {
-            this.map.getCanvas().style.cursor = '';
-        });
-        
-        // Shrani handler reference za cleanup
-        this.map[`_${layerId}_clickHandler`] = expandedClickHandler;
-        
-    }
-
-    // NOVA funkcija: Collapse cluster
-    collapseCluster(clusterId) {
-        const sourceId = `expanded-${clusterId}`;
-        const layerId = `expanded-layer-${clusterId}`;
-        
-        console.log(`Collapsing cluster ${clusterId}...`);
-        
-        // Odstrani event handlerje
-        if (this.map[`_${layerId}_clickHandler`]) {
-            this.map.off('click', layerId, this.map[`_${layerId}_clickHandler`]);
-            this.map.off('mouseenter', layerId);
-            this.map.off('mouseleave', layerId);
-            delete this.map[`_${layerId}_clickHandler`];
-        }
-        
-        // Odstrani layer in source
-        if (this.map.getLayer(layerId)) {
-            this.map.removeLayer(layerId);
-        }
-        if (this.map.getSource(sourceId)) {
-            this.map.removeSource(sourceId);
-        }
-        
-        // Označi cluster kot collapsed
-        this.expandedClusters.delete(clusterId);
-        
-        console.log(`Collapsed cluster ${clusterId}`);
     }
 
     // Prikaz popupa za posamezno nepremičnino
     showPropertyPopup(lngLat, properties, onPropertySelect) {
-        const popupContent = IndividualPopup({ 
-            properties, 
+        const popupContent = IndividualPopup({
+            properties,
             dataSourceType: this.currentDataSourceType
         });
 
-        if (this.currentPopup) {
-            this.currentPopup.remove();
-        }
+        this.closeCurrentPopup();
 
         this.currentPopup = new maplibregl.Popup({
             closeButton: true,
@@ -397,34 +107,29 @@ class PopupManager {
             .setHTML(popupContent)
             .addTo(this.map);
 
+        // Setup details button event listener
         setTimeout(() => {
             const detailsButton = document.getElementById(`btnShowDetails_${properties.id}`);
             if (detailsButton) {
                 detailsButton.addEventListener('click', () => {
-                    // Pass both the property data and the data source
                     const dataSource = this.currentDataSourceType === 'prodaja' ? 'kpp' : 'np';
                     onPropertySelect({
                         ...properties,
                         dataSource: dataSource,
-                        deduplicatedId: properties.id // Make sure we use the deduplicated ID
+                        deduplicatedId: properties.id
                     });
-                    
-                    if (this.currentPopup) {
-                        this.currentPopup.remove();
-                        this.currentPopup = null;
-                    }
+
+                    this.closeCurrentPopup();
                 });
             }
         }, 100);
     }
 
-    // Fallback cluster popup + debug (ostane enako)
+    // Prikaz cluster popupa
     showClusterPopup(lngLat, properties) {
         const popupContent = ClusterPopup({ properties });
 
-        if (this.currentPopup) {
-            this.currentPopup.remove();
-        }
+        this.closeCurrentPopup();
 
         this.currentPopup = new maplibregl.Popup({
             closeButton: true,
@@ -436,9 +141,10 @@ class PopupManager {
             .setHTML(popupContent)
             .addTo(this.map);
 
-        // Ohrani debug funkcionalnost
+        // Debug cluster properties
         this.debugClusterProperties(properties);
-        
+
+        // Setup zoom button event listener
         setTimeout(() => {
             const zoomButton = document.getElementById(`btnZoomCluster_${properties.cluster_id}`);
             if (zoomButton) {
@@ -447,53 +153,58 @@ class PopupManager {
                         center: lngLat,
                         zoom: this.map.getZoom() + 2
                     });
-                    
-                    if (this.currentPopup) {
-                        this.currentPopup.remove();
-                        this.currentPopup = null;
-                    }
+
+                    this.closeCurrentPopup();
                 });
             }
         }, 100);
     }
 
-    // Debug funkcija (POSODOBLJENA za deduplicated podatke)
+    // Zapri trenutni popup
+    closeCurrentPopup() {
+        if (this.currentPopup) {
+            this.currentPopup.remove();
+            this.currentPopup = null;
+        }
+    }
+
+    // Debug funkcija za cluster properties
     async debugClusterProperties(clusterProperties) {
         const clusterId = clusterProperties.cluster_id;
         const dataSource = this.currentDataSourceType === 'prodaja' ? 'kpp' : 'np';
-        
+
         console.log('=== CLUSTER DEBUG ===');
         console.log('Cluster ID:', clusterId);
         console.log('Cluster type:', clusterProperties.cluster_type);
         console.log('Point count:', clusterProperties.point_count);
         console.log('Data source:', dataSource);
         console.log('Deduplicated IDs:', clusterProperties.deduplicated_ids);
-        
+
         if (!clusterId.startsWith('b_') && !clusterId.startsWith('d_')) {
             console.log('Unknown cluster type - ni podrobnih podatkov');
             return;
         }
-        
+
         try {
             const currentZoom = this.map.getZoom();
             const url = `http://localhost:8000/cluster/${clusterId}/properties?data_source=${dataSource}&zoom=${currentZoom}`;
             console.log('Fetching cluster details from:', url);
-            
+
             const response = await fetch(url);
-            
+
             if (!response.ok) {
                 console.log('Error response:', response.status);
                 return;
             }
-            
+
             const data = await response.json();
             console.log('=== CLUSTER PROPERTIES ===');
             console.log(`Found ${data.features.length} deduplicated properties in cluster:`);
-            
+
             data.features.forEach((feature, index) => {
                 const props = feature.properties;
                 const address = `${props.ulica || ''} ${props.hisna_stevilka || ''}`.trim() || 'Brez naslova';
-                
+
                 console.log(`${index + 1}. ${address}`);
                 console.log(`   - Deduplicated ID: ${props.id}`);
                 console.log(`   - Površina: ${props.povrsina || 'N/A'} m²`);
@@ -501,15 +212,14 @@ class PopupManager {
                 console.log(`   - Koordinate: [${feature.geometry.coordinates[0].toFixed(6)}, ${feature.geometry.coordinates[1].toFixed(6)}]`);
                 console.log('   ---');
             });
-            
+
             console.log('=== END CLUSTER DEBUG ===');
-            
+
         } catch (error) {
             console.error('Error fetching cluster properties:', error);
         }
     }
 
-    // Hover efekti (ostanejo enaki)
     setupHoverHandlers() {
         if (!this.map._propertiesHoverHandler) {
             this.map._propertiesHoverHandler = () => {
@@ -520,44 +230,86 @@ class PopupManager {
                 this.map.getCanvas().style.cursor = '';
             };
 
+            // Hover handlers za oba properties layer-ja
             this.map.on('mouseenter', 'properties-layer', this.map._propertiesHoverHandler);
             this.map.on('mouseleave', 'properties-layer', this.map._propertiesLeaveHandler);
-            
+
+            // NOVO: Hover handlers za text layer
+            this.map.on('mouseenter', 'properties-text-layer', this.map._propertiesHoverHandler);
+            this.map.on('mouseleave', 'properties-text-layer', this.map._propertiesLeaveHandler);
+
             this.map.on('mouseenter', 'clusters-layer', this.map._propertiesHoverHandler);
             this.map.on('mouseleave', 'clusters-layer', this.map._propertiesLeaveHandler);
         }
     }
+    // Cleanup event handlerjev
+    cleanupEventHandlers() {
+        if (this.map._propertiesClickHandler) {
+            this.map.off('click', 'properties-layer', this.map._propertiesClickHandler);
+            this.map.off('click', 'properties-text-layer', this.map._propertiesClickHandler); // NOVO
+            delete this.map._propertiesClickHandler;
+        }
 
-    // POSODOBLJEN cleanup z expanded clustri
-    cleanup() {
-        if (this.map) {
-            // Collapse vse expanded clustre
-            Array.from(this.expandedClusters).forEach(clusterId => {
-                this.collapseCluster(clusterId);
-            });
-            
-            // Cleanup osnovni handlerji
-            if (this.map._propertiesClickHandler) {
-                this.map.off('click', 'properties-layer', this.map._propertiesClickHandler);
-            }
-            
-            if (this.map._clustersClickHandler) {
-                this.map.off('click', 'clusters-layer', this.map._clustersClickHandler);
-            }
-            
-            if (this.map._propertiesHoverHandler) {
-                this.map.off('mouseenter', 'properties-layer', this.map._propertiesHoverHandler);
-                this.map.off('mouseleave', 'properties-layer', this.map._propertiesLeaveHandler);
-                this.map.off('mouseenter', 'clusters-layer', this.map._propertiesHoverHandler);
-                this.map.off('mouseleave', 'clusters-layer', this.map._propertiesLeaveHandler);
-            }
-            
-            if (this.currentPopup) {
-                this.currentPopup.remove();
-                this.currentPopup = null;
-            }
+        if (this.map._clustersClickHandler) {
+            this.map.off('click', 'clusters-layer', this.map._clustersClickHandler);
+            delete this.map._clustersClickHandler;
+        }
+
+        if (this.map._expandedPropertyHandler) {
+            this.map.getContainer().removeEventListener('expandedPropertyClick', this.map._expandedPropertyHandler);
+            delete this.map._expandedPropertyHandler;
         }
     }
+
+    // Cleanup hover handlerjev
+    cleanupHoverHandlers() {
+        if (this.map._propertiesHoverHandler) {
+            this.map.off('mouseenter', 'properties-layer', this.map._propertiesHoverHandler);
+            this.map.off('mouseleave', 'properties-layer', this.map._propertiesLeaveHandler);
+
+            // NOVO: Cleanup za text layer
+            this.map.off('mouseenter', 'properties-text-layer', this.map._propertiesHoverHandler);
+            this.map.off('mouseleave', 'properties-text-layer', this.map._propertiesLeaveHandler);
+
+            this.map.off('mouseenter', 'clusters-layer', this.map._propertiesHoverHandler);
+            this.map.off('mouseleave', 'clusters-layer', this.map._propertiesLeaveHandler);
+            delete this.map._propertiesHoverHandler;
+            delete this.map._propertiesLeaveHandler;
+        }
+    }
+
+    // Glavna cleanup funkcija
+    cleanup() {
+        console.log('PopupManager: Starting cleanup...');
+
+        // Cleanup expansion manager
+        if (this.ClusterExpander) {
+            this.ClusterExpander.cleanup();
+        }
+
+        // Cleanup event handlers
+        this.cleanupEventHandlers();
+        this.cleanupHoverHandlers();
+
+        // Cleanup popup
+        this.closeCurrentPopup();
+
+        // Reset callbacks
+        this.onPropertySelectCallback = null;
+
+        console.log('PopupManager: Cleanup completed');
+    }
+
+    // Public API za dostop do expansion manager funkcionalnosti
+    collapseAllClusters() {
+        this.ClusterExpander.collapseAllClusters();
+    }
+
+    isClusterExpanded(clusterId) {
+        return this.ClusterExpander.isClusterExpanded(clusterId);
+    }
+
+
 }
 
 export default PopupManager;
