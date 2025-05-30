@@ -16,6 +16,12 @@ class ClusterExpander {
     async handleClusterClick(lngLat, clusterProperties) {
         const clusterId = clusterProperties.cluster_id;
         
+        // DEBUG: Preveri kakšen data source ima cluster
+        console.log(`=== CLUSTER CLICK DEBUG ===`);
+        console.log('Cluster properties:', clusterProperties);
+        console.log('Cluster data_source property:', clusterProperties.data_source);
+        console.log('ClusterExpander currentDataSourceType:', this.currentDataSourceType);
+        
         // Če je cluster že expandiran, ga collapse
         if (this.expandedClusters.has(clusterId)) {
             this.collapseCluster(clusterId);
@@ -39,11 +45,24 @@ class ClusterExpander {
 
     // Expandiraj cluster z API klicem
     async expandCluster(clusterId, clusterProperties) {
-        const dataSource = this.currentDataSourceType === 'prodaja' ? 'kpp' : 'np';
+        // POMEMBNO: Uporabi data_source iz cluster properties, ne iz currentDataSourceType
+        let dataSource;
+        
+        if (clusterProperties.data_source) {
+            // Če ima cluster že data_source property, ga uporabi
+            dataSource = clusterProperties.data_source;
+            console.log(`Using data_source from cluster properties: ${dataSource}`);
+        } else {
+            // Fallback na currentDataSourceType
+            dataSource = this.currentDataSourceType === 'prodaja' ? 'kpp' : 'np';
+            console.log(`Using fallback data_source from currentDataSourceType: ${dataSource}`);
+        }
+        
         const currentZoom = this.map.getZoom();
         
         console.log(`=== EXPANDING CLUSTER ${clusterId} ===`);
-        console.log('Data source:', dataSource);
+        console.log('Final data source for API:', dataSource);
+        console.log('Current zoom:', currentZoom);
         
         try {
             const url = `http://localhost:8000/cluster/${clusterId}/properties?data_source=${dataSource}&zoom=${currentZoom}`;
@@ -61,9 +80,10 @@ class ClusterExpander {
             console.log('Features received:', data.features?.length || 0);
             
             if (data.features && data.features.length > 0) {
-                this.createExpandedLayer(clusterId, data.features, clusterProperties);
+                // Posreduj data source v createExpandedLayer
+                this.createExpandedLayer(clusterId, data.features, clusterProperties, dataSource);
                 this.expandedClusters.add(clusterId);
-                console.log(`✓ Successfully expanded cluster ${clusterId} with ${data.features.length} properties`);
+                console.log(`✓ Successfully expanded cluster ${clusterId} with ${data.features.length} properties using data_source: ${dataSource}`);
                 return true;
             } else {
                 console.log('No valid properties found in cluster response');
@@ -78,9 +98,17 @@ class ClusterExpander {
 
     // Expandiraj cluster z že znanimi IDs (alternativna metoda)
     async expandClusterWithIds(clusterId, clusterProperties) {
-        const dataSource = this.currentDataSourceType === 'prodaja' ? 'kpp' : 'np';
+        // POMEMBNO: Uporabi data_source iz cluster properties
+        let dataSource;
+        
+        if (clusterProperties.data_source) {
+            dataSource = clusterProperties.data_source;
+        } else {
+            dataSource = this.currentDataSourceType === 'prodaja' ? 'kpp' : 'np';
+        }
         
         console.log('Expanding cluster with deduplicated IDs:', clusterProperties.deduplicated_ids);
+        console.log('Using data_source:', dataSource);
         
         try {
             const features = [];
@@ -95,7 +123,7 @@ class ClusterExpander {
                     properties: {
                         id: deduplicatedId,
                         type: "individual",
-                        data_source: dataSource,
+                        data_source: dataSource, // Dodaj data_source v properties
                         cluster_expanded: true
                     }
                 };
@@ -103,7 +131,7 @@ class ClusterExpander {
             }
             
             if (features.length > 0) {
-                this.createExpandedLayer(clusterId, features, clusterProperties);
+                this.createExpandedLayer(clusterId, features, clusterProperties, dataSource);
                 this.expandedClusters.add(clusterId);
                 return true;
             } else {
@@ -117,12 +145,13 @@ class ClusterExpander {
     }
 
     // Ustvari vizualni layer za expanded properties
-    createExpandedLayer(clusterId, properties, originalClusterProperties = null) {
+    createExpandedLayer(clusterId, properties, originalClusterProperties = null, dataSource = null) {
         const sourceId = `expanded-${clusterId}`;
         const layerId = `expanded-layer-${clusterId}`;
         
         console.log(`Creating expanded layer for ${clusterId}...`);
         console.log('Properties to display:', properties.length);
+        console.log('Using data_source for styling:', dataSource);
         
         // Izračunaj center pozicijo
         const centerCoords = this.calculateClusterCenter(properties, originalClusterProperties);
@@ -146,8 +175,8 @@ class ClusterExpander {
         // Odstrani obstoječe layers/sources
         this.removeExpandedLayer(clusterId);
         
-        // Dodaj source in layer
-        this.addExpandedSourceAndLayer(sourceId, layerId, geojsonData);
+        // Dodaj source in layer z določenim data source
+        this.addExpandedSourceAndLayer(sourceId, layerId, geojsonData, dataSource);
         
         // Dodaj event handlers
         this.setupExpandedLayerHandlers(layerId);
@@ -296,7 +325,7 @@ class ClusterExpander {
     }
 
     // Dodaj source in layer na mapo
-    addExpandedSourceAndLayer(sourceId, layerId, geojsonData) {
+    addExpandedSourceAndLayer(sourceId, layerId, geojsonData, dataSource = null) {
         try {
             // Dodaj source
             this.map.addSource(sourceId, {
@@ -306,8 +335,21 @@ class ClusterExpander {
             console.log(`Added source: ${sourceId}`);
             
             // Določi barve glede na data source
-            const circleColor = this.currentDataSourceType === 'prodaja' ? '#3B82F6' : '#10B981';
-            const strokeColor = this.currentDataSourceType === 'prodaja' ? '#1D4ED8' : '#059669';
+            // POMEMBNO: Uporabi posredovani dataSource, ne this.currentDataSourceType
+            let circleColor, strokeColor;
+            
+            if (dataSource) {
+                // Uporabi eksplicitni data source
+                const dataSourceType = dataSource === 'kpp' ? 'prodaja' : 'najem';
+                circleColor = dataSourceType === 'prodaja' ? '#3B82F6' : '#10B981';
+                strokeColor = dataSourceType === 'prodaja' ? '#1D4ED8' : '#059669';
+                console.log(`Using explicit dataSource: ${dataSource} -> ${dataSourceType} -> colors: ${circleColor}`);
+            } else {
+                // Fallback na currentDataSourceType
+                circleColor = this.currentDataSourceType === 'prodaja' ? '#3B82F6' : '#10B981';
+                strokeColor = this.currentDataSourceType === 'prodaja' ? '#1D4ED8' : '#059669';
+                console.log(`Using fallback currentDataSourceType: ${this.currentDataSourceType} -> colors: ${circleColor}`);
+            }
             
             // Dodaj circle layer
             this.map.addLayer({
@@ -339,7 +381,7 @@ class ClusterExpander {
                 type: 'symbol',
                 source: sourceId,
                 layout: {
-                    'text-field': this.formatPriceExpression(),
+                    'text-field': this.formatPriceExpression(dataSource),
                     'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
                     'text-size': [
                         'interpolate',
@@ -369,9 +411,20 @@ class ClusterExpander {
         }
     }
 
-    formatPriceExpression() {
-        if (this.currentDataSourceType === 'prodaja') {
-            // Za prodajo prikaži zadnja_cena (enako kot v IndividualPopup)
+    formatPriceExpression(dataSource = null) {
+        // POMEMBNO: Uporabi posredovani dataSource
+        let useDataSourceType;
+        
+        if (dataSource) {
+            useDataSourceType = dataSource === 'kpp' ? 'prodaja' : 'najem';
+        } else {
+            useDataSourceType = this.currentDataSourceType;
+        }
+        
+        console.log(`formatPriceExpression using: ${useDataSourceType} (from dataSource: ${dataSource})`);
+        
+        if (useDataSourceType === 'prodaja') {
+            // Za prodajo prikaži zadnja_cena
             return [
                 'case',
                 ['has', 'zadnja_cena'],
@@ -388,7 +441,7 @@ class ClusterExpander {
                 'N/A'
             ];
         } else {
-            // Za najem prikaži zadnja_najemnina (enako kot v IndividualPopup)
+            // Za najem prikaži zadnja_najemnina
             return [
                 'case',
                 ['has', 'zadnja_najemnina'],
@@ -405,7 +458,7 @@ class ClusterExpander {
                 'N/A'
             ];
         }
-    }// ClusterExpander.jsx
+    }
 
     // Nastavi event handlers za expanded layer
     setupExpandedLayerHandlers(layerId) {

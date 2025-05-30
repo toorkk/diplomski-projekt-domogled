@@ -261,12 +261,14 @@ def get_properties_geojson(
     bbox: str = Query(..., description="Bounding box 'west,south,east,north'"),
     zoom: float = Query(default=10, description="Zoom level za clustering"),
     data_source: str = Query(default="np", description="Data source: 'np' za najemne 'kpp' za kupoprodajne"),
+    municipality: str = Query(None, description="Filter po občini (opcijsko)"),  
+    sifko: int = Query(None, description="Filter po šifri katastrske občine (opcijsko)"),  # NOVO DODANO
     db: Session = Depends(get_db)
 ):
     """
-    Pridobi dele stavb trenutno vidne na ekranu z dvostopenjskim sistemom razvrščanja v gruče:
-    - Visok zoom (>= cluster_threshold): Združeni po stavbah (sifra_ko in stevilka_stavbe)
-    - Nizek zoom (< cluster_threshold): Združeni po geografski razdalji
+    Pridobi dele stavb trenutno vidne na ekranu:
+    - Če je podan sifko/municipality: Vrni VSE nepremičnine v tej občini (ignore bbox, samo building clustering)
+    - Sicer: Uporabi bbox z distance/building clustering
     
     Parameter data_source omogoča preklapljanje med različnimi viri podatkov:
     - 'np': najemni podatki (np_del_stavbe)
@@ -279,12 +281,17 @@ def get_properties_geojson(
             
         west, south, east, north = map(float, bbox.split(','))
         
+        # Če je podan sifko ali municipality, vrni VSE nepremičnine v tej občini
+        if sifko or municipality:
+            return PropertyService.get_municipality_all_properties(sifko, municipality, db, data_source)
+        
+        # Sicer uporabi stari sistem z bbox clustering
         cluster_threshold = 14.5
         
         if zoom >= cluster_threshold:
-            return PropertyService.get_building_clustered_properties(west, south, east, north, db, data_source)
+            return PropertyService.get_building_clustered_properties(west, south, east, north, db, data_source, municipality, sifko)
         else:
-            return PropertyService.get_distance_clustered_properties(west, south, east, north, zoom, db, data_source)
+            return PropertyService.get_distance_clustered_properties(west, south, east, north, zoom, db, data_source, municipality, sifko)
             
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"neveljavni parametri: {str(e)}")
@@ -338,17 +345,19 @@ def get_cluster_properties(
         
         # Podporni samo building clustri
         if cluster_id.startswith('b_'):
-            # Building cluster: b_sifra_ko_stevilka_stavbe
+            # Building cluster: b_obcina_sifra_ko_stevilka_stavbe
             parts = cluster_id[2:].split('_')
             print(f"Building cluster parts: {parts}")  # Debug
             
-            if len(parts) >= 2:
-                sifra_ko = int(parts[0])
-                stevilka_stavbe = int(parts[1])
+            if len(parts) >= 3:  # Spremenil iz 2 na 3 (obcina + sifra_ko + stevilka_stavbe)
+                obcina = parts[0]  # Nova
+                sifra_ko = int(parts[1])  # Spremenjeno iz parts[0]
+                stevilka_stavbe = int(parts[2])  # Spremenjeno iz parts[1]
                 
-                print(f"Looking for sifra_ko: {sifra_ko}, stevilka_stavbe: {stevilka_stavbe}")  # Debug
+                print(f"Looking for obcina: {obcina}, sifra_ko: {sifra_ko}, stevilka_stavbe: {stevilka_stavbe}")  # Debug
                 
-                return PropertyService.get_building_cluster_properties(sifra_ko, stevilka_stavbe, db, data_source)
+                # Posreduj občino v PropertyService
+                return PropertyService.get_building_cluster_properties(obcina, sifra_ko, stevilka_stavbe, db, data_source)
                 
         elif cluster_id.startswith('d_'):
             # Distance clustri niso podprti za expansion

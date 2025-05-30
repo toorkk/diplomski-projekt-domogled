@@ -1,6 +1,5 @@
 import maplibregl from "maplibre-gl";
 import IndividualPopup from "./IndividualPopup";
-import ClusterPopup from "./ClusterPopup";
 import ClusterExpander from "./ClusterExpander";
 
 // Razred za upravljanje popupov
@@ -12,13 +11,18 @@ class PopupManager {
         this.onPropertySelectCallback = null;
 
         // Inicializiraj ClusterExpander
-        this.ClusterExpander = new ClusterExpander(map);
+        this.clusterExpander = new ClusterExpander(map);
     }
 
     updateDataSourceType(newType) {
+        console.log(`PopupManager: Data source changing from ${this.currentDataSourceType} to ${newType}`);
+        
+        // AVTOMATSKI CLEANUP: Zapri vse expanded clustre pri menjavi data source
+        this.clusterExpander.collapseAllClusters();
+        
         this.currentDataSourceType = newType;
         // Posodobi tudi expansion manager
-        this.ClusterExpander.updateDataSourceType(newType);
+        this.clusterExpander.updateDataSourceType(newType);
         console.log(`PopupManager: Data source changed to: ${newType}`);
     }
 
@@ -75,12 +79,8 @@ class PopupManager {
 
         try {
             // Poskusi expandirati cluster preko ClusterExpander
-            const wasExpanded = await this.ClusterExpander.handleClusterClick(lngLat, clusterProperties);
+            const wasExpanded = await this.clusterExpander.handleClusterClick(lngLat, clusterProperties);
 
-            // Če cluster ni bil expanded (npr. distance cluster), prikaži popup
-            if (!wasExpanded) {
-                this.showClusterPopup(lngLat, clusterProperties);
-            }
         } catch (error) {
             console.error('Error handling cluster click:', error);
             // Fallback na običajen cluster popup
@@ -125,47 +125,40 @@ class PopupManager {
         }, 100);
     }
 
-    // Prikaz cluster popupa
-    showClusterPopup(lngLat, properties) {
-        const popupContent = ClusterPopup({ properties });
-
-        this.closeCurrentPopup();
-
-        this.currentPopup = new maplibregl.Popup({
-            closeButton: true,
-            closeOnClick: true,
-            maxWidth: '320px',
-            className: 'custom-popup'
-        })
-            .setLngLat(lngLat)
-            .setHTML(popupContent)
-            .addTo(this.map);
-
-        // Debug cluster properties
-        this.debugClusterProperties(properties);
-
-        // Setup zoom button event listener
-        setTimeout(() => {
-            const zoomButton = document.getElementById(`btnZoomCluster_${properties.cluster_id}`);
-            if (zoomButton) {
-                zoomButton.addEventListener('click', () => {
-                    this.map.flyTo({
-                        center: lngLat,
-                        zoom: this.map.getZoom() + 2
-                    });
-
-                    this.closeCurrentPopup();
-                });
-            }
-        }, 100);
-    }
-
     // Zapri trenutni popup
     closeCurrentPopup() {
         if (this.currentPopup) {
             this.currentPopup.remove();
             this.currentPopup = null;
         }
+    }
+
+    // NOVA FUNKCIJA: Cleanup za menjavo občine
+    handleMunicipalityChange() {
+        console.log('PopupManager: Municipality change detected - cleaning up clusters');
+        this.clusterExpander.collapseAllClusters();
+        this.closeCurrentPopup();
+    }
+
+    // NOVA FUNKCIJA: Cleanup za reset občine
+    handleMunicipalityReset() {
+        console.log('PopupManager: Municipality reset detected - cleaning up everything');
+        this.clusterExpander.collapseAllClusters();
+        this.closeCurrentPopup();
+    }
+
+    // NOVA FUNKCIJA: Cleanup za zoom events
+    handleZoomChange() {
+        console.log('PopupManager: Zoom change detected - cleaning up clusters');
+        this.clusterExpander.collapseAllClusters();
+        // Ne zapiramo popup-a pri zoom-u, samo clustre
+    }
+
+    // NOVA FUNKCIJA: Cleanup za reload podatkov
+    handleDataReload() {
+        console.log('PopupManager: Data reload detected - cleaning up clusters');
+        this.clusterExpander.collapseAllClusters();
+        this.closeCurrentPopup();
     }
 
     // Debug funkcija za cluster properties
@@ -242,6 +235,7 @@ class PopupManager {
             this.map.on('mouseleave', 'clusters-layer', this.map._propertiesLeaveHandler);
         }
     }
+
     // Cleanup event handlerjev
     cleanupEventHandlers() {
         if (this.map._propertiesClickHandler) {
@@ -283,8 +277,8 @@ class PopupManager {
         console.log('PopupManager: Starting cleanup...');
 
         // Cleanup expansion manager
-        if (this.ClusterExpander) {
-            this.ClusterExpander.cleanup();
+        if (this.clusterExpander) {
+            this.clusterExpander.cleanup();
         }
 
         // Cleanup event handlers
@@ -302,14 +296,12 @@ class PopupManager {
 
     // Public API za dostop do expansion manager funkcionalnosti
     collapseAllClusters() {
-        this.ClusterExpander.collapseAllClusters();
+        this.clusterExpander.collapseAllClusters();
     }
 
     isClusterExpanded(clusterId) {
-        return this.ClusterExpander.isClusterExpanded(clusterId);
+        return this.clusterExpander.isClusterExpanded(clusterId);
     }
-
-
 }
 
 export default PopupManager;
