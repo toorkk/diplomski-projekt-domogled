@@ -1,12 +1,15 @@
 -- Posodobi NP deduplicirane ei
 UPDATE core.np_del_stavbe_deduplicated 
-SET energetske_izkaznice = ei_grouped.energetske_izkaznice
+SET 
+    energetske_izkaznice = ei_grouped.energetske_izkaznice,
+    energijski_razred = ei_grouped.energijski_razred
 FROM (
     SELECT 
         ei.sifra_ko,
         ei.stevilka_stavbe,
         ei.stevilka_dela_stavbe,
-        ARRAY_AGG(ei.id ORDER BY ei.datum_izdelave DESC) as energetske_izkaznice
+        ARRAY_AGG(ei.id ORDER BY ei.datum_izdelave DESC) as energetske_izkaznice,
+        (ARRAY_AGG(ei.energijski_razred ORDER BY ei.datum_izdelave DESC))[1] as energijski_razred
     FROM core.energetska_izkaznica ei
     GROUP BY ei.sifra_ko, ei.stevilka_stavbe, ei.stevilka_dela_stavbe
 ) ei_grouped
@@ -16,13 +19,16 @@ WHERE np_del_stavbe_deduplicated.sifra_ko = ei_grouped.sifra_ko
 
 -- Posodobi KPP deduplicirane ei  
 UPDATE core.kpp_del_stavbe_deduplicated 
-SET energetske_izkaznice = ei_grouped.energetske_izkaznice
+SET 
+    energetske_izkaznice = ei_grouped.energetske_izkaznice,
+    energijski_razred = ei_grouped.energijski_razred
 FROM (
     SELECT 
         ei.sifra_ko,
         ei.stevilka_stavbe,
         ei.stevilka_dela_stavbe,
-        ARRAY_AGG(ei.id ORDER BY ei.datum_izdelave DESC) as energetske_izkaznice
+        ARRAY_AGG(ei.id ORDER BY ei.datum_izdelave DESC) as energetske_izkaznice,
+        (ARRAY_AGG(ei.energijski_razred ORDER BY ei.datum_izdelave DESC))[1] as energijski_razred
     FROM core.energetska_izkaznica ei
     GROUP BY ei.sifra_ko, ei.stevilka_stavbe, ei.stevilka_dela_stavbe
 ) ei_grouped

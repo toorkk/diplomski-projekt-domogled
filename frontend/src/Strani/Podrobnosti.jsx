@@ -4,9 +4,9 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
   const [loading, setLoading] = useState(true);
   const [property, setProperty] = useState(null);
   const [error, setError] = useState(null);
+  const [selectedEnergyIndex, setSelectedEnergyIndex] = useState(0); // Index za izbrano energetsko izkaznico
 
   useEffect(() => {
-
     // Funkcija za nalaganje podrobnosti
     const fetchPropertyDetails = async () => {
       setLoading(true);
@@ -20,6 +20,20 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
         const data = await response.json();
         setProperty(data.properties); // pridobi dele stavb
         setError(null);
+        
+        // Če je več energetskih izkaznic, avtomatsko izberi najnovejšo
+        if (data.properties.energetske_izkaznice && data.properties.energetske_izkaznice.length > 0) {
+          // Najdi najnovejšo (največji datum_izdelave)
+          const sortedByDate = [...data.properties.energetske_izkaznice].sort((a, b) => {
+            if (!a.datum_izdelave) return 1;
+            if (!b.datum_izdelave) return -1;
+            return new Date(b.datum_izdelave) - new Date(a.datum_izdelave);
+          });
+          const latestIndex = data.properties.energetske_izkaznice.findIndex(
+            ei => ei.id === sortedByDate[0].id
+          );
+          setSelectedEnergyIndex(latestIndex);
+        }
       } catch (err) {
         console.error('Napaka pri nalaganju podrobnosti nepremičnine:', err);
         setError('Prišlo je do napake pri nalaganju podatkov. Poskusite ponovno.');
@@ -47,13 +61,13 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
     if (!property) return null;
     
     // Za deduplicirane nepremičnine pridobimo ceno iz zadnjega posla
-    if (property.all_contracts && property.all_contracts.length > 0) {
-      const latestContract = property.all_contracts[property.all_contracts.length - 1];
+    if (property.povezani_posli && property.povezani_posli.length > 0) {
+      const zadnjiPosel = property.povezani_posli[property.povezani_posli.length - 1];
       
       if (dataSource === 'kpp') {
-        return latestContract.cena;
+        return zadnjiPosel.cena;
       } else {
-        return latestContract.najemnina;
+        return zadnjiPosel.najemnina;
       }
     }
     
@@ -82,11 +96,27 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
   const getRepresentativeProperty = () => {
     if (!property) return null;
     
-    if (property.all_del_stavbe_records && property.all_del_stavbe_records.length > 0) {
+    if (property.povezani_deli_stavb && property.povezani_deli_stavb.length > 0) {
       return property;
     }
     
     return property;
+  };
+
+  // Formatiranje energijskega razreda z barvami
+  const getEnergyClassColor = (razred) => {
+    const colors = {
+      'A++': 'bg-green-700 text-white',
+      'A+': 'bg-green-600 text-white',
+      'A': 'bg-green-500 text-white',
+      'B': 'bg-yellow-400 text-black',
+      'C': 'bg-yellow-500 text-black',
+      'D': 'bg-orange-400 text-black',
+      'E': 'bg-orange-500 text-white',
+      'F': 'bg-red-500 text-white',
+      'G': 'bg-red-700 text-white'
+    };
+    return colors[razred] || 'bg-gray-400 text-white';
   };
 
   const representativeProperty = getRepresentativeProperty();
@@ -166,8 +196,8 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
                       )}
                       
                       {/* podatki za zadnji posel */}
-                      {property.all_contracts && property.all_contracts.length > 0 && (() => {
-                        const latestContract = property.all_contracts[property.all_contracts.length - 1];
+                      {property.povezani_posli && property.povezani_posli.length > 0 && (() => {
+                        const latestContract = property.povezani_posli[property.povezani_posli.length - 1];
                         return (
                           <>
                             {dataSource === 'np' && (
@@ -289,21 +319,113 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
                   </div>
                 </div>
                 
-                {/* Storitve v bližini */}
+                {/* Energetske izkaznice */}
                 <div className="bg-blue-100 p-4 rounded-lg">
-                  <h3 className="font-bold text-lg text-gray-800 mb-4">Storitve v bližini</h3>
+                  <h3 className="font-bold text-lg text-gray-800 mb-4">Energetske izkaznice</h3>
                   <div className="space-y-2">
-                    <div className="text-center py-4 text-gray-500">
-                      Podatki o storitvah v bližini bodo dodani v prihodnje
-                    </div>
+                    {!property.energetske_izkaznice || property.energetske_izkaznice.length === 0 ? (
+                      <div className="text-center py-4 text-gray-500">
+                        Za ta del stavbe ni na voljo energetske izkaznice
+                      </div>
+                    ) : (
+                      <>
+                        {/* Dropdown za izbiro izkaznice če je več kot ena */}
+                        {property.energetske_izkaznice.length > 1 && (
+                          <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-600 mb-2">
+                              Izberi energetsko izkaznico ({property.energetske_izkaznice.length} na voljo):
+                            </label>
+                            <select
+                              value={selectedEnergyIndex}
+                              onChange={(e) => setSelectedEnergyIndex(parseInt(e.target.value))}
+                              className="w-full p-2 border border-gray-300 rounded-md bg-white text-sm"
+                            >
+                              {property.energetske_izkaznice.map((ei, index) => (
+                                <option key={ei.id} value={index}>
+                                  {ei.ei_id} - {ei.datum_izdelave ? 
+                                    new Date(ei.datum_izdelave).toLocaleDateString('sl-SI') : 
+                                    'Ni datuma'} 
+                                  {ei.energijski_razred && ` (${ei.energijski_razred})`}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        
+                        {/* Prikaz izbrane energetske izkaznice */}
+                        {(() => {
+                          const selectedEI = property.energetske_izkaznice[selectedEnergyIndex];
+                          if (!selectedEI) return null;
+                          
+                          return (
+                            <div className="grid grid-cols-2 gap-y-2 gap-x-2 text-sm">
+                              {selectedEI.energijski_razred && (
+                                <>
+                                  <div className="text-gray-600">Energijski razred:</div>
+                                  <div className={`inline-block px-2 py-1 rounded text-center font-bold ${getEnergyClassColor(selectedEI.energijski_razred)}`}>
+                                    {selectedEI.energijski_razred}
+                                  </div>
+                                </>
+                              )}
+                              
+                              {selectedEI.datum_izdelave && (
+                                <>
+                                  <div className="text-gray-600">Datum izdelave:</div>
+                                  <div className="font-medium">
+                                    {new Date(selectedEI.datum_izdelave).toLocaleDateString('sl-SI')}
+                                  </div>
+                                </>
+                              )}
+                              
+                              {selectedEI.velja_do && (
+                                <>
+                                  <div className="text-gray-600">Velja do:</div>
+                                  <div className="font-medium">
+                                    {new Date(selectedEI.velja_do).toLocaleDateString('sl-SI')}
+                                  </div>
+                                </>
+                              )}
+                              
+                              {selectedEI.primarna_energija && (
+                                <>
+                                  <div className="text-gray-600">Primarna energija:</div>
+                                  <div className="font-medium">{Math.round(selectedEI.primarna_energija)} kWh/m²a</div>
+                                </>
+                              )}
+                              
+                              {selectedEI.emisije_co2 && (
+                                <>
+                                  <div className="text-gray-600">Emisije CO₂:</div>
+                                  <div className="font-medium">{Math.round(selectedEI.emisije_co2)} kg/m²a</div>
+                                </>
+                              )}
+                              
+                              {selectedEI.kondicionirana_povrsina && (
+                                <>
+                                  <div className="text-gray-600">Kond. površina:</div>
+                                  <div className="font-medium">{selectedEI.kondicionirana_povrsina} m²</div>
+                                </>
+                              )}
+                              
+                              {selectedEI.ei_id && (
+                                <>
+                                  <div className="text-gray-600">ID izkaznice:</div>
+                                  <div className="font-medium text-xs">{selectedEI.ei_id}</div>
+                                </>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
 
               {/* vsi posli section */}
-              {property.all_contracts && property.all_contracts.length > 1 && (
+              {property.povezani_posli && property.povezani_posli.length > 1 && (
                 <div className="bg-blue-100 p-4 rounded-lg">
-                  <h3 className="font-bold text-lg text-gray-800 mb-4">Vsi posli ({property.all_contracts.length})</h3>
+                  <h3 className="font-bold text-lg text-gray-800 mb-4">Vsi posli ({property.povezani_posli.length})</h3>
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-blue-200">
@@ -315,7 +437,7 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {property.all_contracts.map((contract, index) => (
+                        {property.povezani_posli.map((contract, index) => (
                           <tr key={contract.posel_id} className={index % 2 === 0 ? 'bg-white' : 'bg-blue-50'}>
                             <td className="px-4 py-2 text-sm">
                               {contract.datum_sklenitve ? 

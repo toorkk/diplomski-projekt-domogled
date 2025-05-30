@@ -1,10 +1,10 @@
-import json
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from geoalchemy2.functions import ST_SetSRID, ST_MakeEnvelope, ST_Intersects, ST_AsGeoJSON, ST_X, ST_Y
 
-from .clustering_utils import calculate_cluster_resolution, get_deduplicated_property_model, get_property_model
-from .models import NpPosel, KppPosel
+from .models import EnergetskaIzkaznica
+
+from .clustering_utils import calculate_cluster_resolution, get_deduplicated_property_model, get_del_stave_model, get_posel_model, serialize_list_to_json
 
 
 class PropertyService:
@@ -146,7 +146,7 @@ class PropertyService:
         # Določi stevilo_poslov na podlagi podatkov v tabeli
         stevilo_poslov = len(dedup_property[0].povezani_posel_ids) if dedup_property[0].povezani_posel_ids else 0
         
-        # Priprava osnovnih contract podatkov glede na data_source
+        # Priprava osnovnih posel podatkov glede na data_source
         zadnji_posel_info = {}
         if data_source.lower() == "np":
             zadnji_posel_info = {
@@ -196,7 +196,10 @@ class PropertyService:
                 "zadnje_leto": dedup_property[0].zadnje_leto,
                 
                 **zadnji_posel_info,
-                
+
+                "energetske_izkaznice": dedup_property[0].energetske_izkaznice,
+                "energijski_razred": dedup_property[0].energijski_razred,
+
                 "data_source": data_source
             }
         }
@@ -253,14 +256,16 @@ class PropertyService:
     @staticmethod
     def get_property_details(deduplicated_id: int, data_source: str, db: Session):
         """
-        NOVA METODA: Pridobi popolne podrobnosti za določeno deduplicirano nepremičnino, ko jo kliknemo na zemljevidu.
-        Vrne VSE povezane pogodbe in del_stavbe zapise.
+        Pridobi podrobnosti za določeno deduplicirano nepremičnino, ko kliknemo podrobnosti v pop-up.
+        Vrne vse povezane posel, del_stavbe, energetska_izkaznica.
         """
         DeduplicatedModel = get_deduplicated_property_model(data_source)
-        PropertyModel = get_property_model(data_source)
+        DelStavbeModel = get_del_stave_model(data_source)
+        PoselModel = get_posel_model(data_source)
+
         
         # Pridobi deduplicirani zapis nepremičnine
-        dedup_property = db.query(
+        dedup_del_stavbe = db.query(
             DeduplicatedModel,
             ST_X(DeduplicatedModel.coordinates).label('longitude'),
             ST_Y(DeduplicatedModel.coordinates).label('latitude')
@@ -268,98 +273,48 @@ class PropertyService:
             DeduplicatedModel.del_stavbe_id == deduplicated_id
         ).first()
         
-        if not dedup_property:
+        if not dedup_del_stavbe:
             return None
         
-        # Pridobi VSE povezane del_stavbe zapise z uporabo povezani_del_stavbe_ids polja
-        all_del_stavbe = db.query(PropertyModel).filter(
-            PropertyModel.del_stavbe_id.in_(dedup_property[0].povezani_del_stavbe_ids)
+
+        # Pridobi vse povezane del_stavbe zapise, povezane posle, reprezentativni (zadnji) del stavbe in energetske izkaznice
+        vsi_povezani_deli_stavb = db.query(DelStavbeModel).filter(
+            DelStavbeModel.del_stavbe_id.in_(dedup_del_stavbe[0].povezani_del_stavbe_ids)
+        ).all()
+
+        vsi_posli = db.query(PoselModel).filter(
+            PoselModel.posel_id.in_(dedup_del_stavbe[0].povezani_posel_ids)
         ).all()
         
-        # Pridobi VSE povezane zapise pogodb z uporabo povezani_posel_ids polja
-        if data_source.lower() == "np":
-            PoselModel = NpPosel
-            all_contracts = db.query(PoselModel).filter(
-                PoselModel.posel_id.in_(dedup_property[0].povezani_posel_ids)
+        representative_del_stavbe = db.query(DelStavbeModel).filter(
+            DelStavbeModel.del_stavbe_id == dedup_del_stavbe[0].najnovejsi_del_stavbe_id
+        ).first()
+
+        if dedup_del_stavbe[0].energetske_izkaznice:
+            energetske_izkaznice = db.query(EnergetskaIzkaznica).filter(
+                EnergetskaIzkaznica.id.in_(dedup_del_stavbe[0].energetske_izkaznice)
             ).all()
         else:
-            PoselModel = KppPosel
-            all_contracts = db.query(PoselModel).filter(
-                PoselModel.posel_id.in_(dedup_property[0].povezani_posel_ids)
-            ).all()
-        
-        # Pridobi reprezentativni zapis za osnovne podatke nepremičnine
-        representative_del_stavbe = db.query(PropertyModel).filter(
-            PropertyModel.del_stavbe_id == dedup_property[0].najnovejsi_del_stavbe_id
-        ).first()
-        
+            energetske_izkaznice = []
+
+
         if not representative_del_stavbe:
             return None
         
-        # Sestavi odgovor z VSEMI povezanimi podatki
-        del_stavbe_records = []
-        for record in all_del_stavbe:
-            del_stavbe_record = {
-                "del_stavbe_id": record.del_stavbe_id,
-                "posel_id": record.posel_id,
-                "leto": record.leto,
-                "povrsina": float(record.povrsina) if record.povrsina else None,
-                "povrsina_uporabna": float(record.povrsina_uporabna) if record.povrsina_uporabna else None,
-                "opombe": record.opombe
-            }
-            
-            # Dodaj polja specifična za vir podatkov
-            if data_source.lower() == "np":
-                del_stavbe_record["opremljenost"] = record.opremljenost
-                del_stavbe_record["leto_izgradnje_stavbe"] = record.leto_izgradnje_stavbe
-            else:
-                del_stavbe_record["stevilo_sob"] = record.stevilo_sob
-                del_stavbe_record["leto_izgradnje_stavbe"] = record.leto_izgradnje_stavbe
-            
-            del_stavbe_records.append(del_stavbe_record)
         
-        # Sestavi zapise pogodb
-        contract_records = []
-        for contract in all_contracts:
-            contract_record = {
-                "posel_id": contract.posel_id,
-                "datum_sklenitve": contract.datum_sklenitve.isoformat() if contract.datum_sklenitve else None,
-                "posredovanje_agencije": contract.posredovanje_agencije
-            }
-            
-            if data_source.lower() == "np":
-                contract_record.update({
-                    "najemnina": float(contract.najemnina) if contract.najemnina else None,
-                    "vkljuceno_stroski": contract.vkljuceno_stroski,
-                    "vkljuceno_ddv": contract.vkljuceno_ddv,
-                    "trajanje_najemanja": contract.trajanje_najemanja,
-                    "datum_zacetka_najemanja": contract.datum_zacetka_najemanja.isoformat() if contract.datum_zacetka_najemanja else None,
-                    "datum_prenehanja_najemanja": contract.datum_prenehanja_najemanja.isoformat() if contract.datum_prenehanja_najemanja else None
-                })
-            else:
-                contract_record.update({
-                    "cena": float(contract.cena) if contract.cena else None,
-                    "vkljuceno_ddv": contract.vkljuceno_ddv,
-                    "trznost_posla": contract.trznost_posla
-                })
-            
-            contract_records.append(contract_record)
-        
-        # Glavni odgovor z reprezentativnimi podatki + vsi povezani zapisi
         return {
             "type": "Feature",
             "geometry": {
                 "type": "Point",
                 "coordinates": [
-                    float(dedup_property.longitude),
-                    float(dedup_property.latitude)
+                    float(dedup_del_stavbe.longitude),
+                    float(dedup_del_stavbe.latitude)
                 ]
             },
             "properties": {
-                "deduplicated_id": dedup_property[0].del_stavbe_id,
+                "deduplicated_id": dedup_del_stavbe[0].del_stavbe_id,
                 "type": "individual",
                 
-                # Osnovni podatki nepremičnine iz reprezentativnega zapisa
                 "sifra_ko": representative_del_stavbe.sifra_ko,
                 "stevilka_stavbe": representative_del_stavbe.stevilka_stavbe,
                 "stevilka_dela_stavbe": representative_del_stavbe.stevilka_dela_stavbe,
@@ -374,12 +329,11 @@ class PropertyService:
                 "povrsina": float(representative_del_stavbe.povrsina) if representative_del_stavbe.povrsina else None,
                 "data_source": data_source,
                 
-                # Povzetek informacij
-                "stevilo_poslov": len(dedup_property[0].povezani_posel_ids),
-                "ima_vec_poslov": len(dedup_property[0].povezani_posel_ids) > 1,
+                "stevilo_poslov": len(dedup_del_stavbe[0].povezani_posel_ids),
+                "ima_vec_poslov": len(dedup_del_stavbe[0].povezani_posel_ids) > 1,
                 
-                # VSI povezani podatki za podrobno analizo
-                "all_del_stavbe_records": del_stavbe_records,
-                "all_contracts": contract_records
+                "povezani_deli_stavb": serialize_list_to_json(vsi_povezani_deli_stavb),
+                "povezani_posli": serialize_list_to_json(vsi_posli),
+                "energetske_izkaznice": serialize_list_to_json(energetske_izkaznice)
             }
         }

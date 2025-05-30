@@ -56,6 +56,11 @@ const IndividualPopup = ({ properties, dataSourceType = 'prodaja' }) => {
                         ${contractCount}x poslov
                     </span>
                     ` : ''}
+                    ${properties.energijski_razred ? `
+                    <span class="bg-blue-600 px-2 py-1 rounded text-xs h-6 flex items-center">
+                        ${properties.energijski_razred}
+                    </span>
+                    ` : ''}
                 </div>
             </div>
 
