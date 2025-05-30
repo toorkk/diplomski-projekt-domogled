@@ -74,6 +74,9 @@ class NpDelStavbeDeduplicated(Base):
     povezani_posel_ids = Column(ARRAY(Integer), nullable=False)
     najnovejsi_del_stavbe_id = Column(Integer, nullable=False)
     
+    energetske_izkaznice = Column(ARRAY(Integer))
+    energijski_razred = Column(String(3))
+
     coordinates = Column(Geometry('Point', 4326), nullable=False)
 
 
@@ -182,6 +185,10 @@ class KppDelStavbeDeduplicated(Base):
     povezani_del_stavbe_ids = Column(ARRAY(Integer), nullable=False)
     povezani_posel_ids = Column(ARRAY(Integer), nullable=False)
     najnovejsi_del_stavbe_id = Column(Integer, nullable=False)
+
+    energetske_izkaznice = Column(ARRAY(Integer))
+    energijski_razred = Column(String(3))
+
     
     coordinates = Column(Geometry('Point', 4326), nullable=False)
 
@@ -206,7 +213,7 @@ class KppPosel(Base):
     leto = Column(Integer)
 
 
-class EnergetskiIzkaznica(Base):
+class EnergetskaIzkaznica(Base):
     __tablename__ = "energetska_izkaznica"
     __table_args__ = {"schema": "core"}
     

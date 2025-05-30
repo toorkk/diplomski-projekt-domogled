@@ -1,4 +1,7 @@
-from .models import NpDelStavbe, KppDelStavbe, KppDelStavbeDeduplicated, NpDelStavbeDeduplicated
+from pydantic import BaseModel, ConfigDict
+from decimal import Decimal
+from datetime import date, datetime
+from .models import KppPosel, NpDelStavbe, KppDelStavbe, KppDelStavbeDeduplicated, NpDelStavbeDeduplicated, NpPosel
 
 
 def calculate_cluster_resolution(zoom_level: float) -> float:
@@ -14,21 +17,69 @@ def calculate_cluster_resolution(zoom_level: float) -> float:
     return base_resolution * zoom_factor
 
 
-def get_property_model(data_source: str):
-    """
-    vrne model odvisno od tega če pošiljaš kpp ali np podatke na frontend
-    """
+def get_del_stave_model(data_source: str):
     if data_source.lower() == "kpp":
         return KppDelStavbe
     else:
         return NpDelStavbe
-    
+
+def get_posel_model(data_source: str):
+    if data_source.lower() == "kpp":
+        return KppPosel
+    else:
+        return NpPosel
+
 
 def get_deduplicated_property_model(data_source: str):
-    """
-    vrne deduplicirani model odvisno od tega če pošiljaš kpp ali np podatke na frontend
-    """
     if data_source.lower() == "kpp":
         return KppDelStavbeDeduplicated
     else:
         return NpDelStavbeDeduplicated
+
+
+def serialize_to_json(obj):
+    """
+    pretvori objekt SQLAlchemy v JSON dictionary.
+    """
+    if obj is None:
+        return None
+    
+    result = {}
+    
+    try:
+    
+        result = {}
+        for column in obj.__table__.columns:
+            column_name = column.name
+            value = getattr(obj, column_name, None)
+            
+            if value is None:
+                result[column_name] = None
+            elif isinstance(value, Decimal):
+                result[column_name] = float(value)
+            elif isinstance(value, (date, datetime)):
+                result[column_name] = value.isoformat()
+            elif isinstance(value, (int, float, str, bool, list)):
+                result[column_name] = value
+            elif hasattr(value, '__geo_interface__'):
+                continue  # Skip geometry
+            else:
+                result[column_name] = str(value)
+                
+    except Exception as e:
+        print(f"Napaka v serialize_to_json: {e}")
+        return {"error": "Serializacija neuspešna"}
+    
+    return result
+
+
+def serialize_list_to_json(objects):
+    """pretvorite seznam predmetov SQLAlchemy v JSON"""
+    if not objects:
+        return []
+    
+    try:
+        return [serialize_to_json(obj) for obj in objects if obj is not None]
+    except Exception as e:
+        print(f"Napaka v serialize_list_to_json: {e}")
+        return []

@@ -168,6 +168,7 @@ CREATE TABLE core.np_del_stavbe_deduplicated (
     povezani_posel_ids          INTEGER[]       NOT NULL,
     najnovejsi_del_stavbe_id    INTEGER         NOT NULL,
     energetske_izkaznice        INTEGER[],
+    energijski_razred           VARCHAR(3),
     
     coordinates                 GEOMETRY(Point, 4326) NOT NULL,
     
@@ -206,7 +207,8 @@ CREATE TABLE core.kpp_del_stavbe_deduplicated (
     povezani_posel_ids          INTEGER[]       NOT NULL,
     najnovejsi_del_stavbe_id    INTEGER         NOT NULL,
     energetske_izkaznice        INTEGER[],
-    
+    energijski_razred           VARCHAR(3),
+
     coordinates                 GEOMETRY(Point, 4326) NOT NULL,
     
     CONSTRAINT uq_kpp_deduplicated UNIQUE(sifra_ko, stevilka_stavbe, stevilka_dela_stavbe, dejanska_raba)
