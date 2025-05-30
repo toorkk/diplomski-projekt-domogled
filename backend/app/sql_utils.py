@@ -1,8 +1,8 @@
 import os
+from .logging_utils import setup_logger
 from sqlalchemy import text
-import logging
 
-logger = logging.getLogger("data_ingestion")
+logger = setup_logger("sql", "sql.log", "SQL")
 
 def get_sql_query(filename):
     """Prebere SQL poizvedbo iz datoteke."""

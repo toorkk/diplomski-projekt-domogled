@@ -1,31 +1,8 @@
-import logging
-import sys
+from .logging_utils import setup_logger
 from sqlalchemy import create_engine, text
 from .sql_utils import get_sql_query, execute_sql_count
 
 
-def setup_logger(name: str, log_file: str, prefix: str):
-    """Nastavi logger z datoteko in konzolo."""
-    logger = logging.getLogger(name)
-    
-    if logger.handlers:
-        return logger
-        
-    logger.setLevel(logging.INFO)
-    formatter = logging.Formatter(f'%(asctime)s - %(levelname)s - [{prefix}] - %(message)s')
-    
-    for handler in [
-        logging.FileHandler(log_file, encoding='utf-8'),
-        logging.StreamHandler(sys.stdout)
-    ]:
-        handler.setLevel(logging.INFO)
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-    
-    logger.propagate = False
-    return logger
-
-# Setup logger na vrhu modula
 logger = setup_logger("deduplication", "deduplication.log", "DEDUP")
 
 

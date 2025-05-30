@@ -53,7 +53,7 @@ POST /api/deli-stavb/ingest?data_type=np   -- tu zraven se lahko das start_year 
 POST /api/deli-stavb/ingest?data_type=kpp
 GET /api/deli-stavb/status
 
-POST /api/energetske-izkaznice/ingest?data_type=all
+POST /api/energetske-izkaznice/ingest
 GET  /api/energetske-izkaznice/status
 
 POST /api/deduplication/ingest

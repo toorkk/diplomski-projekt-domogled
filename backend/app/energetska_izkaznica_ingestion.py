@@ -2,34 +2,12 @@ import os
 import requests
 import pandas as pd
 import tempfile
-import logging
-import sys
 from datetime import datetime
+from .logging_utils import setup_logger
 from sqlalchemy import create_engine, text
 from typing import Dict, Any
 
 from .sql_utils import execute_sql_file, execute_sql_count
-
-def setup_logger(name: str, log_file: str, prefix: str):
-    """Nastavi logger z datoteko in konzolo."""
-    logger = logging.getLogger(name)
-    
-    if logger.handlers:
-        return logger
-        
-    logger.setLevel(logging.INFO)
-    formatter = logging.Formatter(f'%(asctime)s - %(levelname)s - [{prefix}] - %(message)s')
-    
-    for handler in [
-        logging.FileHandler(log_file, encoding='utf-8'),
-        logging.StreamHandler(sys.stdout)
-    ]:
-        handler.setLevel(logging.INFO)
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-    
-    logger.propagate = False
-    return logger
 
 logger = setup_logger("ei_ingestion", "energetska_izkaznica_ingestion.log", "EI")
 

@@ -2,59 +2,19 @@ import os
 import requests
 import pandas as pd
 import tempfile
-import logging
-import sys
 import zipfile
 import shutil
+
+from .logging_utils import YearTypeFilter, setup_logger
 from sqlalchemy import create_engine, text
 from typing import Dict, Any
 import json
 
-from .sql_utils import get_sql_query, execute_sql_file, execute_sql_count
+from .sql_utils import get_sql_query, execute_sql_count
 
-class YearFilter(logging.Filter):
-   """Filter ki doda leto podatkov k vsem log-om."""
-   def __init__(self, name=''):
-       super().__init__(name)
-       self.current_year = "N/A"
-       self.current_type = "N/A"
-       
-   def filter(self, record):
-       if record.getMessage().startswith("="):
-           record.is_separator = True
-       else:
-           record.ingestion_year = self.current_year
-           record.ingestion_type = self.current_type
-           record.is_separator = False
-       return True
+year_filter = YearTypeFilter()
 
-class ConditionalFormatter(logging.Formatter):
-   def format(self, record):
-       if hasattr(record, 'is_separator') and record.is_separator:
-           return record.getMessage()
-       else:
-           return super().format(record)
-
-year_filter = YearFilter()
-
-file_handler = logging.FileHandler("data_ingestion.log", encoding='utf-8')
-stream_handler = logging.StreamHandler(sys.stdout)
-
-file_handler.addFilter(year_filter)
-stream_handler.addFilter(year_filter)
-
-formatter = ConditionalFormatter(
-   '%(asctime)s - %(levelname)s - [leto:%(ingestion_year)s] [%(ingestion_type)s] - %(message)s'
-)
-
-file_handler.setFormatter(formatter)
-stream_handler.setFormatter(formatter)
-
-logging.basicConfig(
-   level=logging.INFO,
-   handlers=[file_handler, stream_handler]
-)
-logger = logging.getLogger("data_ingestion")
+logger = setup_logger("data_ingestion", "data_ingestion.log", "INGEST", year_filter)
 
 
 class DataIngestionService:
