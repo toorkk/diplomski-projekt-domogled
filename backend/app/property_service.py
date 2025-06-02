@@ -1,11 +1,11 @@
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from geoalchemy2.functions import ST_SetSRID, ST_MakeEnvelope, ST_Intersects, ST_AsGeoJSON, ST_X, ST_Y
+from geoalchemy2.functions import ST_SetSRID, ST_MakeEnvelope, ST_Intersects, ST_X, ST_Y
 from difflib import SequenceMatcher
 
 from .models import EnergetskaIzkaznica
 
-from .clustering_utils import calculate_cluster_resolution, get_deduplicated_property_model, get_del_stave_model, get_posel_model, serialize_list_to_json
+from .clustering_utils import calculate_cluster_resolution, get_deduplicated_property_model, get_del_stave_model, get_posel_model, serialize_list_to_json, apply_property_filters
 
 
 def get_municipality_similarity(name1: str, name2: str) -> float:
@@ -52,19 +52,28 @@ def find_best_municipality_match(target_municipality: str, available_municipalit
 class PropertyService:
 
     @staticmethod
-    def get_municipality_all_properties(sifko: int = None, municipality: str = None, db: Session = None, data_source: str = "np"):
+    def get_municipality_all_properties(sifko: int = None, municipality: str = None, db: Session = None, data_source: str = "np", filters: dict = None):
         """
-        Pridobi VSE nepremičnine v določeni občini (ignoriraj bbox)
+        Pridobi VSE nepremičnine v določeni občini (ignoriraj bbox) z možnostjo filtriranja
         Uporabi samo building clustering po stavbah
         """
         DeduplicatedModel = get_deduplicated_property_model(data_source)
         
-        # Filter samo po občini/sifko, brez bbox-a
-        filters = []
+        base_query = db.query(
+            func.count(DeduplicatedModel.del_stavbe_id).label('point_count'),
+            func.avg(ST_X(DeduplicatedModel.coordinates)).label('avg_lng'),
+            func.avg(ST_Y(DeduplicatedModel.coordinates)).label('avg_lat'),
+            DeduplicatedModel.obcina,
+            DeduplicatedModel.sifra_ko,
+            DeduplicatedModel.stevilka_stavbe,
+            func.array_agg(DeduplicatedModel.del_stavbe_id).label('deduplicated_ids')
+        )
+        
+        query_filters = []
         matched_municipality = None
         
         if sifko:
-            filters.append(DeduplicatedModel.sifra_ko == sifko)
+            query_filters.append(DeduplicatedModel.sifra_ko == sifko)
             print(f"Loading ALL properties for sifko: {sifko}")
             
         elif municipality:
@@ -75,29 +84,25 @@ class PropertyService:
             matched_municipality = find_best_municipality_match(municipality, available_municipalities)
             
             if matched_municipality:
-                filters.append(DeduplicatedModel.obcina == matched_municipality)
+                query_filters.append(DeduplicatedModel.obcina == matched_municipality)
                 print(f"Loading ALL properties for municipality: {matched_municipality}")
             else:
                 print(f"No matching municipality found for '{municipality}'")
                 # Vrni prazen rezultat
                 return {"type": "FeatureCollection", "features": []}
         
-        if not filters:
+        if not query_filters:
             # Ni nobenega filtra, vrni prazen rezultat
             return {"type": "FeatureCollection", "features": []}
         
+        # filtri za KO in navadne obcine
+        base_query = base_query.filter(*query_filters)
+        
+        # filtri za nepremicnine
+        base_query = apply_property_filters(base_query, DeduplicatedModel, filters, data_source)
+        
         # Building clustering - grupiraj po stavbah znotraj občine
-        cluster_query = db.query(
-            func.count(DeduplicatedModel.del_stavbe_id).label('point_count'),
-            func.avg(ST_X(DeduplicatedModel.coordinates)).label('avg_lng'),
-            func.avg(ST_Y(DeduplicatedModel.coordinates)).label('avg_lat'),
-            DeduplicatedModel.obcina,
-            DeduplicatedModel.sifra_ko,
-            DeduplicatedModel.stevilka_stavbe,
-            func.array_agg(DeduplicatedModel.del_stavbe_id).label('deduplicated_ids')
-        ).filter(
-            *filters
-        ).group_by(
+        cluster_query = base_query.group_by(
             DeduplicatedModel.obcina,
             DeduplicatedModel.sifra_ko,
             DeduplicatedModel.stevilka_stavbe
@@ -142,70 +147,41 @@ class PropertyService:
         }
 
     @staticmethod
-    def get_building_clustered_properties(west: float, south: float, east: float, north: float, db: Session, data_source: str = "np", municipality: str = None, sifko: int = None):
+    def get_building_clustered_properties(west: float, south: float, east: float, north: float, db: Session, data_source: str = "np", filters: dict = None):
         """
-        Pridobi deduplicirane nepremičnine združene po: občina + sifra_ko + stevilka_stavbe (naredi cluster za vsako stavbo znotraj občine)
+        Pridobi deduplicirane nepremičnine združene po: občina + sifra_ko + stevilka_stavbe (naredi cluster za vsako stavbo znotraj občine) z možnostjo filtriranja
         Uporabljeno ko si zoomed in blizu
         """
         DeduplicatedModel = get_deduplicated_property_model(data_source)
         bbox_geom = ST_SetSRID(ST_MakeEnvelope(west, south, east, north), 4326)
         
-        # Osnovni filter
-        filters = [ST_Intersects(DeduplicatedModel.coordinates, bbox_geom)]
-        
-        # Debug: Najprej preveri brez municipality/sifko filtra
-        total_count = db.query(func.count(DeduplicatedModel.del_stavbe_id)).filter(
-            ST_Intersects(DeduplicatedModel.coordinates, bbox_geom)
-        ).scalar()
-        print(f"Total properties in bbox (no filters): {total_count}")
-        
-        # PRIORITETA: SIFKO filter pred municipality filter
-        matched_municipality = None
-        if sifko:
-            filters.append(DeduplicatedModel.sifra_ko == sifko)
-            
-            # Debug: Preveri koliko je s sifko filtrom
-            sifko_count = db.query(func.count(DeduplicatedModel.del_stavbe_id)).filter(*filters).scalar()
-            print(f"Properties with sifko '{sifko}': {sifko_count}")
-            
-        elif municipality:
-            # Samo če sifko ni podan, uporabi municipality filter
-            # Pridobi vsa imena občin v bbox-u
-            unique_municipalities = db.query(DeduplicatedModel.obcina).filter(
-                ST_Intersects(DeduplicatedModel.coordinates, bbox_geom)
-            ).distinct().all()
-            available_municipalities = [m[0] for m in unique_municipalities if m[0]]
-            
-            print(f"Available municipalities in bbox: {available_municipalities}")
-            print(f"Looking for municipality: '{municipality}'")
-            
-            # Najdi najbolje ujemajoče se ime občine
-            matched_municipality = find_best_municipality_match(municipality, available_municipalities)
-            
-            if matched_municipality:
-                filters.append(DeduplicatedModel.obcina == matched_municipality)
-                
-                # Debug: Preveri koliko je z municipality filtrom
-                municipality_count = db.query(func.count(DeduplicatedModel.del_stavbe_id)).filter(*filters).scalar()
-                print(f"Properties with matched municipality '{matched_municipality}': {municipality_count}")
-            else:
-                print(f"No matching municipality found for '{municipality}'")
-        
-        cluster_query = db.query(
+        base_query = db.query(
             func.count(DeduplicatedModel.del_stavbe_id).label('point_count'),
             func.avg(ST_X(DeduplicatedModel.coordinates)).label('avg_lng'),
             func.avg(ST_Y(DeduplicatedModel.coordinates)).label('avg_lat'),
-            DeduplicatedModel.obcina,  # Dodano za clustering po občinah
+            DeduplicatedModel.obcina,
             DeduplicatedModel.sifra_ko,
             DeduplicatedModel.stevilka_stavbe,
             func.array_agg(DeduplicatedModel.del_stavbe_id).label('deduplicated_ids')
-        ).filter(
-            *filters  # Uporabi dynamic filters
-        ).group_by(
-            DeduplicatedModel.obcina,  # Dodano za clustering po občinah
+        )
+        
+        base_query = base_query.filter(ST_Intersects(DeduplicatedModel.coordinates, bbox_geom))
+        
+        # Debug
+        total_count = db.query(func.count(DeduplicatedModel.del_stavbe_id)).filter(
+            ST_Intersects(DeduplicatedModel.coordinates, bbox_geom)
+        ).scalar()
+        print(f"st nepremicnin brez filtrov - building clustering: {total_count}")
+        
+        base_query = apply_property_filters(base_query, DeduplicatedModel, filters, data_source)
+        
+        cluster_query = base_query.group_by(
+            DeduplicatedModel.obcina,
             DeduplicatedModel.sifra_ko,
             DeduplicatedModel.stevilka_stavbe
         ).all()
+        
+        print(f"st nepremicnin z filtri - building clustering: {len(cluster_query)}")
         
         features = []
         for row in cluster_query:
@@ -228,12 +204,12 @@ class PropertyService:
                         "type": "cluster",
                         "cluster_type": "building",
                         "point_count": row.point_count,
-                        "cluster_id": f"b_{matched_municipality or row.obcina}_{row.sifra_ko}_{row.stevilka_stavbe}",  # Uporabi matched_municipality
-                        "obcina": matched_municipality or row.obcina,  # Uporabi matched_municipality
+                        "cluster_id": f"b_{row.obcina}_{row.sifra_ko}_{row.stevilka_stavbe}",
+                        "obcina": row.obcina,
                         "sifra_ko": row.sifra_ko,
                         "stevilka_stavbe": row.stevilka_stavbe,
                         "data_source": data_source,
-                        "deduplicated_ids": row.deduplicated_ids  # vsi deduplicirani id-ji za ta cluster
+                        "deduplicated_ids": row.deduplicated_ids
                     }
                 }
                 features.append(feature)
@@ -244,56 +220,42 @@ class PropertyService:
         }
 
     @staticmethod
-    def get_distance_clustered_properties(west: float, south: float, east: float, north: float, zoom: float, db: Session, data_source: str = "np", municipality: str = None, sifko: int = None):
+    def get_distance_clustered_properties(west: float, south: float, east: float, north: float, zoom: float, db: Session, data_source: str = "np", filters: dict = None):
         """
-        Pridobi deduplicirane nepremičnine združene po: občina + razdalji med sabo (clustering znotraj posamezne občine)
+        Pridobi deduplicirane nepremičnine združene po: občina + razdalji med sabo (clustering znotraj posamezne občine) z možnostjo filtriranja
         Uporabljeno ko si zoomed srednje
         """
         DeduplicatedModel = get_deduplicated_property_model(data_source)
         resolution = calculate_cluster_resolution(zoom)
         bbox_geom = ST_SetSRID(ST_MakeEnvelope(west, south, east, north), 4326)
         
-        # Osnovni filter
-        filters = [ST_Intersects(DeduplicatedModel.coordinates, bbox_geom)]
-        
-        # PRIORITETA: SIFKO filter pred municipality filter
-        matched_municipality = None
-        if sifko:
-            filters.append(DeduplicatedModel.sifra_ko == sifko)
-            print(f"Distance clustering: Using sifko filter '{sifko}'")
-            
-        elif municipality:
-            # Samo če sifko ni podan, uporabi municipality filter
-            # Pridobi vsa imena občin v bbox-u
-            unique_municipalities = db.query(DeduplicatedModel.obcina).filter(
-                ST_Intersects(DeduplicatedModel.coordinates, bbox_geom)
-            ).distinct().all()
-            available_municipalities = [m[0] for m in unique_municipalities if m[0]]
-            
-            # Najdi najbolje ujemajoče se ime občine
-            matched_municipality = find_best_municipality_match(municipality, available_municipalities)
-            
-            if matched_municipality:
-                filters.append(DeduplicatedModel.obcina == matched_municipality)
-                print(f"Distance clustering: Using matched municipality '{matched_municipality}' for '{municipality}'")
-            else:
-                print(f"Distance clustering: No matching municipality found for '{municipality}'")
-        
-        cluster_query = db.query(
+        base_query = db.query(
             func.count(DeduplicatedModel.del_stavbe_id).label('point_count'),
             func.avg(ST_X(DeduplicatedModel.coordinates)).label('avg_lng'),
             func.avg(ST_Y(DeduplicatedModel.coordinates)).label('avg_lat'),
-            DeduplicatedModel.obcina,  # Dodano za clustering po občinah
+            DeduplicatedModel.obcina,
             func.floor(ST_X(DeduplicatedModel.coordinates) / resolution).label('cluster_x'),
             func.floor(ST_Y(DeduplicatedModel.coordinates) / resolution).label('cluster_y'),
             func.array_agg(DeduplicatedModel.del_stavbe_id).label('deduplicated_ids')
-        ).filter(
-            *filters  # Uporabi dynamic filters
-        ).group_by(
-            DeduplicatedModel.obcina,  # Dodano za clustering po občinah
+        )
+        
+        base_query = base_query.filter(ST_Intersects(DeduplicatedModel.coordinates, bbox_geom))
+        
+        # Debug
+        total_count = db.query(func.count(DeduplicatedModel.del_stavbe_id)).filter(
+            ST_Intersects(DeduplicatedModel.coordinates, bbox_geom)
+        ).scalar()
+        print(f"st nepremicnin brez filtrov - distance clustering: {total_count}")
+        
+        base_query = PropertyService._apply_property_filters(base_query, DeduplicatedModel, filters, data_source)
+        
+        cluster_query = base_query.group_by(
+            DeduplicatedModel.obcina,
             func.floor(ST_X(DeduplicatedModel.coordinates) / resolution),
             func.floor(ST_Y(DeduplicatedModel.coordinates) / resolution)
         ).all()
+        
+        print(f"st nepremicnin brez filtrov - distance clustering: {len(cluster_query)}")
         
         features = []
         for row in cluster_query:
@@ -316,10 +278,10 @@ class PropertyService:
                         "type": "cluster",
                         "cluster_type": "distance",
                         "point_count": row.point_count,
-                        "cluster_id": f"d_{matched_municipality or row.obcina}_{row.cluster_x}_{row.cluster_y}",  # Uporabi matched_municipality
-                        "obcina": matched_municipality or row.obcina,  # Uporabi matched_municipality
+                        "cluster_id": f"d_{row.obcina}_{row.cluster_x}_{row.cluster_y}",
+                        "obcina": row.obcina,
                         "data_source": data_source,
-                        "deduplicated_ids": row.deduplicated_ids  # vsi deduplicirani id-ji za ta cluster
+                        "deduplicated_ids": row.deduplicated_ids
                     }
                 }
                 features.append(feature)
@@ -328,6 +290,7 @@ class PropertyService:
             "type": "FeatureCollection",
             "features": features
         }
+
 
     @staticmethod
     def _get_individual_deduplicated_property_feature(db: Session, DeduplicatedModel, deduplicated_id: int, data_source: str):
@@ -411,20 +374,23 @@ class PropertyService:
     
 
     @staticmethod
-    def get_building_cluster_properties(obcina: str, sifra_ko: int, stevilka_stavbe: int, db: Session, data_source: str = "np"):
+    def get_building_cluster_properties(obcina: str, sifra_ko: int, stevilka_stavbe: int, db: Session, data_source: str = "np", filters: dict = None):
         """
-        Pridobi vse deduplicirane nepremičnine v določeni stavbi v določeni občini
+        Pridobi vse deduplicirane nepremičnine v določeni stavbi v določeni občini z možnostjo filtriranja
         """
         DeduplicatedModel = get_deduplicated_property_model(data_source)
         
-        # Poiščemo vse deduplicirane property_ids v tej stavbi v tej občini
-        deduplicated_properties = db.query(DeduplicatedModel).filter(
+        base_query = db.query(DeduplicatedModel).filter(
             DeduplicatedModel.obcina == obcina,
             DeduplicatedModel.sifra_ko == sifra_ko,
             DeduplicatedModel.stevilka_stavbe == stevilka_stavbe
-        ).all()
+        )
         
-        print(f"Found {len(deduplicated_properties)} deduplicated properties in building")  # Debug
+        base_query = PropertyService._apply_property_filters(base_query, DeduplicatedModel, filters, data_source)
+        
+        deduplicated_properties = base_query.all()
+        
+        print(f"Found {len(deduplicated_properties)} deduplicated properties in building (after filters)")
         
         features = []
         skipped_properties = 0

@@ -262,7 +262,14 @@ def get_properties_geojson(
     zoom: float = Query(default=10, description="Zoom level za clustering"),
     data_source: str = Query(default="np", description="Data source: 'np' za najemne 'kpp' za kupoprodajne"),
     municipality: str = Query(None, description="Filter po občini (opcijsko)"),  
-    sifko: int = Query(None, description="Filter po šifri katastrske občine (opcijsko)"),  # NOVO DODANO
+    sifko: int = Query(None, description="Filter po šifri katastrske občine (opcijsko)"),
+
+    filter_leto: int = Query(None, description="Filter po letu posla (opcijsko)"),
+    min_cena: float = Query(None, description="Minimalna cena/najemnina (opcijsko)"),
+    max_cena: float = Query(None, description="Maksimalna cena/najemnina (opcijsko)"),
+    min_povrsina: float = Query(None, description="Minimalna uporabna površina (opcijsko)"),
+    max_povrsina: float = Query(None, description="Maksimalna uporabna površina (opcijsko)"),
+
     db: Session = Depends(get_db)
 ):
     """
@@ -280,18 +287,26 @@ def get_properties_geojson(
             raise ValueError("data_source mora bit 'np' ali 'kpp'")
             
         west, south, east, north = map(float, bbox.split(','))
+
+        filters = {
+            'filter_leto': filter_leto,
+            'min_cena': min_cena,
+            'max_cena': max_cena,
+            'min_povrsina': min_povrsina,
+            'max_povrsina': max_povrsina
+        }
         
         # Če je podan sifko ali municipality, vrni VSE nepremičnine v tej občini
         if sifko or municipality:
-            return PropertyService.get_municipality_all_properties(sifko, municipality, db, data_source)
+            return PropertyService.get_municipality_all_properties(sifko, municipality, db, data_source, filters)
         
         # Sicer uporabi stari sistem z bbox clustering
         cluster_threshold = 14.5
         
         if zoom >= cluster_threshold:
-            return PropertyService.get_building_clustered_properties(west, south, east, north, db, data_source, municipality, sifko)
+            return PropertyService.get_building_clustered_properties(west, south, east, north, db, data_source, filters)
         else:
-            return PropertyService.get_distance_clustered_properties(west, south, east, north, zoom, db, data_source, municipality, sifko)
+            return PropertyService.get_distance_clustered_properties(west, south, east, north, zoom, db, data_source, filters)
             
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"neveljavni parametri: {str(e)}")
