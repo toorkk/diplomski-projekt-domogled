@@ -1,8 +1,26 @@
-// ClusterExpander.jsx
+// components/ClusterExpander.jsx
+import { 
+    CLUSTER_CONFIG, 
+    API_CONFIG,
+    LAYER_IDS,
+    SOURCE_IDS 
+} from './MapConstants.jsx';
+import {
+    buildClusterDetailsUrl,
+    calculateClusterCenter,
+    calculateExpansionRadius,
+    getDataSourceType,
+    logClusterDebug,
+    logPropertyArrangement,
+    handleApiError
+} from './MapUtils.jsx';
+import LayerManager from './LayerManager.jsx';
+
 class ClusterExpander {
     constructor(map) {
         this.map = map;
-        this.expandedClusters = new Set(); // Track kateri clustri so expandirani
+        this.layerManager = new LayerManager(map);
+        this.expandedClusters = new Set();
         this.currentDataSourceType = 'prodaja';
     }
 
@@ -12,246 +30,117 @@ class ClusterExpander {
         console.log(`ClusterExpander: Data source changed to: ${newType}`);
     }
 
-    // Glavna funkcija za handling cluster click
     async handleClusterClick(lngLat, clusterProperties) {
         const clusterId = clusterProperties.cluster_id;
-        
-        // DEBUG: Preveri kakšen data source ima cluster
-        console.log(`=== CLUSTER CLICK DEBUG ===`);
-        console.log('Cluster properties:', clusterProperties);
-        console.log('Cluster data_source property:', clusterProperties.data_source);
-        console.log('ClusterExpander currentDataSourceType:', this.currentDataSourceType);
-        
-        // Če je cluster že expandiran, ga collapse
+
+        this._logClusterClickDebug(clusterProperties);
+
+        // Toggle expansion
         if (this.expandedClusters.has(clusterId)) {
             this.collapseCluster(clusterId);
-            return;
+            return true;
         }
 
-        // Zapri vse druge expanded clustre
+        // Collapse other clusters
         this.collapseAllClusters();
 
-        // Preverimo tip clusterja
-        if (clusterId.startsWith('b_')) {
-            console.log('Building cluster detected, attempting expansion...');
-            await this.expandCluster(clusterId, clusterProperties);
-        } else {
+        // Check if cluster is expandable
+        if (!this._isExpandableCluster(clusterId)) {
             console.log('Non-expandable cluster type detected');
-            return false; // Povej popup managerju da prikaže običajen popup
+            return false;
         }
-        
-        return true; // Cluster je bil uspešno expanded
-    }
 
-    // Expandiraj cluster z API klicem
-    async expandCluster(clusterId, clusterProperties) {
-        // POMEMBNO: Uporabi data_source iz cluster properties, ne iz currentDataSourceType
-        let dataSource;
-        
-        if (clusterProperties.data_source) {
-            // Če ima cluster že data_source property, ga uporabi
-            dataSource = clusterProperties.data_source;
-            console.log(`Using data_source from cluster properties: ${dataSource}`);
-        } else {
-            // Fallback na currentDataSourceType
-            dataSource = this.currentDataSourceType === 'prodaja' ? 'kpp' : 'np';
-            console.log(`Using fallback data_source from currentDataSourceType: ${dataSource}`);
-        }
-        
-        const currentZoom = this.map.getZoom();
-        
-        console.log(`=== EXPANDING CLUSTER ${clusterId} ===`);
-        console.log('Final data source for API:', dataSource);
-        console.log('Current zoom:', currentZoom);
-        
         try {
-            const url = `http://localhost:8000/cluster/${clusterId}/properties?data_source=${dataSource}&zoom=${currentZoom}`;
-            console.log('Fetching from URL:', url);
-            
-            const response = await fetch(url);
-            
-            if (!response.ok) {
-                console.error('Error fetching cluster properties:', response.status);
-                throw new Error(`HTTP ${response.status}`);
-            }
-            
-            const data = await response.json();
-            console.log('API Response data:', data);
-            console.log('Features received:', data.features?.length || 0);
-            
-            if (data.features && data.features.length > 0) {
-                // Posreduj data source v createExpandedLayer
-                this.createExpandedLayer(clusterId, data.features, clusterProperties, dataSource);
-                this.expandedClusters.add(clusterId);
-                console.log(`✓ Successfully expanded cluster ${clusterId} with ${data.features.length} properties using data_source: ${dataSource}`);
-                return true;
-            } else {
-                console.log('No valid properties found in cluster response');
-                throw new Error('No properties found');
-            }
-            
+            await this.expandCluster(clusterId, clusterProperties);
+            return true;
         } catch (error) {
             console.error('Error expanding cluster:', error);
-            throw error; // Re-throw da lahko popup manager pokaže fallback
+            return false;
         }
     }
 
-    // Expandiraj cluster z že znanimi IDs (alternativna metoda)
-    async expandClusterWithIds(clusterId, clusterProperties) {
-        // POMEMBNO: Uporabi data_source iz cluster properties
-        let dataSource;
-        
-        if (clusterProperties.data_source) {
-            dataSource = clusterProperties.data_source;
-        } else {
-            dataSource = this.currentDataSourceType === 'prodaja' ? 'kpp' : 'np';
-        }
-        
-        console.log('Expanding cluster with deduplicated IDs:', clusterProperties.deduplicated_ids);
-        console.log('Using data_source:', dataSource);
-        
+    async expandCluster(clusterId, clusterProperties) {
+        const dataSource = this._getClusterDataSource(clusterProperties);
+        const currentZoom = this.map.getZoom();
+
+        console.log(`=== EXPANDING CLUSTER ${clusterId} ===`);
+        console.log('Data source:', dataSource);
+        console.log('Zoom:', currentZoom);
+
         try {
-            const features = [];
-            
-            for (const deduplicatedId of clusterProperties.deduplicated_ids) {
-                const feature = {
-                    type: "Feature",
-                    geometry: {
-                        type: "Point",
-                        coordinates: [0, 0] // Bodo popravljene v createExpandedLayer
-                    },
-                    properties: {
-                        id: deduplicatedId,
-                        type: "individual",
-                        data_source: dataSource, // Dodaj data_source v properties
-                        cluster_expanded: true
-                    }
-                };
-                features.push(feature);
+            const url = buildClusterDetailsUrl(clusterId, dataSource, currentZoom);
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
             }
+
+            const data = await response.json();
             
-            if (features.length > 0) {
-                this.createExpandedLayer(clusterId, features, clusterProperties, dataSource);
-                this.expandedClusters.add(clusterId);
-                return true;
-            } else {
-                throw new Error('No valid features created from deduplicated_ids');
+            if (!data.features || data.features.length === 0) {
+                throw new Error('No properties found');
             }
+
+            await this._createExpandedVisualization(clusterId, data.features, clusterProperties, dataSource);
+            this.expandedClusters.add(clusterId);
             
+            console.log(`✓ Successfully expanded cluster ${clusterId} with ${data.features.length} properties`);
+            return true;
+
         } catch (error) {
-            console.error('Error expanding cluster with IDs:', error);
+            handleApiError(error, `expanding cluster ${clusterId}`);
             throw error;
         }
     }
 
-    // Ustvari vizualni layer za expanded properties
-    createExpandedLayer(clusterId, properties, originalClusterProperties = null, dataSource = null) {
-        const sourceId = `expanded-${clusterId}`;
-        const layerId = `expanded-layer-${clusterId}`;
-        
-        console.log(`Creating expanded layer for ${clusterId}...`);
-        console.log('Properties to display:', properties.length);
-        console.log('Using data_source for styling:', dataSource);
-        
-        // Izračunaj center pozicijo
-        const centerCoords = this.calculateClusterCenter(properties, originalClusterProperties);
+    async _createExpandedVisualization(clusterId, properties, originalClusterProperties, dataSource) {
+        // Calculate center and arrange properties
+        const centerCoords = calculateClusterCenter(properties, originalClusterProperties);
         if (!centerCoords) {
-            console.error('Could not determine cluster center position');
-            return;
+            throw new Error('Could not determine cluster center position');
         }
 
-        // Razporedi nepremičnine v krog(e) okoli cluster centra
-        const modifiedProperties = this.arrangePropertiesInCircles(
-            properties, 
-            centerCoords
+        const arrangedProperties = this._arrangePropertiesInCircles(properties, centerCoords);
+        const dataSourceType = getDataSourceType(dataSource);
+
+        // Create layers using LayerManager
+        const { layerId, textLayerId } = this.layerManager.addExpandedClusterLayers(
+            clusterId, 
+            arrangedProperties, 
+            dataSourceType
         );
-        
-        // Pripravi GeoJSON podatke
-        const geojsonData = {
-            type: 'FeatureCollection',
-            features: modifiedProperties
-        };
-                
-        // Odstrani obstoječe layers/sources
-        this.removeExpandedLayer(clusterId);
-        
-        // Dodaj source in layer z določenim data source
-        this.addExpandedSourceAndLayer(sourceId, layerId, geojsonData, dataSource);
-        
-        // Dodaj event handlers
-        this.setupExpandedLayerHandlers(layerId);
+
+        // Setup event handlers
+        this._setupExpandedLayerHandlers(layerId, textLayerId);
+
+        console.log(`Created expanded visualization for ${clusterId}`);
     }
 
-    // Izračunaj center pozicijo clusterja
-    calculateClusterCenter(properties, originalClusterProperties) {
-        let centerLng = 0, centerLat = 0;
-        
-        // Poskusi dobiti center iz originalnih cluster properties
-        if (originalClusterProperties && originalClusterProperties.geometry) {
-            centerLng = originalClusterProperties.geometry.coordinates[0];
-            centerLat = originalClusterProperties.geometry.coordinates[1];
-            console.log(`Using cluster geometry center: [${centerLng}, ${centerLat}]`);
-            return [centerLng, centerLat];
-        }
-        
-        // Izračunaj povprečje iz vseh properties
-        let validCoords = 0;
-        properties.forEach(prop => {
-            if (prop.geometry && prop.geometry.coordinates && 
-                prop.geometry.coordinates[0] !== 0 && prop.geometry.coordinates[1] !== 0) {
-                centerLng += prop.geometry.coordinates[0];
-                centerLat += prop.geometry.coordinates[1];
-                validCoords++;
-            }
-        });
-        
-        if (validCoords > 0) {
-            centerLng /= validCoords;
-            centerLat /= validCoords;
-            console.log(`Calculated center from ${validCoords} valid coordinates: [${centerLng}, ${centerLat}]`);
-            return [centerLng, centerLat];
-        }
-        
-        return null;
-    }
-
-    // Izračunaj polmer za razporeditev properties
-    calculateRadius() {
-        const zoom = this.map.getZoom();
-        const baseRadius = 0.005; 
-        return baseRadius / Math.pow(2, Math.max(0, zoom - 13));
-    }
-
-    // NOVA METODA: Razporedi properties v enega ali dva kroga
-    arrangePropertiesInCircles(properties, centerCoords) {
-        const [centerLng, centerLat] = centerCoords;
+    _arrangePropertiesInCircles(properties, centerCoords) {
         const totalProperties = properties.length;
-        
+
         console.log(`Arranging ${totalProperties} properties in circle(s)`);
-        
-        if (totalProperties <= 10) {
-            // Enojen krog za <= 15 nepremičnin
+
+        if (totalProperties <= CLUSTER_CONFIG.EXPANSION.SINGLE_CIRCLE_MAX) {
             console.log('Using single circle layout');
-            return this.arrangeInSingleCircle(properties, centerCoords);
+            return this._arrangeInSingleCircle(properties, centerCoords);
         } else {
-            // Dvojen krog za > 15 nepremičnin
             console.log('Using dual circle layout');
-            return this.arrangeInDualCircles(properties, centerCoords);
+            return this._arrangeInDualCircles(properties, centerCoords);
         }
     }
 
-    // Razporedi properties v enojen krog
-    arrangeInSingleCircle(properties, centerCoords) {
+    _arrangeInSingleCircle(properties, centerCoords) {
         const [centerLng, centerLat] = centerCoords;
-        const radius = this.calculateRadius();
-        
+        const radius = calculateExpansionRadius(this.map.getZoom());
+
         return properties.map((prop, index) => {
             const angle = (2 * Math.PI * index) / properties.length;
             const offsetLng = centerLng + (radius * Math.cos(angle));
             const offsetLat = centerLat + (radius * Math.sin(angle));
-            
-            console.log(`Single circle - Property ${index}: angle=${angle.toFixed(2)}, coords=[${offsetLng.toFixed(6)}, ${offsetLat.toFixed(6)}]`);
-            
+
+            logPropertyArrangement(index, [offsetLng, offsetLat], 'single');
+
             return {
                 ...prop,
                 geometry: {
@@ -262,33 +151,32 @@ class ClusterExpander {
         });
     }
 
-    // Razporedi properties v dva kroga
-    arrangeInDualCircles(properties, centerCoords) {
+    _arrangeInDualCircles(properties, centerCoords) {
         const [centerLng, centerLat] = centerCoords;
-        const baseRadius = this.calculateRadius();
+        const baseRadius = calculateExpansionRadius(this.map.getZoom());
         
-        // Večji polmeri za boljšo preglednost
-        const innerRadius = baseRadius * 1.2;  // Notranji krog je 120% osnovnega polmera (večji)
-        const outerRadius = baseRadius * 2.0;  // Zunanji krog je 200% osnovnega polmera (še večji)
-        
-        // Določimo koliko nepremičnin gre v vsak krog
+        const innerRadius = baseRadius * CLUSTER_CONFIG.EXPANSION.RADIUS_MULTIPLIERS.INNER;
+        const outerRadius = baseRadius * CLUSTER_CONFIG.EXPANSION.RADIUS_MULTIPLIERS.OUTER;
+
         const totalProperties = properties.length;
-        const innerCircleCount = Math.min(10, Math.floor(totalProperties * 0.35)); // Maksimalno 10 v notranjem krogu, običajno 35%
+        const innerCircleCount = Math.min(
+            CLUSTER_CONFIG.EXPANSION.INNER_CIRCLE_MAX,
+            Math.floor(totalProperties * CLUSTER_CONFIG.EXPANSION.INNER_CIRCLE_PERCENTAGE)
+        );
         const outerCircleCount = totalProperties - innerCircleCount;
-        
+
         console.log(`Dual circles: ${innerCircleCount} inner, ${outerCircleCount} outer`);
-        console.log(`Radii: inner=${innerRadius.toFixed(6)}, outer=${outerRadius.toFixed(6)}`);
-        
+
         const modifiedProperties = [];
-        
-        // Razporedi nepremičnine v notranji krog
+
+        // Inner circle
         for (let i = 0; i < innerCircleCount; i++) {
             const angle = (2 * Math.PI * i) / innerCircleCount;
             const offsetLng = centerLng + (innerRadius * Math.cos(angle));
             const offsetLat = centerLat + (innerRadius * Math.sin(angle));
-            
-            console.log(`Inner circle - Property ${i}: angle=${angle.toFixed(2)}, coords=[${offsetLng.toFixed(6)}, ${offsetLat.toFixed(6)}]`);
-            
+
+            logPropertyArrangement(i, [offsetLng, offsetLat], 'inner');
+
             modifiedProperties.push({
                 ...properties[i],
                 geometry: {
@@ -297,21 +185,19 @@ class ClusterExpander {
                 }
             });
         }
-        
-        // Razporedi preostale nepremičnine v zunanji krog
+
+        // Outer circle
         for (let i = 0; i < outerCircleCount; i++) {
             const propertyIndex = innerCircleCount + i;
             const angle = (2 * Math.PI * i) / outerCircleCount;
-            
-            // Dodamo offset da se zunanji krog ne prekriva z notranjim
-            const angleOffset = Math.PI / outerCircleCount; // Zamakni za pol koraka
+            const angleOffset = Math.PI / outerCircleCount;
             const adjustedAngle = angle + angleOffset;
-            
+
             const offsetLng = centerLng + (outerRadius * Math.cos(adjustedAngle));
             const offsetLat = centerLat + (outerRadius * Math.sin(adjustedAngle));
-            
-            console.log(`Outer circle - Property ${propertyIndex}: angle=${adjustedAngle.toFixed(2)}, coords=[${offsetLng.toFixed(6)}, ${offsetLat.toFixed(6)}]`);
-            
+
+            logPropertyArrangement(propertyIndex, [offsetLng, offsetLat], 'outer');
+
             modifiedProperties.push({
                 ...properties[propertyIndex],
                 geometry: {
@@ -320,169 +206,12 @@ class ClusterExpander {
                 }
             });
         }
-        
+
         return modifiedProperties;
     }
 
-    // Dodaj source in layer na mapo
-    addExpandedSourceAndLayer(sourceId, layerId, geojsonData, dataSource = null) {
-        try {
-            // Dodaj source
-            this.map.addSource(sourceId, {
-                type: 'geojson',
-                data: geojsonData
-            });
-            console.log(`Added source: ${sourceId}`);
-            
-            // Določi barve glede na data source
-            // POMEMBNO: Uporabi posredovani dataSource, ne this.currentDataSourceType
-            let circleColor, strokeColor;
-            
-            if (dataSource) {
-                // Uporabi eksplicitni data source
-                const dataSourceType = dataSource === 'kpp' ? 'prodaja' : 'najem';
-                circleColor = dataSourceType === 'prodaja' ? '#3B82F6' : '#10B981';
-                strokeColor = dataSourceType === 'prodaja' ? '#1D4ED8' : '#059669';
-                console.log(`Using explicit dataSource: ${dataSource} -> ${dataSourceType} -> colors: ${circleColor}`);
-            } else {
-                // Fallback na currentDataSourceType
-                circleColor = this.currentDataSourceType === 'prodaja' ? '#3B82F6' : '#10B981';
-                strokeColor = this.currentDataSourceType === 'prodaja' ? '#1D4ED8' : '#059669';
-                console.log(`Using fallback currentDataSourceType: ${this.currentDataSourceType} -> colors: ${circleColor}`);
-            }
-            
-            // Dodaj circle layer
-            this.map.addLayer({
-                id: layerId,
-                type: 'circle',
-                source: sourceId,
-                paint: {
-                    'circle-radius': [
-                        'interpolate',
-                        ['linear'],
-                        ['zoom'],
-                        9, 9,
-                        13, 12,
-                        17, 16
-                    ],
-                    'circle-color': circleColor,
-                    'circle-opacity': 0.9,
-                    'circle-stroke-width': 1.5,
-                    'circle-stroke-color': strokeColor
-                }
-            });
-            
-            console.log(`Added circle layer: ${layerId}`);
-            
-            // Dodaj text layer za cene
-            const textLayerId = `${layerId}-text`;
-            this.map.addLayer({
-                id: textLayerId,
-                type: 'symbol',
-                source: sourceId,
-                layout: {
-                    'text-field': this.formatPriceExpression(dataSource),
-                    'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-                    'text-size': [
-                        'interpolate',
-                        ['linear'],
-                        ['zoom'],
-                        9, 8,
-                        13, 10,
-                        17, 11
-                    ],
-                    'text-allow-overlap': false,
-                    'text-ignore-placement': false,
-                    'text-anchor': 'center',
-                    'text-justify': 'center'
-                },
-                paint: {
-                    'text-color': '#ffffff',
-                    'text-halo-color': strokeColor,
-                    'text-halo-width': 1
-                }
-            });
-            
-            console.log(`Added text layer: ${textLayerId}`);
-            
-        } catch (error) {
-            console.error(`Error adding source/layer ${sourceId}/${layerId}:`, error);
-            throw error;
-        }
-    }
-
-    formatPriceExpression(dataSource = null) {
-        // POMEMBNO: Uporabi posredovani dataSource
-        let useDataSourceType;
-        
-        if (dataSource) {
-            useDataSourceType = dataSource === 'kpp' ? 'prodaja' : 'najem';
-        } else {
-            useDataSourceType = this.currentDataSourceType;
-        }
-        
-        console.log(`formatPriceExpression using: ${useDataSourceType} (from dataSource: ${dataSource})`);
-        
-        if (useDataSourceType === 'prodaja') {
-            // Za prodajo prikaži zadnja_cena
-            return [
-                'case',
-                ['has', 'zadnja_cena'],
-                [
-                    'concat',
-                    '€',
-                    [
-                        'number-format',
-                        ['/', ['get', 'zadnja_cena'], 1000],
-                        { 'max-fraction-digits': 0 }
-                    ],
-                    'k'
-                ],
-                'N/A'
-            ];
-        } else {
-            // Za najem prikaži zadnja_najemnina
-            return [
-                'case',
-                ['has', 'zadnja_najemnina'],
-                [
-                    'concat',
-                    '€',
-                    [
-                        'number-format',
-                        ['get', 'zadnja_najemnina'],
-                        { 'max-fraction-digits': 0 }
-                    ],
-                    '/m'
-                ],
-                'N/A'
-            ];
-        }
-    }
-
-    // Nastavi event handlers za expanded layer
-    setupExpandedLayerHandlers(layerId) {
-        const textLayerId = `${layerId}-text`;
-        
-        // Click handler za circle layer
-        const expandedClickHandler = (e) => {
-            console.log('Expanded property clicked:', e.features[0]);
-            const feature = e.features[0];
-            if (feature.properties.type === 'individual') {
-                // Trigger custom event namesto direktnega klica callback-a
-                const clickEvent = new CustomEvent('expandedPropertyClick', {
-                    detail: {
-                        lngLat: e.lngLat,
-                        properties: feature.properties
-                    }
-                });
-                this.map.getContainer().dispatchEvent(clickEvent);
-            }
-        };
-        
-        // Click handler za text layer (isti kot za circle)
-        const textClickHandler = (e) => {
-            console.log('Expanded property text clicked:', e.features[0]);
+    _setupExpandedLayerHandlers(layerId, textLayerId) {
+        const clickHandler = (e) => {
             const feature = e.features[0];
             if (feature.properties.type === 'individual') {
                 const clickEvent = new CustomEvent('expandedPropertyClick', {
@@ -494,92 +223,51 @@ class ClusterExpander {
                 this.map.getContainer().dispatchEvent(clickEvent);
             }
         };
-        
-        // Dodaj click handlers
-        this.map.on('click', layerId, expandedClickHandler);
-        this.map.on('click', textLayerId, textClickHandler);
-        
-        // Hover effects za circle layer
-        this.map.on('mouseenter', layerId, () => {
+
+        const hoverEnterHandler = () => {
             this.map.getCanvas().style.cursor = 'pointer';
-        });
-        
-        this.map.on('mouseleave', layerId, () => {
+        };
+
+        const hoverLeaveHandler = () => {
             this.map.getCanvas().style.cursor = '';
+        };
+
+        // Add handlers for both layers
+        [layerId, textLayerId].forEach(id => {
+            this.map.on('click', id, clickHandler);
+            this.map.on('mouseenter', id, hoverEnterHandler);
+            this.map.on('mouseleave', id, hoverLeaveHandler);
         });
-        
-        // Hover effects za text layer
-        this.map.on('mouseenter', textLayerId, () => {
-            this.map.getCanvas().style.cursor = 'pointer';
-        });
-        
-        this.map.on('mouseleave', textLayerId, () => {
-            this.map.getCanvas().style.cursor = '';
-        });
-        
-        // Shrani handler reference za cleanup
-        this.map[`_${layerId}_clickHandler`] = expandedClickHandler;
-        this.map[`_${textLayerId}_clickHandler`] = textClickHandler;
+
+        // Store handlers for cleanup
+        this.map[`_${layerId}_handlers`] = { clickHandler, hoverEnterHandler, hoverLeaveHandler };
+        this.map[`_${textLayerId}_handlers`] = { clickHandler, hoverEnterHandler, hoverLeaveHandler };
     }
 
-    // Odstrani expanded layer
-    removeExpandedLayer(clusterId) {
-        const sourceId = `expanded-${clusterId}`;
-        const layerId = `expanded-layer-${clusterId}`;
-        const textLayerId = `${layerId}-text`;
-        
-        if (this.map.getSource(sourceId)) {
-            console.log(`Removing existing source/layers ${sourceId}/${layerId}`);
-            
-            // Odstrani text layer
-            if (this.map.getLayer(textLayerId)) {
-                this.map.removeLayer(textLayerId);
-            }
-            
-            // Odstrani circle layer
-            if (this.map.getLayer(layerId)) {
-                this.map.removeLayer(layerId);
-            }
-            
-            // Odstrani source
-            this.map.removeSource(sourceId);
-        }
-    }
-
-    // Collapse posamezen cluster
     collapseCluster(clusterId) {
-        const sourceId = `expanded-${clusterId}`;
-        const layerId = `expanded-layer-${clusterId}`;
-        const textLayerId = `${layerId}-text`;
-        
         console.log(`Collapsing cluster ${clusterId}...`);
-        
-        // Odstrani event handlerje za circle layer
-        if (this.map[`_${layerId}_clickHandler`]) {
-            this.map.off('click', layerId, this.map[`_${layerId}_clickHandler`]);
-            this.map.off('mouseenter', layerId);
-            this.map.off('mouseleave', layerId);
-            delete this.map[`_${layerId}_clickHandler`];
-        }
-        
-        // Odstrani event handlerje za text layer
-        if (this.map[`_${textLayerId}_clickHandler`]) {
-            this.map.off('click', textLayerId, this.map[`_${textLayerId}_clickHandler`]);
-            this.map.off('mouseenter', textLayerId);
-            this.map.off('mouseleave', textLayerId);
-            delete this.map[`_${textLayerId}_clickHandler`];
-        }
-        
-        // Odstrani layers in source
-        this.removeExpandedLayer(clusterId);
-        
-        // Označi cluster kot collapsed
+
+        const layerId = `${LAYER_IDS.EXPANDED.PREFIX}${clusterId}`;
+        const textLayerId = `${layerId}${LAYER_IDS.EXPANDED.TEXT_SUFFIX}`;
+
+        // Remove event handlers
+        [layerId, textLayerId].forEach(id => {
+            const handlers = this.map[`_${id}_handlers`];
+            if (handlers) {
+                this.map.off('click', id, handlers.clickHandler);
+                this.map.off('mouseenter', id, handlers.hoverEnterHandler);
+                this.map.off('mouseleave', id, handlers.hoverLeaveHandler);
+                delete this.map[`_${id}_handlers`];
+            }
+        });
+
+        // Remove layers
+        this.layerManager.removeExpandedClusterLayers(clusterId);
         this.expandedClusters.delete(clusterId);
-        
+
         console.log(`Collapsed cluster ${clusterId}`);
     }
 
-    // Collapse vse expanded clustre
     collapseAllClusters() {
         console.log('Collapsing all expanded clusters...');
         const clustersToCollapse = Array.from(this.expandedClusters);
@@ -589,14 +277,34 @@ class ClusterExpander {
         console.log(`Collapsed ${clustersToCollapse.length} clusters`);
     }
 
-    // Preverimo ali je cluster expandiran
     isClusterExpanded(clusterId) {
         return this.expandedClusters.has(clusterId);
     }
 
-    // Cleanup funkcija
+    // Private helper methods
+    _isExpandableCluster(clusterId) {
+        return clusterId.startsWith(CLUSTER_CONFIG.TYPES.BUILDING);
+    }
+
+    _getClusterDataSource(clusterProperties) {
+        if (clusterProperties.data_source) {
+            console.log(`Using data_source from cluster properties: ${clusterProperties.data_source}`);
+            return clusterProperties.data_source;
+        }
+        
+        const fallback = this.currentDataSourceType === 'prodaja' ? 'kpp' : 'np';
+        console.log(`Using fallback data_source: ${fallback}`);
+        return fallback;
+    }
+
+    _logClusterClickDebug(clusterProperties) {
+        console.log('=== CLUSTER CLICK DEBUG ===');
+        console.log('Cluster properties:', clusterProperties);
+        console.log('Cluster data_source property:', clusterProperties.data_source);
+        console.log('ClusterExpander currentDataSourceType:', this.currentDataSourceType);
+    }
+
     cleanup() {
-        // Collapse vse expanded clustre
         this.collapseAllClusters();
         console.log('ClusterExpander cleaned up');
     }
