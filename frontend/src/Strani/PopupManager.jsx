@@ -10,6 +10,7 @@ class PopupManager {
         this.map = map;
         this.currentPopup = null;
         this.currentDataSourceType = 'prodaja';
+        this.currentFilters = {};
         this.onPropertySelectCallback = null;
         this.eventHandlers = {};
 
@@ -25,6 +26,12 @@ class PopupManager {
         this.clusterExpander.updateDataSourceType(newType);
         
         console.log(`PopupManager: Data source changed to: ${newType}`);
+    }
+
+    updateFilters(newFilters) {
+        this.currentFilters = newFilters || {};
+        this.clusterExpander.updateFilters(this.currentFilters);
+        console.log(`PopupManager: Filters updated:`, this.currentFilters);
     }
 
     setupEventHandlers(onPropertySelect) {
@@ -208,6 +215,12 @@ class PopupManager {
         console.log('PopupManager: Data reload detected - cleaning up clusters');
         this.clusterExpander.collapseAllClusters();
         this._closeCurrentPopup();
+    }
+
+    handleFiltersChange(newFilters) {
+        console.log('PopupManager: Filters change detected - updating cluster expander');
+        this.updateFilters(newFilters);
+        this.clusterExpander.collapseAllClusters();
     }
 
     // Public API for cluster management

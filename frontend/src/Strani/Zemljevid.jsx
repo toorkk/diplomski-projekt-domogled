@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -25,7 +24,9 @@ import {
     getObcinaName,
     getObcinaId,
     calculateBoundsFromGeometry,
-    handleApiError
+    handleApiError,
+    validateFilters,
+    formatFilterSummary
 } from './MapUtils.jsx';
 
 // Styles and data
@@ -47,57 +48,143 @@ export default function Zemljevid() {
     const [obcineLoaded, setObcineLoaded] = useState(false);
     const [selectedMunicipality, setSelectedMunicipality] = useState(null);
     const [selectedObcina, setSelectedObcina] = useState(null);
-    const [hoveredRegion, setHoveredRegion] = useState(null); // New hover state
+    const [hoveredRegion, setHoveredRegion] = useState(null);
     const [selectedProperty, setSelectedProperty] = useState(null);
     const [showPropertyDetails, setShowPropertyDetails] = useState(false);
     const [dataSourceType, setDataSourceType] = useState('prodaja');
+    const [activeFilters, setActiveFilters] = useState({});
 
-    // Update ref when state changes
+    // Create refs for values that need to be accessed in stable callbacks
+    const activeFiltersRef = useRef({});
+    const selectedMunicipalityRef = useRef(null);
+
+    // Update refs when state changes
     useEffect(() => {
         dataSourceTypeRef.current = dataSourceType;
     }, [dataSourceType]);
 
-    // Handlers
+    useEffect(() => {
+        activeFiltersRef.current = activeFilters;
+    }, [activeFilters]);
+
+    useEffect(() => {
+        selectedMunicipalityRef.current = selectedMunicipality;
+    }, [selectedMunicipality]);
+
+    // ===========================================
+    // STABLE HANDLERS - MINIMAL DEPENDENCIES
+    // ===========================================
+
     const handlePropertySelect = useCallback((propertyData) => {
         console.log('Property selected:', propertyData);
         setSelectedProperty({ ...propertyData });
         setShowPropertyDetails(true);
     }, []);
 
-    const handleObcinaClick = useCallback((obcinaFeature) => {
-        if (!map.current || !obcinaFeature) return;
+    const fetchPropertiesForMunicipality = useCallback(async (sifko, filters = {}) => {
+        if (!map.current || isLoading || !sifko) return;
 
-        const obcinaId = getObcinaId(obcinaFeature);
-        const obcinaName = getObcinaName(obcinaFeature);
+        setIsLoading(true);
 
-        // Don't do anything if same občina is already selected
-        if (selectedObcina?.obcinaId === obcinaId) {
-            console.log(`Občina ${obcinaName} already selected - ignoring click`);
-            return;
+        try {
+            const currentDataSourceType = dataSourceTypeRef.current;
+            const apiDataSource = getApiDataSource(currentDataSourceType);
+
+            console.log(`Loading data for municipality: ${sifko}, type: ${currentDataSourceType}, filters:`, filters);
+
+            const url = buildPropertiesUrl('0,0,0,0', 15, apiDataSource, sifko, null, filters);
+            console.log(`API URL: ${url}`);
+
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP error: ${response.status}`);
+            }
+
+            const geojson = await response.json();
+            
+            console.log(`API response:`, geojson);
+            console.log(`Total features returned: ${geojson.features.length}`);
+
+            const individualFeatures = geojson.features.filter(f => f.properties.type === 'individual');
+            const clusterFeatures = geojson.features.filter(f => f.properties.type === 'cluster');
+
+            console.log('Individual features:', individualFeatures.length);
+            console.log('Cluster features:', clusterFeatures.length);
+
+            if (layerManager.current) {
+                layerManager.current.addPropertiesLayers(individualFeatures, currentDataSourceType);
+                layerManager.current.addClustersLayers(clusterFeatures, currentDataSourceType);
+            }
+
+            if (popupManager.current) {
+                popupManager.current.setupEventHandlers(handlePropertySelect);
+            }
+
+            console.log(`Loaded ${geojson.features.length} properties for municipality`);
+
+        } catch (error) {
+            handleApiError(error, 'loading properties for municipality');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [isLoading, handlePropertySelect]);
+
+    // ===========================================
+    // FILTER AND DATA SOURCE HANDLERS
+    // ===========================================
+
+    const handleFiltersChange = useCallback((newFilters) => {
+        console.log('Filters changed:', newFilters);
+        
+        const currentDataSourceType = dataSourceTypeRef.current;
+        const validatedFilters = validateFilters(newFilters, currentDataSourceType);
+        setActiveFilters(validatedFilters);
+
+        if (popupManager.current) {
+            popupManager.current.updateFilters(validatedFilters);
+        }
+        
+        // Auto-reload using refs to avoid dependency loops
+        const currentMunicipality = selectedMunicipalityRef.current;
+        if (currentMunicipality?.sifko) {
+            console.log('Auto-reloading data with new filters:', validatedFilters);
+            setTimeout(() => {
+                fetchPropertiesForMunicipality(currentMunicipality.sifko, validatedFilters);
+            }, 100);
+        }
+    }, [fetchPropertiesForMunicipality]);
+
+    const handleDataSourceChange = useCallback((newType) => {
+        console.log(`Changing data source type to: ${newType}`);
+
+        if (popupManager.current) {
+            popupManager.current.updateDataSourceType(newType);
         }
 
-        console.log('Občina clicked:', obcinaName, 'ID:', obcinaId);
+        dataSourceTypeRef.current = newType;
+        setDataSourceType(newType);
 
-        // Reset municipality selection
-        setSelectedMunicipality(null);
+        // Reset filters when changing data source
+        setActiveFilters({});
+        setActiveFilters(emptyFilters);
 
-        // Calculate bounds and zoom to občina
-        const bounds = calculateBoundsFromGeometry(obcinaFeature.geometry);
-        
-        setSelectedObcina({
-            name: obcinaName,
-            obcinaId: obcinaId,
-            bounds: bounds
-        });
+        if (popupManager.current) {
+            popupManager.current.updateFilters(emptyFilters);
+        }
 
-        map.current.fitBounds(bounds, {
-            padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
-            duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION,
-            essential: true
-        });
+        // Auto-reload with empty filters
+        const currentMunicipality = selectedMunicipalityRef.current;
+        if (currentMunicipality?.sifko) {
+            console.log(`Auto-reloading data for municipality: ${currentMunicipality.sifko}, new type: ${newType}`);
+            setTimeout(() => {
+                fetchPropertiesForMunicipality(currentMunicipality.sifko, {});
+            }, 100);
+        }
+    }, [fetchPropertiesForMunicipality]);
 
-        // Don't load properties for občina - wait for municipality selection
-    }, [selectedObcina]);
+    // ===========================================
+    // MUNICIPALITY AND REGION HANDLERS
+    // ===========================================
 
     const handleMunicipalityClick = useCallback((municipalityFeature) => {
         if (!map.current || !municipalityFeature) return;
@@ -105,20 +192,18 @@ export default function Zemljevid() {
         const sifko = municipalityFeature.properties.SIFKO;
         const municipalityName = getMunicipalityName(municipalityFeature);
 
-        // Don't do anything if same municipality is already selected
-        if (selectedMunicipality?.sifko === sifko) {
+        const currentMunicipality = selectedMunicipalityRef.current;
+        if (currentMunicipality?.sifko === sifko) {
             console.log(`Municipality ${municipalityName} already selected - ignoring click`);
             return;
         }
 
         console.log('Municipality clicked:', municipalityName, 'SIFKO:', sifko);
 
-        // Cleanup previous selection
         if (popupManager.current) {
             popupManager.current.handleMunicipalityChange();
         }
 
-        // Calculate bounds and zoom to municipality
         const bounds = calculateBoundsFromGeometry(municipalityFeature.geometry);
         
         setSelectedMunicipality({
@@ -133,28 +218,41 @@ export default function Zemljevid() {
             essential: true
         });
 
-        // Load properties for this municipality
-        fetchPropertiesForMunicipality(sifko);
-    }, [selectedMunicipality]);
+        // Load with current filters
+        const currentFilters = activeFiltersRef.current;
+        console.log('Loading municipality with current filters:', currentFilters);
+        fetchPropertiesForMunicipality(sifko, currentFilters);
+    }, [fetchPropertiesForMunicipality]);
 
-    const handleDataSourceChange = useCallback((newType) => {
-        console.log(`Changing data source type to: ${newType}`);
+    const handleObcinaClick = useCallback((obcinaFeature) => {
+        if (!map.current || !obcinaFeature) return;
 
-        // Cleanup via PopupManager
-        if (popupManager.current) {
-            popupManager.current.updateDataSourceType(newType);
+        const obcinaId = getObcinaId(obcinaFeature);
+        const obcinaName = getObcinaName(obcinaFeature);
+
+        if (selectedObcina?.obcinaId === obcinaId) {
+            console.log(`Občina ${obcinaName} already selected - ignoring click`);
+            return;
         }
 
-        // Update refs and state
-        dataSourceTypeRef.current = newType;
-        setDataSourceType(newType);
+        console.log('Občina clicked:', obcinaName, 'ID:', obcinaId);
 
-        // Reload data if municipality is selected
-        if (selectedMunicipality?.sifko) {
-            console.log(`Reloading data for municipality: ${selectedMunicipality.sifko}, new type: ${newType}`);
-            fetchPropertiesForMunicipality(selectedMunicipality.sifko);
-        }
-    }, [selectedMunicipality]);
+        setSelectedMunicipality(null);
+
+        const bounds = calculateBoundsFromGeometry(obcinaFeature.geometry);
+        
+        setSelectedObcina({
+            name: obcinaName,
+            obcinaId: obcinaId,
+            bounds: bounds
+        });
+
+        map.current.fitBounds(bounds, {
+            padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
+            duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION,
+            essential: true
+        });
+    }, [selectedObcina]);
 
     const handleSearch = useCallback((searchResult) => {
         if (!map.current) return;
@@ -175,22 +273,19 @@ export default function Zemljevid() {
     }, []);
 
     const handleMunicipalityReset = useCallback(() => {
-        // Cleanup via PopupManager
         if (popupManager.current) {
             popupManager.current.handleMunicipalityReset();
         }
 
         setSelectedMunicipality(null);
         setSelectedObcina(null);
-        setHoveredRegion(null); // Clear hover state on reset
+        setHoveredRegion(null);
 
-        // Clear property data
         if (layerManager.current) {
             layerManager.current.removePropertiesLayers();
             layerManager.current.removeClustersLayers();
         }
 
-        // Zoom back to initial position
         map.current.flyTo({
             center: MAP_CONFIG.INITIAL_CENTER,
             zoom: MAP_CONFIG.INITIAL_ZOOM,
@@ -198,59 +293,10 @@ export default function Zemljevid() {
         });
     }, []);
 
-    // Data fetching
-    const fetchPropertiesForMunicipality = useCallback(async (sifko) => {
-        if (!map.current || isLoading || !sifko) return;
+    // ===========================================
+    // MAP LAYER MANAGEMENT
+    // ===========================================
 
-        setIsLoading(true);
-
-        try {
-            const currentDataSourceType = dataSourceTypeRef.current;
-            const apiDataSource = getApiDataSource(currentDataSourceType);
-
-            console.log(`Loading ALL data for municipality: ${sifko}, type: ${currentDataSourceType}, data_source=${apiDataSource}`);
-
-            const url = buildPropertiesUrl('0,0,0,0', 15, apiDataSource, sifko);
-            console.log(`API URL: ${url}`);
-
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`HTTP error: ${response.status}`);
-            }
-
-            const geojson = await response.json();
-            
-            console.log(`API response:`, geojson);
-            console.log(`Total features returned: ${geojson.features.length}`);
-
-            // Process features
-            const individualFeatures = geojson.features.filter(f => f.properties.type === 'individual');
-            const clusterFeatures = geojson.features.filter(f => f.properties.type === 'cluster');
-
-            console.log('Individual features:', individualFeatures.length);
-            console.log('Cluster features:', clusterFeatures.length);
-
-            // Update layers using LayerManager
-            if (layerManager.current) {
-                layerManager.current.addPropertiesLayers(individualFeatures, currentDataSourceType);
-                layerManager.current.addClustersLayers(clusterFeatures, currentDataSourceType);
-            }
-
-            // Setup popup event handlers
-            if (popupManager.current) {
-                popupManager.current.setupEventHandlers(handlePropertySelect);
-            }
-
-            console.log(`Loaded ${geojson.features.length} properties for municipality`);
-
-        } catch (error) {
-            handleApiError(error, 'loading properties for municipality');
-        } finally {
-            setIsLoading(false);
-        }
-    }, [isLoading, handlePropertySelect]);
-
-    // Municipalities and občine management
     const loadObcine = useCallback(() => {
         if (!map.current || obcineLoaded || !layerManager.current) return;
 
@@ -285,6 +331,10 @@ export default function Zemljevid() {
         }
     }, [municipalitiesLoaded]);
 
+    // ===========================================
+    // EVENT HANDLERS SETUP
+    // ===========================================
+
     const setupObcinaEventHandlers = useCallback(() => {
         if (!map.current) return;
 
@@ -295,7 +345,6 @@ export default function Zemljevid() {
             if (!selectedObcina || selectedObcina.obcinaId !== hoveredObcinaId) {
                 map.current.getCanvas().style.cursor = 'pointer';
                 
-                // Set hover state
                 setHoveredRegion({
                     name: hoveredObcinaName,
                     type: 'Občina'
@@ -305,12 +354,12 @@ export default function Zemljevid() {
 
         const hoverLeaveHandler = () => {
             map.current.getCanvas().style.cursor = '';
-            setHoveredRegion(null); // Clear hover state
+            setHoveredRegion(null);
         };
 
         const clickHandler = (e) => {
             if (e.features && e.features[0]) {
-                setHoveredRegion(null); // Clear hover on click
+                setHoveredRegion(null);
                 handleObcinaClick(e.features[0]);
             }
         };
@@ -319,7 +368,6 @@ export default function Zemljevid() {
         map.current.on('mouseleave', 'obcine-fill', hoverLeaveHandler);
         map.current.on('click', 'obcine-fill', clickHandler);
 
-        // Store handlers for cleanup
         map.current._obcinaHandlers = {
             hoverEnterHandler,
             hoverLeaveHandler,
@@ -337,7 +385,6 @@ export default function Zemljevid() {
             if (!selectedMunicipality || selectedMunicipality.sifko !== hoveredSifko) {
                 map.current.getCanvas().style.cursor = 'pointer';
                 
-                // Set hover state
                 setHoveredRegion({
                     name: hoveredMunicipalityName,
                     type: 'Občina'
@@ -347,12 +394,12 @@ export default function Zemljevid() {
 
         const hoverLeaveHandler = () => {
             map.current.getCanvas().style.cursor = '';
-            setHoveredRegion(null); // Clear hover state
+            setHoveredRegion(null);
         };
 
         const clickHandler = (e) => {
             if (e.features && e.features[0]) {
-                setHoveredRegion(null); // Clear hover on click
+                setHoveredRegion(null);
                 handleMunicipalityClick(e.features[0]);
             }
         };
@@ -361,7 +408,6 @@ export default function Zemljevid() {
         map.current.on('mouseleave', 'municipalities-fill', hoverLeaveHandler);
         map.current.on('click', 'municipalities-fill', clickHandler);
 
-        // Store handlers for cleanup
         map.current._municipalityHandlers = {
             hoverEnterHandler,
             hoverLeaveHandler,
@@ -369,56 +415,41 @@ export default function Zemljevid() {
         };
     }, [selectedMunicipality, handleMunicipalityClick]);
 
-    // Effects
-    useEffect(() => {
-        if (map.current && layerManager.current) {
-            layerManager.current.updateMunicipalitySelection(selectedMunicipality?.sifko);
-        }
-    }, [selectedMunicipality]);
+    // ===========================================
+    // ZOOM HANDLER
+    // ===========================================
 
-    useEffect(() => {
-        if (map.current && layerManager.current) {
-            layerManager.current.updateObcinaSelection(selectedObcina?.obcinaId);
-        }
-    }, [selectedObcina]);
+    const setupZoomHandler = () => {
+        let timeoutId;
+        const handleZoomEnd = () => {
+            const currentZoom = map.current.getZoom();
+            
+            if (layerManager.current) {
+                layerManager.current.updateLayerVisibilityByZoom(currentZoom);
+            }
 
-    // Map initialization
-    useEffect(() => {
-        if (!map.current && mapContainer.current) {
-            map.current = new maplibregl.Map({
-                container: mapContainer.current,
-                style: MAP_CONFIG.STYLE_URL,
-                center: MAP_CONFIG.INITIAL_CENTER,
-                zoom: MAP_CONFIG.INITIAL_ZOOM
-            });
+            const currentMunicipality = selectedMunicipalityRef.current;
+            if (currentMunicipality?.sifko) {
+                if (popupManager.current) {
+                    popupManager.current.handleZoomChange();
+                }
 
-            map.current.addControl(new maplibregl.NavigationControl(), UI_CONFIG.CONTROLS.POSITION);
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => {
+                    const currentFilters = activeFiltersRef.current;
+                    console.log('Zoom-triggered reload with filters:', currentFilters);
+                    fetchPropertiesForMunicipality(currentMunicipality.sifko, currentFilters);
+                }, TIMEOUTS.ZOOM_DEBOUNCE);
+            }
+        };
 
-            map.current.on('load', () => {
-                // Style controls
-                styleMapControls();
+        map.current.on('zoomend', handleZoomEnd);
+        map.current._zoomEndHandler = handleZoomEnd;
+    };
 
-                // Initialize managers
-                layerManager.current = new LayerManager(map.current);
-                popupManager.current = new PopupManager(map.current);
-
-                // IMPORTANT: Load občine FIRST to establish proper layer order
-                // This ensures občine outline will be above municipalities outline
-                loadObcine();
-                
-                // Then load municipalities (will be inserted below občine)
-                loadMunicipalities();
-
-                // Set initial layer visibility based on zoom
-                layerManager.current.updateLayerVisibilityByZoom(MAP_CONFIG.INITIAL_ZOOM);
-            });
-
-            // Setup zoom handler
-            setupZoomHandler();
-        }
-
-        return cleanup;
-    }, []);
+    // ===========================================
+    // UTILITY FUNCTIONS
+    // ===========================================
 
     const styleMapControls = () => {
         const controlContainer = mapContainer.current?.querySelector('.maplibregl-control-container');
@@ -444,32 +475,6 @@ export default function Zemljevid() {
             group.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)';
             group.style.margin = '0px 8px 0 0';
         });
-    };
-
-    const setupZoomHandler = () => {
-        let timeoutId;
-        const handleZoomEnd = () => {
-            const currentZoom = map.current.getZoom();
-            
-            // Update layer visibility based on zoom level
-            if (layerManager.current) {
-                layerManager.current.updateLayerVisibilityByZoom(currentZoom);
-            }
-
-            if (selectedMunicipality?.sifko) {
-                if (popupManager.current) {
-                    popupManager.current.handleZoomChange();
-                }
-
-                clearTimeout(timeoutId);
-                timeoutId = setTimeout(() => {
-                    fetchPropertiesForMunicipality(selectedMunicipality.sifko);
-                }, TIMEOUTS.ZOOM_DEBOUNCE);
-            }
-        };
-
-        map.current.on('zoomend', handleZoomEnd);
-        map.current._zoomEndHandler = handleZoomEnd;
     };
 
     const cleanup = () => {
@@ -511,6 +516,54 @@ export default function Zemljevid() {
         }
     };
 
+    // ===========================================
+    // EFFECTS
+    // ===========================================
+
+    useEffect(() => {
+        if (map.current && layerManager.current) {
+            layerManager.current.updateMunicipalitySelection(selectedMunicipality?.sifko);
+        }
+    }, [selectedMunicipality]);
+
+    useEffect(() => {
+        if (map.current && layerManager.current) {
+            layerManager.current.updateObcinaSelection(selectedObcina?.obcinaId);
+        }
+    }, [selectedObcina]);
+
+    // Map initialization - NO DEPENDENCIES TO AVOID LOOPS
+    useEffect(() => {
+        if (!map.current && mapContainer.current) {
+            map.current = new maplibregl.Map({
+                container: mapContainer.current,
+                style: MAP_CONFIG.STYLE_URL,
+                center: MAP_CONFIG.INITIAL_CENTER,
+                zoom: MAP_CONFIG.INITIAL_ZOOM
+            });
+
+            map.current.addControl(new maplibregl.NavigationControl(), UI_CONFIG.CONTROLS.POSITION);
+
+            map.current.on('load', () => {
+                styleMapControls();
+                layerManager.current = new LayerManager(map.current);
+                popupManager.current = new PopupManager(map.current);
+                loadObcine();
+                loadMunicipalities();
+                layerManager.current.updateLayerVisibilityByZoom(MAP_CONFIG.INITIAL_ZOOM);
+                setupZoomHandler(); // Call directly, not as dependency
+            });
+        }
+
+        return cleanup;
+    }, []); // EMPTY DEPENDENCIES - NO LOOPS
+
+    // ===========================================
+    // RENDER
+    // ===========================================
+
+    const hasActiveFilters = Object.keys(activeFilters).length > 0;
+
     return (
         <>
             <div
@@ -535,7 +588,7 @@ export default function Zemljevid() {
                 </div>
             )}
 
-            {/* Hover preview box - shows on hover, hides on selection */}
+            {/* Hover preview box */}
             {hoveredRegion && !selectedMunicipality && !selectedObcina && (
                 <div className="absolute bottom-4 right-4 z-20 bg-white/95 backdrop-blur-sm rounded-lg shadow-md border border-gray-200 px-3 py-2">
                     <div className="flex items-center space-x-2">
@@ -549,19 +602,31 @@ export default function Zemljevid() {
                 </div>
             )}
 
-            {/* Selected municipality or občina indicator - shows when selected */}
+            {/* Selected municipality or občina indicator */}
             {(selectedMunicipality || selectedObcina) && (
-                <div className="absolute bottom-4 right-4 z-20 bg-white rounded-lg shadow-lg border border-gray-200 px-4 py-2">
-                    <div className="flex items-center space-x-2">
-                        <span className="text-sm font-medium text-gray-700">
-                            {selectedMunicipality 
-                                ? `Kataster: ${selectedMunicipality.name}` 
-                                : `Občina: ${selectedObcina.name}`
-                            }
-                        </span>
+                <div className="absolute bottom-4 right-4 z-20 bg-white rounded-lg shadow-lg border border-gray-200 px-4 py-2 max-w-sm">
+                    <div className="flex items-center justify-between space-x-2">
+                        <div className="min-w-0 flex-1">
+                            <div className="flex items-center space-x-2">
+                                <span className="text-sm font-medium text-gray-700 truncate">
+                                    {selectedMunicipality 
+                                        ? `Kataster: ${selectedMunicipality.name}` 
+                                        : `Občina: ${selectedObcina.name}`
+                                    }
+                                </span>
+                                {hasActiveFilters && (
+                                    <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
+                                )}
+                            </div>
+                            {hasActiveFilters && (
+                                <div className="text-xs text-gray-500 mt-1 truncate">
+                                    {formatFilterSummary(activeFilters, dataSourceType)}
+                                </div>
+                            )}
+                        </div>
                         <button
                             onClick={handleMunicipalityReset}
-                            className="text-gray-400 hover:text-gray-600 transition-colors"
+                            className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
                         >
                             ✕
                         </button>
@@ -570,7 +635,12 @@ export default function Zemljevid() {
             )}
 
             {/* UI Components */}
-            <Filter />
+            <Filter 
+                onFiltersChange={handleFiltersChange}
+                dataSourceType={dataSourceType}
+                isLoading={isLoading}
+                activeFilters={activeFilters}
+            />
             <Switcher 
                 activeType={dataSourceType} 
                 onChangeType={handleDataSourceChange} 

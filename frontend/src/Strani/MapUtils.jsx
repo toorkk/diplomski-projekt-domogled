@@ -60,20 +60,128 @@ export const createPriceExpression = (dataSourceType) => {
     }
 };
 
-// Gradnja API URL-jev
-export const buildPropertiesUrl = (bbox, zoom, dataSource, sifko = null) => {
-    const bboxParam = bbox || '0,0,0,0';
-    let url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PROPERTIES}?bbox=${bboxParam}&zoom=${zoom}&data_source=${dataSource}`;
+// Helper function to build query parameters from filters
+export const buildFilterParams = (filters = {}) => {
+    const params = new URLSearchParams();
     
-    if (sifko) {
-        url += `&sifko=${sifko}`;
-    }
+    // Add all non-null filter values
+    Object.entries(filters).forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+            params.append(key, value);
+        }
+    });
     
-    return url;
+    return params.toString();
 };
 
-export const buildClusterDetailsUrl = (clusterId, dataSource, zoom) => {
-    return `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CLUSTER_DETAILS}/${clusterId}/properties?data_source=${dataSource}&zoom=${zoom}`;
+// Gradnja API URL-jev z podporo za filtre
+export const buildPropertiesUrl = (bbox, zoom, dataSource, sifko = null, municipality = null, filters = {}) => {
+    const bboxParam = bbox || '0,0,0,0';
+    const params = new URLSearchParams({
+        bbox: bboxParam,
+        zoom: zoom.toString(),
+        data_source: dataSource
+    });
+    
+    // Add optional location filters
+    if (sifko) {
+        params.append('sifko', sifko.toString());
+    }
+    
+    if (municipality) {
+        params.append('municipality', municipality);
+    }
+    
+    // Add property filters
+    Object.entries(filters).forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+            params.append(key, value.toString());
+        }
+    });
+    
+    return `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PROPERTIES}?${params.toString()}`;
+};
+
+export const buildClusterDetailsUrl = (clusterId, dataSource, zoom, filters = {}) => {
+    const params = new URLSearchParams({
+        data_source: dataSource,
+        zoom: zoom.toString()
+    });
+    
+    // Add property filters to cluster details as well
+    Object.entries(filters).forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+            params.append(key, value.toString());
+        }
+    });
+    
+    return `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CLUSTER_DETAILS}/${clusterId}/properties?${params.toString()}`;
+};
+
+// Validate filter values
+export const validateFilters = (filters, dataSourceType) => {
+    const validated = {};
+    
+    // Year validation
+    if (filters.filter_leto && filters.filter_leto >= 2000 && filters.filter_leto <= new Date().getFullYear()) {
+        validated.filter_leto = parseInt(filters.filter_leto);
+    }
+    
+    // Price validation
+    if (filters.min_cena && filters.min_cena >= 0) {
+        validated.min_cena = parseFloat(filters.min_cena);
+    }
+    
+    if (filters.max_cena && filters.max_cena >= 0) {
+        validated.max_cena = parseFloat(filters.max_cena);
+    }
+    
+    // Ensure min <= max for price
+    if (validated.min_cena && validated.max_cena && validated.min_cena > validated.max_cena) {
+        console.warn('Min cena je višja od max cena - popravljam');
+        [validated.min_cena, validated.max_cena] = [validated.max_cena, validated.min_cena];
+    }
+    
+    // Surface area validation
+    if (filters.min_povrsina && filters.min_povrsina >= 0) {
+        validated.min_povrsina = parseFloat(filters.min_povrsina);
+    }
+    
+    if (filters.max_povrsina && filters.max_povrsina >= 0) {
+        validated.max_povrsina = parseFloat(filters.max_povrsina);
+    }
+    
+    // Ensure min <= max for surface area
+    if (validated.min_povrsina && validated.max_povrsina && validated.min_povrsina > validated.max_povrsina) {
+        console.warn('Min površina je višja od max površina - popravljam');
+        [validated.min_povrsina, validated.max_povrsina] = [validated.max_povrsina, validated.min_povrsina];
+    }
+    
+    return validated;
+};
+
+// Format filter summary for display
+export const formatFilterSummary = (filters, dataSourceType) => {
+    const parts = [];
+    
+    if (filters.filter_leto) {
+        parts.push(`Leto: ${filters.filter_leto}`);
+    }
+    
+    if (filters.min_cena || filters.max_cena) {
+        const currency = dataSourceType === 'prodaja' ? '€' : '€/m';
+        const min = filters.min_cena ? `${filters.min_cena}${currency}` : '0';
+        const max = filters.max_cena ? `${filters.max_cena}${currency}` : '∞';
+        parts.push(`Cena: ${min} - ${max}`);
+    }
+    
+    if (filters.min_povrsina || filters.max_povrsina) {
+        const min = filters.min_povrsina || '0';
+        const max = filters.max_povrsina || '∞';
+        parts.push(`Površina: ${min} - ${max} m²`);
+    }
+    
+    return parts.join(', ');
 };
 
 // Bounds utility funkcije

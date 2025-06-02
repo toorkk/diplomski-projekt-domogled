@@ -84,7 +84,7 @@ def serialize_list_to_json(objects):
         print(f"Napaka v serialize_list_to_json: {e}")
         return []
     
-@staticmethod
+
 def apply_property_filters(query, DeduplicatedModel, filters: dict, data_source: str):
     """
     Dodaj filtre queryju

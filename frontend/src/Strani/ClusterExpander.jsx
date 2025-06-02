@@ -1,4 +1,3 @@
-// components/ClusterExpander.jsx
 import { 
     CLUSTER_CONFIG, 
     API_CONFIG,
@@ -22,12 +21,19 @@ class ClusterExpander {
         this.layerManager = new LayerManager(map);
         this.expandedClusters = new Set();
         this.currentDataSourceType = 'prodaja';
+        this.currentFilters = {}; // Add filters storage
     }
 
     updateDataSourceType(newType) {
         this.collapseAllClusters();
         this.currentDataSourceType = newType;
         console.log(`ClusterExpander: Data source changed to: ${newType}`);
+    }
+
+    // Add method to update filters
+    updateFilters(newFilters) {
+        this.currentFilters = newFilters || {};
+        console.log(`ClusterExpander: Filters updated:`, this.currentFilters);
     }
 
     async handleClusterClick(lngLat, clusterProperties) {
@@ -66,9 +72,12 @@ class ClusterExpander {
         console.log(`=== EXPANDING CLUSTER ${clusterId} ===`);
         console.log('Data source:', dataSource);
         console.log('Zoom:', currentZoom);
+        console.log('Filters:', this.currentFilters); // Log filters
 
         try {
-            const url = buildClusterDetailsUrl(clusterId, dataSource, currentZoom);
+            const url = buildClusterDetailsUrl(clusterId, dataSource, currentZoom, this.currentFilters);
+            console.log('Cluster details URL with filters:', url); // Debug log
+            
             const response = await fetch(url);
 
             if (!response.ok) {
@@ -302,6 +311,7 @@ class ClusterExpander {
         console.log('Cluster properties:', clusterProperties);
         console.log('Cluster data_source property:', clusterProperties.data_source);
         console.log('ClusterExpander currentDataSourceType:', this.currentDataSourceType);
+        console.log('ClusterExpander currentFilters:', this.currentFilters);
     }
 
     cleanup() {
