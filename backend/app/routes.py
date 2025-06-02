@@ -262,7 +262,14 @@ def get_properties_geojson(
     zoom: float = Query(default=10, description="Zoom level za clustering"),
     data_source: str = Query(default="np", description="Data source: 'np' za najemne 'kpp' za kupoprodajne"),
     municipality: str = Query(None, description="Filter po občini (opcijsko)"),  
-    sifko: int = Query(None, description="Filter po šifri katastrske občine (opcijsko)"),  # NOVO DODANO
+    sifko: int = Query(None, description="Filter po šifri katastrske občine (opcijsko)"),
+
+    filter_leto: int = Query(None, description="Filter po letu posla (opcijsko)"),
+    min_cena: float = Query(None, description="Minimalna cena/najemnina (opcijsko)"),
+    max_cena: float = Query(None, description="Maksimalna cena/najemnina (opcijsko)"),
+    min_povrsina: float = Query(None, description="Minimalna uporabna površina (opcijsko)"),
+    max_povrsina: float = Query(None, description="Maksimalna uporabna površina (opcijsko)"),
+
     db: Session = Depends(get_db)
 ):
     """
@@ -280,18 +287,36 @@ def get_properties_geojson(
             raise ValueError("data_source mora bit 'np' ali 'kpp'")
             
         west, south, east, north = map(float, bbox.split(','))
+
+        filters = {}
+        if filter_leto is not None:
+            filters['filter_leto'] = int(filter_leto)
+        if min_cena is not None:
+            filters['min_cena'] = float(min_cena)
+        if max_cena is not None:
+            filters['max_cena'] = float(max_cena)
+        if min_povrsina is not None:
+            filters['min_povrsina'] = float(min_povrsina)
+        if max_povrsina is not None:
+            filters['max_povrsina'] = float(max_povrsina)
+
+        # Debug logging
+        if filters:
+            print(f"Active filters: {filters}")
+        else:
+            print("No filters applied")
         
         # Če je podan sifko ali municipality, vrni VSE nepremičnine v tej občini
         if sifko or municipality:
-            return PropertyService.get_municipality_all_properties(sifko, municipality, db, data_source)
+            return PropertyService.get_municipality_all_properties(sifko, municipality, db, data_source, filters)
         
         # Sicer uporabi stari sistem z bbox clustering
         cluster_threshold = 14.5
         
         if zoom >= cluster_threshold:
-            return PropertyService.get_building_clustered_properties(west, south, east, north, db, data_source, municipality, sifko)
+            return PropertyService.get_building_clustered_properties(west, south, east, north, db, data_source, filters)
         else:
-            return PropertyService.get_distance_clustered_properties(west, south, east, north, zoom, db, data_source, municipality, sifko)
+            return PropertyService.get_distance_clustered_properties(west, south, east, north, zoom, db, data_source, filters)
             
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"neveljavni parametri: {str(e)}")
@@ -321,6 +346,8 @@ def get_property_details(
         
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"neveljavni parametri: {str(e)}")
+    except HTTPException:
+        raise # Re-raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"db error: {str(e)}")
     
@@ -332,16 +359,40 @@ def get_property_details(
 def get_cluster_properties(
     cluster_id: str,
     data_source: str = Query(default="np", description="Data source: 'np' za najemne 'kpp' za kupoprodajne"),
+    filter_leto: int = Query(None, description="Filter po letu posla (opcijsko)"),
+    min_cena: float = Query(None, description="Minimalna cena/najemnina (opcijsko)"),
+    max_cena: float = Query(None, description="Maksimalna cena/najemnina (opcijsko)"),
+    min_povrsina: float = Query(None, description="Minimalna uporabna površina (opcijsko)"),
+    max_povrsina: float = Query(None, description="Maksimalna uporabna površina (opcijsko)"),
     db: Session = Depends(get_db)
 ):
     """
-    Pridobi vse nepremičnine ki spadajo pod določen building cluster
+    Pridobi vse nepremičnine ki spadajo pod določen building cluster z možnostjo filtriranja
     """
     try:
         print(f"Received cluster_id: {cluster_id}")  # Debug
         
         if data_source.lower() not in ["np", "kpp"]:
             raise ValueError("data_source mora bit 'np' ali 'kpp'")
+
+        filters = {}
+        if filter_leto is not None:
+            filters['filter_leto'] = int(filter_leto)
+        if min_cena is not None:
+            filters['min_cena'] = float(min_cena)
+        if max_cena is not None:
+            filters['max_cena'] = float(max_cena)
+        if min_povrsina is not None:
+            filters['min_povrsina'] = float(min_povrsina)
+        if max_povrsina is not None:
+            filters['max_povrsina'] = float(max_povrsina)
+
+        if filters:
+            print(f"Cluster {cluster_id} - filtri: {filters}")
+
+        # Debug logging
+        if filters:
+            print(f"Cluster {cluster_id} - filters: {filters}")
         
         # Podporni samo building clustri
         if cluster_id.startswith('b_'):
@@ -357,7 +408,7 @@ def get_cluster_properties(
                 print(f"Looking for obcina: {obcina}, sifra_ko: {sifra_ko}, stevilka_stavbe: {stevilka_stavbe}")  # Debug
                 
                 # Posreduj občino v PropertyService
-                return PropertyService.get_building_cluster_properties(obcina, sifra_ko, stevilka_stavbe, db, data_source)
+                return PropertyService.get_building_cluster_properties(obcina, sifra_ko, stevilka_stavbe, db, data_source, filters)
                 
         elif cluster_id.startswith('d_'):
             # Distance clustri niso podprti za expansion

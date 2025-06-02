@@ -83,3 +83,32 @@ def serialize_list_to_json(objects):
     except Exception as e:
         print(f"Napaka v serialize_list_to_json: {e}")
         return []
+    
+
+def apply_property_filters(query, DeduplicatedModel, filters: dict, data_source: str):
+    """
+    Dodaj filtre queryju
+    """
+    if not filters:
+        return query
+    
+    if filters.get('filter_leto'):
+        query = query.filter(DeduplicatedModel.zadnje_leto >= filters['filter_leto'])
+    
+    if data_source.lower() == "np":
+        if filters.get('min_cena'):
+            query = query.filter(DeduplicatedModel.zadnja_najemnina >= filters['min_cena'])
+        if filters.get('max_cena'):
+            query = query.filter(DeduplicatedModel.zadnja_najemnina <= filters['max_cena'])
+    else:
+        if filters.get('min_cena'):
+            query = query.filter(DeduplicatedModel.zadnja_cena >= filters['min_cena'])
+        if filters.get('max_cena'):
+            query = query.filter(DeduplicatedModel.zadnja_cena <= filters['max_cena'])
+    
+    if filters.get('min_povrsina'):
+        query = query.filter(DeduplicatedModel.povrsina_uporabna >= filters['min_povrsina'])
+    if filters.get('max_povrsina'):
+        query = query.filter(DeduplicatedModel.povrsina_uporabna <= filters['max_povrsina'])
+    
+    return query
