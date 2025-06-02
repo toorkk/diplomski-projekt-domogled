@@ -2,21 +2,23 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
-// Components
+// Komponente
 import Filter from "../Filter";
 import Switcher from "./Switcher";
 import Iskalnik from "./Iskalnik";
 import Podrobnosti from "./Podrobnosti";
 import PopupManager from "./PopupManager";
 
-// Managers and utilities
+// Importanje managerjev
 import LayerManager from "./LayerManager";
-import { 
-    MAP_CONFIG, 
-    DATA_SOURCE_CONFIG, 
+import {
+    MAP_CONFIG,
+    DATA_SOURCE_CONFIG,
     TIMEOUTS,
-    UI_CONFIG 
+    UI_CONFIG
 } from './MapConstants.jsx';
+
+//Importanje vseh utils
 import {
     buildPropertiesUrl,
     getApiDataSource,
@@ -29,7 +31,7 @@ import {
     formatFilterSummary
 } from './MapUtils.jsx';
 
-// Styles and data
+// Stili in JSON podatki (katastri, občine)
 import '../Stili/Zemljevid.css';
 import municipalitiesData from '../Občine/KatObčine.json';
 import obcineData from '../Občine/OB.json';
@@ -42,7 +44,7 @@ export default function Zemljevid() {
     const layerManager = useRef(null);
     const dataSourceTypeRef = useRef('prodaja');
 
-    // State
+    // Definiranje STATOV (malo ugabno)
     const [isLoading, setIsLoading] = useState(false);
     const [municipalitiesLoaded, setMunicipalitiesLoaded] = useState(false);
     const [obcineLoaded, setObcineLoaded] = useState(false);
@@ -58,6 +60,7 @@ export default function Zemljevid() {
     const activeFiltersRef = useRef({});
     const selectedMunicipalityRef = useRef(null);
 
+    // Updejtanje ref ko se spremeni state
     // Update refs when state changes
     useEffect(() => {
         dataSourceTypeRef.current = dataSourceType;
@@ -205,7 +208,7 @@ export default function Zemljevid() {
         }
 
         const bounds = calculateBoundsFromGeometry(municipalityFeature.geometry);
-        
+
         setSelectedMunicipality({
             name: municipalityName,
             sifko: sifko,
@@ -302,10 +305,10 @@ export default function Zemljevid() {
 
         try {
             console.log('Loading občine layer...');
-            
+
             layerManager.current.addObcineLayers(obcineData);
             setupObcinaEventHandlers();
-            
+
             setObcineLoaded(true);
             console.log('Občine layer loaded successfully');
 
@@ -319,10 +322,10 @@ export default function Zemljevid() {
 
         try {
             console.log('Loading municipalities layer...');
-            
+
             layerManager.current.addMunicipalitiesLayers(municipalitiesData);
             setupMunicipalityEventHandlers();
-            
+
             setMunicipalitiesLoaded(true);
             console.log('Municipalities layer loaded successfully');
 
@@ -338,7 +341,9 @@ export default function Zemljevid() {
     const setupObcinaEventHandlers = useCallback(() => {
         if (!map.current) return;
 
-        const hoverEnterHandler = (e) => {
+        let currentHoveredObcinaId = null;
+
+        const hoverMoveHandler = (e) => {
             const hoveredObcinaId = e.features[0]?.properties?.OB_ID;
             const hoveredObcinaName = e.features[0]?.properties?.OB_UIME;
             
@@ -353,6 +358,7 @@ export default function Zemljevid() {
         };
 
         const hoverLeaveHandler = () => {
+            currentHoveredObcinaId = null;
             map.current.getCanvas().style.cursor = '';
             setHoveredRegion(null);
         };
@@ -364,23 +370,30 @@ export default function Zemljevid() {
             }
         };
 
-        map.current.on('mouseenter', 'obcine-fill', hoverEnterHandler);
+        // Uporabljamo mousemove namesto mouseenter za boljše sledenje
+        map.current.on('mousemove', 'obcine-fill', hoverMoveHandler);
         map.current.on('mouseleave', 'obcine-fill', hoverLeaveHandler);
         map.current.on('click', 'obcine-fill', clickHandler);
 
         map.current._obcinaHandlers = {
-            hoverEnterHandler,
+            hoverMoveHandler,
             hoverLeaveHandler,
             clickHandler
         };
     }, [selectedObcina, handleObcinaClick]);
 
     const setupMunicipalityEventHandlers = useCallback(() => {
-        if (!map.current) return;
+    if (!map.current) return;
 
-        const hoverEnterHandler = (e) => {
-            const hoveredSifko = e.features[0]?.properties?.SIFKO;
-            const hoveredMunicipalityName = getMunicipalityName(e.features[0]);
+    let currentHoveredSifko = null;
+
+    const hoverMoveHandler = (e) => {
+        const hoveredSifko = e.features[0]?.properties?.SIFKO;
+        const hoveredMunicipalityName = getMunicipalityName(e.features[0]);
+        
+        // Preveri če se je hover spremenil
+        if (hoveredSifko !== currentHoveredSifko) {
+            currentHoveredSifko = hoveredSifko;
             
             if (!selectedMunicipality || selectedMunicipality.sifko !== hoveredSifko) {
                 map.current.getCanvas().style.cursor = 'pointer';
@@ -390,7 +403,8 @@ export default function Zemljevid() {
                     type: 'Občina'
                 });
             }
-        };
+        }
+    };
 
         const hoverLeaveHandler = () => {
             map.current.getCanvas().style.cursor = '';
@@ -404,9 +418,10 @@ export default function Zemljevid() {
             }
         };
 
-        map.current.on('mouseenter', 'municipalities-fill', hoverEnterHandler);
-        map.current.on('mouseleave', 'municipalities-fill', hoverLeaveHandler);
-        map.current.on('click', 'municipalities-fill', clickHandler);
+    // Uporabljamo mousemove namesto mouseenter za boljše sledenje
+    map.current.on('mousemove', 'municipalities-fill', hoverMoveHandler);
+    map.current.on('mouseleave', 'municipalities-fill', hoverLeaveHandler);
+    map.current.on('click', 'municipalities-fill', clickHandler);
 
         map.current._municipalityHandlers = {
             hoverEnterHandler,
@@ -478,29 +493,29 @@ export default function Zemljevid() {
     };
 
     const cleanup = () => {
-        if (map.current) {
-            // Cleanup zoom handler
-            if (map.current._zoomEndHandler) {
-                map.current.off('zoomend', map.current._zoomEndHandler);
-            }
+    if (map.current) {
+        // Cleanup zoom handler
+        if (map.current._zoomEndHandler) {
+            map.current.off('zoomend', map.current._zoomEndHandler);
+        }
 
-            // Cleanup občina handlers
-            if (map.current._obcinaHandlers) {
-                const { hoverEnterHandler, hoverLeaveHandler, clickHandler } = map.current._obcinaHandlers;
-                map.current.off('mouseenter', 'obcine-fill', hoverEnterHandler);
-                map.current.off('mouseleave', 'obcine-fill', hoverLeaveHandler);
-                map.current.off('click', 'obcine-fill', clickHandler);
-                delete map.current._obcinaHandlers;
-            }
+        // Cleanup občina handlers
+        if (map.current._obcinaHandlers) {
+            const { hoverMoveHandler, hoverLeaveHandler, clickHandler } = map.current._obcinaHandlers;
+            map.current.off('mousemove', 'obcine-fill', hoverMoveHandler);
+            map.current.off('mouseleave', 'obcine-fill', hoverLeaveHandler);
+            map.current.off('click', 'obcine-fill', clickHandler);
+            delete map.current._obcinaHandlers;
+        }
 
-            // Cleanup municipality handlers
-            if (map.current._municipalityHandlers) {
-                const { hoverEnterHandler, hoverLeaveHandler, clickHandler } = map.current._municipalityHandlers;
-                map.current.off('mouseenter', 'municipalities-fill', hoverEnterHandler);
-                map.current.off('mouseleave', 'municipalities-fill', hoverLeaveHandler);
-                map.current.off('click', 'municipalities-fill', clickHandler);
-                delete map.current._municipalityHandlers;
-            }
+        // Cleanup municipality handlers
+        if (map.current._municipalityHandlers) {
+            const { hoverMoveHandler, hoverLeaveHandler, clickHandler } = map.current._municipalityHandlers;
+            map.current.off('mousemove', 'municipalities-fill', hoverMoveHandler);
+            map.current.off('mouseleave', 'municipalities-fill', hoverLeaveHandler);
+            map.current.off('click', 'municipalities-fill', clickHandler);
+            delete map.current._municipalityHandlers;
+        }
 
             // Cleanup managers
             if (popupManager.current) {

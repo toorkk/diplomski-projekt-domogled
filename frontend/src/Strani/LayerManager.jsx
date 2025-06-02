@@ -243,33 +243,6 @@ class LayerManager {
                 }
             });
 
-            // Add labels layer
-            this.map.addLayer({
-                id: LAYER_IDS.MUNICIPALITIES.LABELS,
-                type: 'symbol',
-                source: SOURCE_IDS.MUNICIPALITIES,
-                layout: {
-                    'text-field': [
-                        'case',
-                        ['has', 'IMEKO'],
-                        ['get', 'IMEKO'],
-                        ['concat', 'KO ', ['get', 'SIFKO']]
-                    ],
-                    'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'],
-                    'text-size': ZOOM_STYLES.MUNICIPALITIES.LABEL_SIZE,
-                    'text-anchor': 'center',
-                    'text-max-width': 8,
-                    'text-allow-overlap': false,
-                    'text-ignore-placement': false,
-                    'text-padding': 2
-                },
-                paint: {
-                    'text-color': '#374151',
-                    'text-halo-color': '#ffffff',
-                    'text-halo-width': 1.5,
-                    'text-opacity': ZOOM_STYLES.MUNICIPALITIES.LABEL_OPACITY
-                }
-            });
 
             console.log('Municipalities layers added successfully');
         } catch (error) {
