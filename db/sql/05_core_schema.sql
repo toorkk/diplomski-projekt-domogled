@@ -13,7 +13,7 @@ CREATE TABLE core.np_del_stavbe (
 
   naselje               VARCHAR(103),
   ulica                 VARCHAR(300),
-  hisna_stevilka        VARCHAR(40),
+  hisna_stevilka        INTEGER,
   dodatek_hs            VARCHAR(10),
   stev_stanovanja       INTEGER,
   vrsta                 SMALLINT,
@@ -46,7 +46,7 @@ CREATE TABLE core.kpp_del_stavbe (
 
     naselje                                 VARCHAR(103),
     ulica                                   VARCHAR(300),
-    hisna_stevilka                          VARCHAR(40),
+    hisna_stevilka                          INTEGER,
     dodatek_hs                              VARCHAR(10),
     stev_stanovanja                         INTEGER,
     vrsta                                   SMALLINT,
@@ -149,7 +149,7 @@ CREATE TABLE core.np_del_stavbe_deduplicated (
     obcina                      VARCHAR(102),
     naselje                     VARCHAR(103),
     ulica                       VARCHAR(300),
-    hisna_stevilka              VARCHAR(40),
+    hisna_stevilka              INTEGER,
     dodatek_hs                  VARCHAR(10),
     stev_stanovanja             INTEGER,
 
@@ -189,7 +189,7 @@ CREATE TABLE core.kpp_del_stavbe_deduplicated (
     obcina                      VARCHAR(102),
     naselje                     VARCHAR(103),
     ulica                       VARCHAR(300),
-    hisna_stevilka              VARCHAR(40),
+    hisna_stevilka              INTEGER,
     dodatek_hs                  VARCHAR(10),
     stev_stanovanja             INTEGER,
     

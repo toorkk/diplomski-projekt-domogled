@@ -36,7 +36,11 @@ d.stevilka_dela_stavbe,
 
 TRIM(d.naselje) as naselje,
 d.ulica,
-d.hisna_stevilka,
+CASE 
+    WHEN d.hisna_stevilka IS NULL OR TRIM(d.hisna_stevilka) = '' THEN NULL
+    WHEN d.hisna_stevilka ~ '^-?\d+\.?\d*$' THEN CAST(CAST(d.hisna_stevilka AS NUMERIC) AS INTEGER)
+    ELSE NULL 
+END as hisna_stevilka,
 d.dodatek_hs,
 d.stevilka_stanovanja_ali_poslovnega_prostora,
 d.vrsta_oddanih_prostorov,
