@@ -3,21 +3,23 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
-// Components
+// Komponente
 import Filter from "../Filter";
 import Switcher from "./Switcher";
 import Iskalnik from "./Iskalnik";
 import Podrobnosti from "./Podrobnosti";
 import PopupManager from "./PopupManager";
 
-// Managers and utilities
+// Importanje managerjev
 import LayerManager from "./LayerManager";
-import { 
-    MAP_CONFIG, 
-    DATA_SOURCE_CONFIG, 
+import {
+    MAP_CONFIG,
+    DATA_SOURCE_CONFIG,
     TIMEOUTS,
-    UI_CONFIG 
+    UI_CONFIG
 } from './MapConstants.jsx';
+
+//Importanje vseh utils
 import {
     buildPropertiesUrl,
     getApiDataSource,
@@ -28,7 +30,7 @@ import {
     handleApiError
 } from './MapUtils.jsx';
 
-// Styles and data
+// Stili in JSON podatki (katastri, občine)
 import '../Stili/Zemljevid.css';
 import municipalitiesData from '../Občine/KatObčine.json';
 import obcineData from '../Občine/OB.json';
@@ -41,7 +43,7 @@ export default function Zemljevid() {
     const layerManager = useRef(null);
     const dataSourceTypeRef = useRef('prodaja');
 
-    // State
+    // Definiranje STATOV (malo ugabno)
     const [isLoading, setIsLoading] = useState(false);
     const [municipalitiesLoaded, setMunicipalitiesLoaded] = useState(false);
     const [obcineLoaded, setObcineLoaded] = useState(false);
@@ -52,12 +54,12 @@ export default function Zemljevid() {
     const [showPropertyDetails, setShowPropertyDetails] = useState(false);
     const [dataSourceType, setDataSourceType] = useState('prodaja');
 
-    // Update ref when state changes
+    // Updejtanje ref ko se spremeni state
     useEffect(() => {
         dataSourceTypeRef.current = dataSourceType;
     }, [dataSourceType]);
 
-    // Handlers
+    // Handlerji
     const handlePropertySelect = useCallback((propertyData) => {
         console.log('Property selected:', propertyData);
         setSelectedProperty({ ...propertyData });
@@ -70,7 +72,7 @@ export default function Zemljevid() {
         const obcinaId = getObcinaId(obcinaFeature);
         const obcinaName = getObcinaName(obcinaFeature);
 
-        // Don't do anything if same občina is already selected
+        // Ne naredi nic ce je isti kataster izbran ponovno
         if (selectedObcina?.obcinaId === obcinaId) {
             console.log(`Občina ${obcinaName} already selected - ignoring click`);
             return;
@@ -78,12 +80,12 @@ export default function Zemljevid() {
 
         console.log('Občina clicked:', obcinaName, 'ID:', obcinaId);
 
-        // Reset municipality selection
+        // Resetira kataster selection
         setSelectedMunicipality(null);
 
-        // Calculate bounds and zoom to občina
+        // Kalkuliranje boundsov in zooma
         const bounds = calculateBoundsFromGeometry(obcinaFeature.geometry);
-        
+
         setSelectedObcina({
             name: obcinaName,
             obcinaId: obcinaId,
@@ -96,7 +98,7 @@ export default function Zemljevid() {
             essential: true
         });
 
-        // Don't load properties for občina - wait for municipality selection
+        // Ne nalozimo nepremicnin za obcine ampak cakamo da izberes kataster
     }, [selectedObcina]);
 
     const handleMunicipalityClick = useCallback((municipalityFeature) => {
@@ -105,7 +107,7 @@ export default function Zemljevid() {
         const sifko = municipalityFeature.properties.SIFKO;
         const municipalityName = getMunicipalityName(municipalityFeature);
 
-        // Don't do anything if same municipality is already selected
+        // Ne nareddi nic ce je izbrana isti kataster
         if (selectedMunicipality?.sifko === sifko) {
             console.log(`Municipality ${municipalityName} already selected - ignoring click`);
             return;
@@ -120,7 +122,7 @@ export default function Zemljevid() {
 
         // Calculate bounds and zoom to municipality
         const bounds = calculateBoundsFromGeometry(municipalityFeature.geometry);
-        
+
         setSelectedMunicipality({
             name: municipalityName,
             sifko: sifko,
@@ -133,14 +135,14 @@ export default function Zemljevid() {
             essential: true
         });
 
-        // Load properties for this municipality
+        // Nalaganje nepremicnin za izbran kataster
         fetchPropertiesForMunicipality(sifko);
     }, [selectedMunicipality]);
 
     const handleDataSourceChange = useCallback((newType) => {
         console.log(`Changing data source type to: ${newType}`);
 
-        // Cleanup via PopupManager
+        // Cleanup preko PopupManagerja
         if (popupManager.current) {
             popupManager.current.updateDataSourceType(newType);
         }
@@ -198,7 +200,7 @@ export default function Zemljevid() {
         });
     }, []);
 
-    // Data fetching
+    // Pridobivanje/fetchanje podatkov
     const fetchPropertiesForMunicipality = useCallback(async (sifko) => {
         if (!map.current || isLoading || !sifko) return;
 
@@ -219,7 +221,7 @@ export default function Zemljevid() {
             }
 
             const geojson = await response.json();
-            
+
             console.log(`API response:`, geojson);
             console.log(`Total features returned: ${geojson.features.length}`);
 
@@ -230,7 +232,7 @@ export default function Zemljevid() {
             console.log('Individual features:', individualFeatures.length);
             console.log('Cluster features:', clusterFeatures.length);
 
-            // Update layers using LayerManager
+            // Posodobitev layerjev s LayerManagerjem
             if (layerManager.current) {
                 layerManager.current.addPropertiesLayers(individualFeatures, currentDataSourceType);
                 layerManager.current.addClustersLayers(clusterFeatures, currentDataSourceType);
@@ -256,10 +258,10 @@ export default function Zemljevid() {
 
         try {
             console.log('Loading občine layer...');
-            
+
             layerManager.current.addObcineLayers(obcineData);
             setupObcinaEventHandlers();
-            
+
             setObcineLoaded(true);
             console.log('Občine layer loaded successfully');
 
@@ -273,10 +275,10 @@ export default function Zemljevid() {
 
         try {
             console.log('Loading municipalities layer...');
-            
+
             layerManager.current.addMunicipalitiesLayers(municipalitiesData);
             setupMunicipalityEventHandlers();
-            
+
             setMunicipalitiesLoaded(true);
             console.log('Municipalities layer loaded successfully');
 
@@ -285,25 +287,37 @@ export default function Zemljevid() {
         }
     }, [municipalitiesLoaded]);
 
+
+
+
+    //setupObcinaEventHandlers funkcija
     const setupObcinaEventHandlers = useCallback(() => {
         if (!map.current) return;
 
-        const hoverEnterHandler = (e) => {
+        let currentHoveredObcinaId = null;
+
+        const hoverMoveHandler = (e) => {
             const hoveredObcinaId = e.features[0]?.properties?.OB_ID;
             const hoveredObcinaName = e.features[0]?.properties?.OB_UIME;
-            
-            if (!selectedObcina || selectedObcina.obcinaId !== hoveredObcinaId) {
-                map.current.getCanvas().style.cursor = 'pointer';
-                
-                // Set hover state
-                setHoveredRegion({
-                    name: hoveredObcinaName,
-                    type: 'Občina'
-                });
+
+            // Preveri če se je hover spremenil
+            if (hoveredObcinaId !== currentHoveredObcinaId) {
+                currentHoveredObcinaId = hoveredObcinaId;
+
+                if (!selectedObcina || selectedObcina.obcinaId !== hoveredObcinaId) {
+                    map.current.getCanvas().style.cursor = 'pointer';
+
+                    // Set hover state
+                    setHoveredRegion({
+                        name: hoveredObcinaName,
+                        type: 'Občina'
+                    });
+                }
             }
         };
 
         const hoverLeaveHandler = () => {
+            currentHoveredObcinaId = null;
             map.current.getCanvas().style.cursor = '';
             setHoveredRegion(null); // Clear hover state
         };
@@ -315,24 +329,31 @@ export default function Zemljevid() {
             }
         };
 
-        map.current.on('mouseenter', 'obcine-fill', hoverEnterHandler);
+        // Uporabljamo mousemove namesto mouseenter za boljše sledenje
+        map.current.on('mousemove', 'obcine-fill', hoverMoveHandler);
         map.current.on('mouseleave', 'obcine-fill', hoverLeaveHandler);
         map.current.on('click', 'obcine-fill', clickHandler);
 
         // Store handlers for cleanup
         map.current._obcinaHandlers = {
-            hoverEnterHandler,
+            hoverMoveHandler,
             hoverLeaveHandler,
             clickHandler
         };
     }, [selectedObcina, handleObcinaClick]);
 
     const setupMunicipalityEventHandlers = useCallback(() => {
-        if (!map.current) return;
+    if (!map.current) return;
 
-        const hoverEnterHandler = (e) => {
-            const hoveredSifko = e.features[0]?.properties?.SIFKO;
-            const hoveredMunicipalityName = getMunicipalityName(e.features[0]);
+    let currentHoveredSifko = null;
+
+    const hoverMoveHandler = (e) => {
+        const hoveredSifko = e.features[0]?.properties?.SIFKO;
+        const hoveredMunicipalityName = getMunicipalityName(e.features[0]);
+        
+        // Preveri če se je hover spremenil
+        if (hoveredSifko !== currentHoveredSifko) {
+            currentHoveredSifko = hoveredSifko;
             
             if (!selectedMunicipality || selectedMunicipality.sifko !== hoveredSifko) {
                 map.current.getCanvas().style.cursor = 'pointer';
@@ -343,31 +364,34 @@ export default function Zemljevid() {
                     type: 'Občina'
                 });
             }
-        };
+        }
+    };
 
-        const hoverLeaveHandler = () => {
-            map.current.getCanvas().style.cursor = '';
-            setHoveredRegion(null); // Clear hover state
-        };
+    const hoverLeaveHandler = () => {
+        currentHoveredSifko = null;
+        map.current.getCanvas().style.cursor = '';
+        setHoveredRegion(null); // Clear hover state
+    };
 
-        const clickHandler = (e) => {
-            if (e.features && e.features[0]) {
-                setHoveredRegion(null); // Clear hover on click
-                handleMunicipalityClick(e.features[0]);
-            }
-        };
+    const clickHandler = (e) => {
+        if (e.features && e.features[0]) {
+            setHoveredRegion(null); // Clear hover on click
+            handleMunicipalityClick(e.features[0]);
+        }
+    };
 
-        map.current.on('mouseenter', 'municipalities-fill', hoverEnterHandler);
-        map.current.on('mouseleave', 'municipalities-fill', hoverLeaveHandler);
-        map.current.on('click', 'municipalities-fill', clickHandler);
+    // Uporabljamo mousemove namesto mouseenter za boljše sledenje
+    map.current.on('mousemove', 'municipalities-fill', hoverMoveHandler);
+    map.current.on('mouseleave', 'municipalities-fill', hoverLeaveHandler);
+    map.current.on('click', 'municipalities-fill', clickHandler);
 
-        // Store handlers for cleanup
-        map.current._municipalityHandlers = {
-            hoverEnterHandler,
-            hoverLeaveHandler,
-            clickHandler
-        };
-    }, [selectedMunicipality, handleMunicipalityClick]);
+    // Store handlers for cleanup
+    map.current._municipalityHandlers = {
+        hoverMoveHandler,
+        hoverLeaveHandler,
+        clickHandler
+    };
+}, [selectedMunicipality, handleMunicipalityClick]);
 
     // Effects
     useEffect(() => {
@@ -405,7 +429,7 @@ export default function Zemljevid() {
                 // IMPORTANT: Load občine FIRST to establish proper layer order
                 // This ensures občine outline will be above municipalities outline
                 loadObcine();
-                
+
                 // Then load municipalities (will be inserted below občine)
                 loadMunicipalities();
 
@@ -450,7 +474,7 @@ export default function Zemljevid() {
         let timeoutId;
         const handleZoomEnd = () => {
             const currentZoom = map.current.getZoom();
-            
+
             // Update layer visibility based on zoom level
             if (layerManager.current) {
                 layerManager.current.updateLayerVisibilityByZoom(currentZoom);
@@ -473,29 +497,29 @@ export default function Zemljevid() {
     };
 
     const cleanup = () => {
-        if (map.current) {
-            // Cleanup zoom handler
-            if (map.current._zoomEndHandler) {
-                map.current.off('zoomend', map.current._zoomEndHandler);
-            }
+    if (map.current) {
+        // Cleanup zoom handler
+        if (map.current._zoomEndHandler) {
+            map.current.off('zoomend', map.current._zoomEndHandler);
+        }
 
-            // Cleanup občina handlers
-            if (map.current._obcinaHandlers) {
-                const { hoverEnterHandler, hoverLeaveHandler, clickHandler } = map.current._obcinaHandlers;
-                map.current.off('mouseenter', 'obcine-fill', hoverEnterHandler);
-                map.current.off('mouseleave', 'obcine-fill', hoverLeaveHandler);
-                map.current.off('click', 'obcine-fill', clickHandler);
-                delete map.current._obcinaHandlers;
-            }
+        // Cleanup občina handlers
+        if (map.current._obcinaHandlers) {
+            const { hoverMoveHandler, hoverLeaveHandler, clickHandler } = map.current._obcinaHandlers;
+            map.current.off('mousemove', 'obcine-fill', hoverMoveHandler);
+            map.current.off('mouseleave', 'obcine-fill', hoverLeaveHandler);
+            map.current.off('click', 'obcine-fill', clickHandler);
+            delete map.current._obcinaHandlers;
+        }
 
-            // Cleanup municipality handlers
-            if (map.current._municipalityHandlers) {
-                const { hoverEnterHandler, hoverLeaveHandler, clickHandler } = map.current._municipalityHandlers;
-                map.current.off('mouseenter', 'municipalities-fill', hoverEnterHandler);
-                map.current.off('mouseleave', 'municipalities-fill', hoverLeaveHandler);
-                map.current.off('click', 'municipalities-fill', clickHandler);
-                delete map.current._municipalityHandlers;
-            }
+        // Cleanup municipality handlers
+        if (map.current._municipalityHandlers) {
+            const { hoverMoveHandler, hoverLeaveHandler, clickHandler } = map.current._municipalityHandlers;
+            map.current.off('mousemove', 'municipalities-fill', hoverMoveHandler);
+            map.current.off('mouseleave', 'municipalities-fill', hoverLeaveHandler);
+            map.current.off('click', 'municipalities-fill', clickHandler);
+            delete map.current._municipalityHandlers;
+        }
 
             // Cleanup managers
             if (popupManager.current) {
@@ -554,8 +578,8 @@ export default function Zemljevid() {
                 <div className="absolute bottom-4 right-4 z-20 bg-white rounded-lg shadow-lg border border-gray-200 px-4 py-2">
                     <div className="flex items-center space-x-2">
                         <span className="text-sm font-medium text-gray-700">
-                            {selectedMunicipality 
-                                ? `Kataster: ${selectedMunicipality.name}` 
+                            {selectedMunicipality
+                                ? `Kataster: ${selectedMunicipality.name}`
                                 : `Občina: ${selectedObcina.name}`
                             }
                         </span>
@@ -571,9 +595,9 @@ export default function Zemljevid() {
 
             {/* UI Components */}
             <Filter />
-            <Switcher 
-                activeType={dataSourceType} 
-                onChangeType={handleDataSourceChange} 
+            <Switcher
+                activeType={dataSourceType}
+                onChangeType={handleDataSourceChange}
             />
             <Iskalnik onSearch={handleSearch} />
 
