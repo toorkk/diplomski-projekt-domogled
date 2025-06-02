@@ -247,7 +247,7 @@ class PropertyService:
         ).scalar()
         print(f"st nepremicnin brez filtrov - distance clustering: {total_count}")
         
-        base_query = PropertyService._apply_property_filters(base_query, DeduplicatedModel, filters, data_source)
+        base_query = apply_property_filters(base_query, DeduplicatedModel, filters, data_source)
         
         cluster_query = base_query.group_by(
             DeduplicatedModel.obcina,
@@ -386,7 +386,7 @@ class PropertyService:
             DeduplicatedModel.stevilka_stavbe == stevilka_stavbe
         )
         
-        base_query = PropertyService._apply_property_filters(base_query, DeduplicatedModel, filters, data_source)
+        base_query = apply_property_filters(base_query, DeduplicatedModel, filters, data_source)
         
         deduplicated_properties = base_query.all()
         
