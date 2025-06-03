@@ -47,13 +47,14 @@ export const COLOR_SCHEME = {
         CLUSTER: ['#34D399', '#10B981', '#059669', '#047857']
     },
     MUNICIPALITY: {
-        DEFAULT: '#64748b',
-        SELECTED: '#3B82F6'
+        DEFAULT: '#808080',    // Svetla siva - manj opazna
+        SELECTED: '#000000',   // Modra - usklajena s temo
+        HOVER: '#000000'       // Temnejša modra - jasno vidna
     },
     OBCINA: {
-        DEFAULT: '#00008B',
-        SELECTED: '#7C3AED',
-        HOVER: '#A78BFA'
+        DEFAULT: '#808080',    // Zelo svetla siva - prozorna
+        SELECTED: '#000000',   // Črna barva za selected
+        HOVER: '#000000'       // Temnejša modra za hover
     }
 };
 
@@ -95,7 +96,8 @@ export const SOURCE_IDS = {
 // Zoom levels for different data types
 export const ZOOM_LEVELS = {
     OBCINE_THRESHOLD: 9, // Below this zoom show občine, above show municipalities
-    MUNICIPALITY_DETAIL: 12 // When to load property data
+    MUNICIPALITY_DETAIL: 12, // When to load property data
+    AUTO_LOAD_PROPERTIES: 11 // NOVO: Samodejno nalaganje nepremičnin na tem zoom nivoju
 };
 
 // Zoom-dependent styling
@@ -123,20 +125,31 @@ export const ZOOM_STYLES = {
             'interpolate',
             ['linear'],
             ['zoom'],
-            6, 0.5,
-            8, 0.8,
-            10, 1,
-            12, 1.2,
-            14, 1.5
+            6, 0.3,    // Tanjše default črte
+            8, 0.5,
+            10, 0.7,
+            12, 0.9,
+            14, 1.1
         ],
         LINE_OPACITY: [
             'interpolate',
             ['linear'],
             ['zoom'],
-            6, 0.3,
-            8, 0.5,
+            6, 0.4,    // Bolj prozorne
+            8, 0.6,
             10, 0.7,
             12, 0.8
+        ],
+        // Hover debelina
+        HOVER_LINE_WIDTH: [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            6, 1.2,    // Občutno debelejše za hover
+            8, 1.5,
+            10, 1.8,
+            12, 2.2,
+            14, 2.5
         ],
         LABEL_SIZE: [
             'interpolate',
@@ -155,6 +168,49 @@ export const ZOOM_STYLES = {
             8, 0,
             9, 0.7,
             11, 1
+        ]
+    },
+    // Nove vrednosti za občine
+    OBCINE: {
+        DEFAULT_LINE_WIDTH: [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            5, 1.0,    // Tanjše default
+            7, 1.3,
+            9, 1.2,
+            12, 1.0,
+            15, 0.8
+        ],
+        DEFAULT_OPACITY: [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            5, 0.5,    // Bolj prozorne
+            7, 0.7,
+            9, 0.5,
+            12, 0.4,
+            15, 0.3
+        ],
+        HOVER_LINE_WIDTH: [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            5, 2.0,    // Močno povečanje za hover
+            7, 2.5,
+            9, 2.3,
+            12, 2.0,
+            15, 1.8
+        ],
+        SELECTED_LINE_WIDTH: [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            5, 3.5,    // Povečano: Še debelejše za selected (prej 2.5)
+            7, 4.0,    // Povečano: (prej 3.0)
+            9, 3.8,    // Povečano: (prej 2.8)
+            12, 3.5,   // Povečano: (prej 2.5)
+            15, 3.0    // Povečano: (prej 2.0)
         ]
     },
     CLUSTERS: {

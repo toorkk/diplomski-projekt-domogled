@@ -56,33 +56,15 @@ class LayerManager {
                 }
             });
 
-            // Add outline layer
+            // Add outline layer with improved default styles
             this.map.addLayer({
                 id: LAYER_IDS.OBCINE.OUTLINE,
                 type: 'line',
                 source: SOURCE_IDS.OBCINE,
                 paint: {
                     'line-color': COLOR_SCHEME.OBCINA.DEFAULT,
-                    'line-width': [
-                        'interpolate',
-                        ['linear'],
-                        ['zoom'],
-                        5, 1.5,
-                        7, 2,
-                        9, 1.8,  // Slightly thicker when municipalities appear
-                        12, 1.5, // More visible at higher zoom
-                        15, 1    // Still visible at high zoom for context
-                    ],
-                    'line-opacity': [
-                        'interpolate',
-                        ['linear'],
-                        ['zoom'],
-                        5, 0.7,
-                        7, 0.9,
-                        9, 0.6,   // Slightly more visible when municipalities appear
-                        12, 0.5,  // More visible at higher zoom
-                        15, 0.4   // Still noticeable at high zoom
-                    ]
+                    'line-width': ZOOM_STYLES.OBCINE.DEFAULT_LINE_WIDTH,
+                    'line-opacity': ZOOM_STYLES.OBCINE.DEFAULT_OPACITY
                 },
                 layout: {
                     'visibility': 'visible'
@@ -148,26 +130,16 @@ class LayerManager {
         this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-width', [
             'case',
             ['==', ['get', 'OB_ID'], selectedObcinaId || -1],
-            [
-                'interpolate',
-                ['linear'],
-                ['zoom'],
-                5, 2.5,   // Thicker for selected at low zoom
-                7, 3,
-                9, 2.5,   // Still visible when municipalities appear
-                12, 2,    // Maintain visibility at higher zoom
-                15, 1.5   // Keep context even at high zoom
-            ],
-            [
-                'interpolate',
-                ['linear'],
-                ['zoom'],
-                5, 1.5,
-                7, 2,
-                9, 1.8,   // More visible when municipalities appear
-                12, 1.5,  // Maintain visibility at higher zoom
-                15, 1     // Keep context even at high zoom
-            ]
+            ZOOM_STYLES.OBCINE.SELECTED_LINE_WIDTH,
+            ZOOM_STYLES.OBCINE.DEFAULT_LINE_WIDTH
+        ]);
+
+        // Update opacity for better visibility of selected
+        this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-opacity', [
+            'case',
+            ['==', ['get', 'OB_ID'], selectedObcinaId || -1],
+            1.0,  // Popolna vidnost za selected
+            ZOOM_STYLES.OBCINE.DEFAULT_OPACITY
         ]);
 
         // Update click filter - disable clicks on selected občina, but only control the fill layer
@@ -178,6 +150,33 @@ class LayerManager {
         } else {
             this.map.setFilter(LAYER_IDS.OBCINE.FILL, null);
         }
+    }
+
+    // NEW: Update občina hover state
+    updateObcinaHover(hoveredObcinaId = null) {
+        if (!this.map.getLayer(LAYER_IDS.OBCINE.OUTLINE)) return;
+
+        // Update outline style for hovered občina
+        this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-color', [
+            'case',
+            ['==', ['get', 'OB_ID'], hoveredObcinaId || -1],
+            COLOR_SCHEME.OBCINA.HOVER,
+            COLOR_SCHEME.OBCINA.DEFAULT
+        ]);
+
+        this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-width', [
+            'case',
+            ['==', ['get', 'OB_ID'], hoveredObcinaId || -1],
+            ZOOM_STYLES.OBCINE.HOVER_LINE_WIDTH,
+            ZOOM_STYLES.OBCINE.DEFAULT_LINE_WIDTH
+        ]);
+
+        this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-opacity', [
+            'case',
+            ['==', ['get', 'OB_ID'], hoveredObcinaId || -1],
+            0.9,  // Povečana vidnost za hover
+            ZOOM_STYLES.OBCINE.DEFAULT_OPACITY
+        ]);
     }
 
     // Control visibility based on zoom level
@@ -207,6 +206,7 @@ class LayerManager {
 
         console.log(`Zoom ${currentZoom}: Občine outline always visible, labels ${showObcineLabels ? 'visible' : 'hidden'}, fill ${showObcineFill ? 'clickable' : 'disabled'}, Municipalities ${showMunicipalities ? 'visible' : 'hidden'}`);
     }
+    
     addMunicipalitiesLayers(municipalitiesData) {
         if (this.map.getSource(SOURCE_IDS.MUNICIPALITIES)) {
             console.log('Municipalities already loaded');
@@ -231,7 +231,7 @@ class LayerManager {
                 }
             });
 
-            // Add outline layer
+            // Add outline layer with improved default styles
             this.map.addLayer({
                 id: LAYER_IDS.MUNICIPALITIES.OUTLINE,
                 type: 'line',
@@ -243,7 +243,6 @@ class LayerManager {
                 }
             });
 
-
             console.log('Municipalities layers added successfully');
         } catch (error) {
             console.error('Error adding municipalities layers:', error);
@@ -254,10 +253,19 @@ class LayerManager {
     updateMunicipalitySelection(selectedSifko = null) {
         if (!this.map.getLayer(LAYER_IDS.MUNICIPALITIES.OUTLINE)) return;
 
+        // Use createMunicipalityOutlineStyle for consistent styling
         const outlineStyle = createMunicipalityOutlineStyle(selectedSifko);
         
         this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-color', outlineStyle['line-color']);
         this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-width', outlineStyle['line-width']);
+
+        // Update opacity for selected municipality
+        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-opacity', [
+            'case',
+            ['==', ['get', 'SIFKO'], selectedSifko || -1],
+            1.0,  // Popolna vidnost za selected
+            ZOOM_STYLES.MUNICIPALITIES.LINE_OPACITY
+        ]);
 
         // Update click filter
         if (selectedSifko) {
@@ -267,6 +275,33 @@ class LayerManager {
         } else {
             this.map.setFilter(LAYER_IDS.MUNICIPALITIES.FILL, null);
         }
+    }
+
+    // NEW: Update municipality hover state
+    updateMunicipalityHover(hoveredSifko = null) {
+        if (!this.map.getLayer(LAYER_IDS.MUNICIPALITIES.OUTLINE)) return;
+
+        // Update outline style for hovered municipality
+        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-color', [
+            'case',
+            ['==', ['get', 'SIFKO'], hoveredSifko || -1],
+            COLOR_SCHEME.MUNICIPALITY.HOVER,
+            COLOR_SCHEME.MUNICIPALITY.DEFAULT
+        ]);
+
+        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-width', [
+            'case',
+            ['==', ['get', 'SIFKO'], hoveredSifko || -1],
+            ZOOM_STYLES.MUNICIPALITIES.HOVER_LINE_WIDTH,
+            ZOOM_STYLES.MUNICIPALITIES.LINE_WIDTH
+        ]);
+
+        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-opacity', [
+            'case',
+            ['==', ['get', 'SIFKO'], hoveredSifko || -1],
+            1.0,  // Popolna vidnost za hover
+            ZOOM_STYLES.MUNICIPALITIES.LINE_OPACITY
+        ]);
     }
 
     // Properties layers
