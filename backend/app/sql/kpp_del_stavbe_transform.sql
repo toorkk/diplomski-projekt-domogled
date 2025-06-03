@@ -60,7 +60,7 @@ SELECT
     prodani_delez_dela_stavbe,
     prodana_povrsina_dela_stavbe,
     prodana_uporabna_povrsina_dela_stavbe,
-    nadstropje_dela_stavbe,
+    CAST(CAST(nadstropje_dela_stavbe AS NUMERIC) AS INTEGER) as nadstropje_dela_stavbe,
     stevilo_zunanjih_parkirnih_mest,
     atrij,
     povrsina_atrija,

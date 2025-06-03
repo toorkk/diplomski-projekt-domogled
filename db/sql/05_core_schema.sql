@@ -58,7 +58,7 @@ CREATE TABLE core.kpp_del_stavbe (
     prodani_delez                           VARCHAR(199),
     prodana_povrsina_dela_stavbe            NUMERIC(10,2),
     prodana_uporabna_povrsina_dela_stavbe   NUMERIC(10,2),
-    nadstropje                              VARCHAR(50),
+    nadstropje                              INTEGER,
     stevilo_zunanjih_parkirnih_mest         INTEGER,
     atrij                                   INTEGER,
     povrsina_atrija                         NUMERIC(10,2),

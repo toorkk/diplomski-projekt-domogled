@@ -132,7 +132,7 @@ class KppDelStavbe(Base):
     prodani_delez = Column(String(199))
     prodana_povrsina_dela_stavbe = Column(Numeric(10, 2))
     prodana_uporabna_povrsina_dela_stavbe = Column(Numeric(10, 2))
-    nadstropje = Column(String(50))
+    nadstropje = Column(Integer)
     stevilo_zunanjih_parkirnih_mest = Column(Integer)
     atrij = Column(Integer)
     povrsina_atrija = Column(Numeric(10, 2))
