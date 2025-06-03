@@ -181,8 +181,8 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
               : 'w-0 opacity-0 overflow-hidden'
           }`}
           style={{
-            height: '50vh',
-            maxHeight: '500px',
+            height: '100vh',
+            maxHeight: '580px',
             minHeight: '400px'
           }}
         >
@@ -206,7 +206,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
           </div>
           
           {/* filter content */}
-          <div className="p-4 md:p-6 overflow-y-auto" style={{ height: 'calc(50vh - 80px)' }}>
+          <div className="p-4 md:p-6 overflow-y-auto">
             <div className="space-y-6">
               
               {/* leto */}
@@ -409,7 +409,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
             
             {/* leto */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Leto posla</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Posli od leta</label>
               <select
                 value={filters.filter_leto || ''}
                 onChange={(e) => handleFilterChange('filter_leto', e.target.value || null)}

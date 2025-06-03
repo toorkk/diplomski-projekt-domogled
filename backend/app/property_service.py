@@ -5,7 +5,7 @@ from difflib import SequenceMatcher
 
 from .models import EnergetskaIzkaznica
 
-from .clustering_utils import calculate_cluster_resolution, get_deduplicated_property_model, get_del_stave_model, get_posel_model, serialize_list_to_json, apply_property_filters
+from .clustering_utils import calculate_cluster_resolution, get_deduplicated_property_model, get_del_stave_model, get_posel_model, serialize_list_to_json, apply_property_filters, serialize_to_json
 
 
 def get_municipality_similarity(name1: str, name2: str) -> float:
@@ -487,20 +487,9 @@ class PropertyService:
             "properties": {
                 "deduplicated_id": dedup_del_stavbe[0].del_stavbe_id,
                 "type": "individual",
-                
-                "sifra_ko": representative_del_stavbe.sifra_ko,
-                "stevilka_stavbe": representative_del_stavbe.stevilka_stavbe,
-                "stevilka_dela_stavbe": representative_del_stavbe.stevilka_dela_stavbe,
-                "dejanska_raba": representative_del_stavbe.dejanska_raba,
-                "obcina": representative_del_stavbe.obcina,
-                "naselje": representative_del_stavbe.naselje,
-                "ulica": representative_del_stavbe.ulica,
-                "hisna_stevilka": representative_del_stavbe.hisna_stevilka,
-                "dodatek_hs": representative_del_stavbe.dodatek_hs,
-                "stev_stanovanja": representative_del_stavbe.stev_stanovanja,
-                "vrsta": representative_del_stavbe.vrsta,
-                "povrsina": float(representative_del_stavbe.povrsina) if representative_del_stavbe.povrsina else None,
                 "data_source": data_source,
+
+                "reprezentativni_del_stavbe": serialize_to_json(representative_del_stavbe),  
                 
                 "stevilo_poslov": len(dedup_del_stavbe[0].povezani_posel_ids),
                 "ima_vec_poslov": len(dedup_del_stavbe[0].povezani_posel_ids) > 1,

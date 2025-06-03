@@ -1,6 +1,30 @@
 const IndividualPopup = ({ properties, dataSourceType = 'prodaja' }) => {
 
     const naslov = `${properties.ulica || ''} ${properties.hisna_stevilka || ''} ${properties.dodatek_hs || ''}`.trim();
+
+    const getColorClasses = () => {
+        const isNajem = dataSourceType === 'najem' || properties.data_source === 'np';
+        return {
+            headerBg: isNajem ? 'bg-emerald-400' : 'bg-blue-300',
+            headerText: 'text-gray-800',
+            badgeBg: isNajem ? 'bg-emerald-400' : 'bg-blue-300',
+            buttonBg: isNajem ? 'bg-emerald-400' : 'bg-blue-300',
+            buttonHover: isNajem ? 'hover:bg-emerald-500' : 'hover:bg-blue-400'
+        };
+    };
+
+    const colors = getColorClasses();
+
+    const getNaslovDodatek = () => {
+        const naslovDodatek = [];
+        if (properties.obcina) naslovDodatek.push(properties.obcina);
+        if(properties.naselje && properties.naselje !== properties.obcina) naslovDodatek.push(properties.naselje);
+        if (properties.stev_stanovanja) naslovDodatek.push(`št. stan: ${properties.stev_stanovanja}`);
+    
+        return naslovDodatek.length > 0 
+            ? `<p class="text-blue-100 text-sm">${naslovDodatek.join(', ')}</p>` 
+            : '';
+    };
     
     const contractCount = properties.stevilo_poslov || 1;
     const hasMultipleContracts = properties.ima_vec_poslov || false;
@@ -34,38 +58,41 @@ const IndividualPopup = ({ properties, dataSourceType = 'prodaja' }) => {
     };
     
     const priceInfo = getLatestPriceInfo();
+    const naslovDodatek = getNaslovDodatek();
     
     return `
-        <div class="font-sans bg-white rounded-lg overflow-hidden w-80">
-            <!-- Modro zglavje -->
-            <div class="bg-[rgb(59,130,246)] text-white p-4">
-                ${naslov ? `<h3 class="font-bold text-lg mb-1">${naslov}</h3>` :
-                properties.naselje ? `<h3 class="font-bold text-lg mb-1">${properties.naselje}</h3>` : ''}
-                
-                ${properties.obcina && properties.obcina !== properties.naselje ? 
-                    `<p class="text-blue-100 text-sm">${properties.obcina}</p>` : ''}
-                
-                <div class="mt-2 flex gap-2">
-                    ${properties.zadnje_leto ? `
-                    <span class="bg-gray-50 px-2 py-1 rounded text-xs text-gray-800 h-6 flex items-center">
-                        ${properties.zadnje_leto}
-                    </span>
-                    ` : ''}
-                    ${hasMultipleContracts ? `
-                    <span class="bg-blue-600 px-2 py-1 rounded text-xs h-6 flex items-center">
-                        ${contractCount}x poslov
-                    </span>
-                    ` : ''}
-                    ${properties.energijski_razred ? `
-                    <span class="bg-blue-600 px-2 py-1 rounded text-xs h-6 flex items-center">
-                        ${properties.energijski_razred}
-                    </span>
-                    ` : ''}
+        <div class="font-sans rounded-lg overflow-hidden w-80">
+            <!-- Dynamic color header -->
+            <div class="backdrop-blur">
+                <div class="${colors.headerBg} opacity-80 ${colors.headerText} p-4">
+                    ${naslov ? `<h3 class="font-bold text-lg mb-1">${naslov}</h3>` :
+                    properties.naselje ? `<h3 class="font-bold text-lg mb-1">${properties.naselje}</h3>` : ''
+                    }   
+                    
+                        <p class="text-blue-100 text-sm">${naslovDodatek}</p>
+                    
+                    <div class="mt-2 flex gap-2">
+                        ${properties.zadnje_leto ? `
+                        <span class="bg-gray-50 px-2 py-1 rounded text-xs text-gray-800 h-6 flex items-center">
+                            ${properties.zadnje_leto}
+                        </span>
+                        ` : ''}
+                        ${hasMultipleContracts ? `
+                        <span class="${colors.badgeBg} px-2 py-1 rounded text-xs h-6 flex items-center">
+                            ${contractCount}x poslov
+                        </span>
+                        ` : ''}
+                        ${properties.energijski_razred ? `
+                        <span class="${colors.badgeBg} px-2 py-1 rounded text-xs h-6 flex items-center">
+                            ${properties.energijski_razred}
+                        </span>
+                        ` : ''}
+                    </div>
                 </div>
             </div>
 
             <!-- Vsebina -->
-            <div class="p-4">
+            <div class="p-4 bg-white">
                 <div class="text-sm mb-4">
                     <div class="grid grid-cols-2 gap-y-2 mb-2">
                         
@@ -73,33 +100,28 @@ const IndividualPopup = ({ properties, dataSourceType = 'prodaja' }) => {
                         <div class="text-gray-600">Površina / Uporabna:</div>
                         <div class="font-medium">${properties.povrsina} m² / ${properties.povrsina_uporabna} m²</div>
                         ` : ''}
+
+                        ${properties.stevilo_sob ? `
+                        <div class="text-gray-600">Število sob:</div>
+                        <div class="font-medium">${properties.stevilo_sob}</div>
+                        ` : ''}
+
+                        ${properties.opremljenost ? `
+                        <div class="text-gray-600">Opremljeno:</div>
+                        <div class="font-medium">${properties.opremljenost == 1 ? 'Da' : 'Ne'}</div>
+                        ` : ''}
                         
                         ${properties.leto_izgradnje_stavbe ? `
                         <div class="text-gray-600">Leto izgradnje:</div>
                         <div class="font-medium">${properties.leto_izgradnje_stavbe}</div>
                         ` : ''}
-                        
-                        ${properties.stevilo_sob ? `
-                        <div class="text-gray-600">Število sob:</div>
-                        <div class="font-medium">${properties.stevilo_sob}</div>
-                        ` : ''}
-                        
-                        ${properties.opremljenost ? `
-                        <div class="text-gray-600">Opremljenost:</div>
-                        <div class="font-medium">${properties.opremljenost}</div>
-                        ` : ''}
-                        
-                        ${properties.stev_stanovanja ? `
-                        <div class="text-gray-600">Št. stanovanja:</div>
-                        <div class="font-medium">${properties.stev_stanovanja}</div>
+
+                        ${properties.dejanska_raba ? `
+                        <div class="text-gray-600">Tip objekta:</div>
+                        <div class="font-medium">${properties.dejanska_raba}</div>
                         ` : ''}
                         
                     </div>
-
-                    ${properties.dejanska_raba ? `
-                    <div class="text-gray-600 mb-1">Tip objekta:</div>
-                    <div class="font-medium">${properties.dejanska_raba}</div>
-                    ` : ''}
                 </div>
                 
                 <!-- Cena nepremičnine -->
@@ -119,12 +141,6 @@ const IndividualPopup = ({ properties, dataSourceType = 'prodaja' }) => {
                         ` : `
                         <div class="font-bold text-lg text-gray-600">Podatek ni na voljo</div>
                         `}
-                        
-                        ${hasMultipleContracts ? `
-                        <div class="text-xs text-blue-600 mt-2">
-                            ${contractCount - 1} ${contractCount === 2 ? 'dodatni posel' : 'dodatnih poslov'} na voljo
-                        </div>
-                        ` : ''}
                     </div>
                 </div>
                 
@@ -145,10 +161,10 @@ const IndividualPopup = ({ properties, dataSourceType = 'prodaja' }) => {
                     </div>
                 </details>
                 
-                <!-- Moder gumb za podrobnosti -->
+                <!-- Dynamic color button -->
                 <div class="text-center">
                     <button 
-                        class="bg-[rgb(59,130,246)] hover:bg-[rgb(29,100,216)] text-white py-2 px-4 rounded text-sm transition-colors duration-200 w-full"
+                        class="${colors.buttonBg} ${colors.buttonHover} text-white py-2 px-4 rounded text-sm transition-colors duration-200 w-full"
                         id="btnShowDetails_${properties.id}"
                     >
                         ${hasMultipleContracts ? 'Prikaži vse posle' : 'Več podrobnosti'}

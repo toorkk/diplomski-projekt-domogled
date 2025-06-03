@@ -30,7 +30,7 @@ export default function Switcher({ activeType, onChangeType }) {
         <span className={`${
           isMobile ? 'text-sm' : 'text-base'
         } font-medium transition-colors duration-200 ${
-          activeType === 'prodaja' ? 'text-blue-700' : 'text-gray-600'
+          activeType === 'prodaja' ? 'text-blue-300' : 'text-gray-600'
         }`}>
           Prodaja
         </span>
@@ -38,11 +38,11 @@ export default function Switcher({ activeType, onChangeType }) {
         {/* Toggle switch */}
         <button
           onClick={() => onChangeType(activeType === 'prodaja' ? 'najem' : 'prodaja')}
-          className={`relative inline-flex items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+          className={`relative inline-flex items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-gray-200 focus:ring-offset-2 ${
             isMobile ? 'h-5 w-9' : 'h-6 w-11'
           }`}
           style={{
-            backgroundColor: activeType === 'prodaja' ? '#3B82F6' : '#10B981'
+            backgroundColor: activeType === 'prodaja' ? '#8ec5ff' : '#00d492'
           }}
           aria-pressed={activeType !== 'prodaja'}
           aria-label="Preklopi med prodajo in najemom"
@@ -64,7 +64,7 @@ export default function Switcher({ activeType, onChangeType }) {
         <span className={`${
           isMobile ? 'text-sm' : 'text-base'
         } font-medium transition-colors duration-200 ${
-          activeType === 'najem' ? 'text-green-700' : 'text-gray-600'
+          activeType === 'najem' ? 'text-emerald-400' : 'text-gray-600'
         }`}>
           Najem
         </span>

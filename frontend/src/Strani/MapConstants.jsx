@@ -37,14 +37,14 @@ export const DATA_SOURCE_CONFIG = {
 // Barve za različne tipe podatkov
 export const COLOR_SCHEME = {
     PRODAJA: {
-        CIRCLE: '#3B82F6',
-        STROKE: '#1D4ED8',
-        CLUSTER: ['#3B82F6', '#2563EB', '#1D4ED8', '#1E40AF']
+        CIRCLE: '#8ec5ff',
+        STROKE: '#4a5565',
+        CLUSTER: ['#8ec5ff', '#7ab8ff', '#6ba3ff', '#5c94ff']
     },
     NAJEM: {
-        CIRCLE: '#10B981',
-        STROKE: '#059669',
-        CLUSTER: ['#34D399', '#10B981', '#059669', '#047857']
+    CIRCLE: '#00d492',
+    STROKE: '#4a5565',
+    CLUSTER: ['#33dd9f', '#00d492', '#00b87a', '#009c62']
     },
     MUNICIPALITY: {
         DEFAULT: '#808080',    // Svetla siva - manj opazna

@@ -332,7 +332,7 @@ class LayerManager {
                     'circle-color': colors.CIRCLE,
                     'circle-opacity': 0.7,
                     'circle-stroke-width': 1,
-                    'circle-stroke-color': colors.STROKE
+                    'circle-stroke-color': "#ffffff"
                 }
             });
 
@@ -398,7 +398,7 @@ class LayerManager {
                     'circle-radius': ZOOM_STYLES.CLUSTERS.RADIUS,
                     'circle-color': createClusterColorExpression(colors.CLUSTER),
                     'circle-opacity': 0.8,
-                    'circle-stroke-width': 2,
+                    'circle-stroke-width': 1.5,
                     'circle-stroke-color': '#ffffff'
                 }
             });
@@ -414,7 +414,9 @@ class LayerManager {
                     'text-size': ZOOM_STYLES.CLUSTERS.COUNT_SIZE
                 },
                 paint: {
-                    'text-color': '#ffffff'
+                    'text-color': '#ffffff',
+                    'text-halo-color': colors.STROKE,
+                    'text-halo-width': 1
                 }
             });
 
@@ -460,9 +462,9 @@ class LayerManager {
                 paint: {
                     'circle-radius': ZOOM_STYLES.EXPANDED.CIRCLE_RADIUS,
                     'circle-color': colors.CIRCLE,
-                    'circle-opacity': 0.9,
-                    'circle-stroke-width': 1.5,
-                    'circle-stroke-color': colors.STROKE
+                    'circle-opacity': 0.7,
+                    'circle-stroke-width': 1,
+                    'circle-stroke-color': "#ffffff"
                 }
             });
 

@@ -684,7 +684,7 @@ export default function Zemljevid() {
         }
     }, [selectedObcina]);
 
-    // Map initialization - NO DEPENDENCIES TO AVOID LOOPS
+    // Map initialization
     useEffect(() => {
         if (!map.current && mapContainer.current) {
             map.current = new maplibregl.Map({
@@ -703,12 +703,12 @@ export default function Zemljevid() {
                 loadObcine();
                 loadMunicipalities();
                 layerManager.current.updateLayerVisibilityByZoom(MAP_CONFIG.INITIAL_ZOOM);
-                setupZoomHandler(); // Call directly, not as dependency
+                setupZoomHandler();
             });
         }
 
         return cleanup;
-    }, []); // EMPTY DEPENDENCIES - NO LOOPS
+    }, []);
 
     // ===========================================
     // RENDER
