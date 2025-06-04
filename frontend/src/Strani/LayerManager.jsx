@@ -71,44 +71,6 @@ class LayerManager {
                 }
             });
 
-            // Add labels layer
-            this.map.addLayer({
-                id: LAYER_IDS.OBCINE.LABELS,
-                type: 'symbol',
-                source: SOURCE_IDS.OBCINE,
-                layout: {
-                    'text-field': ['get', 'OB_UIME'],
-                    'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-                    'text-size': [
-                        'interpolate',
-                        ['linear'],
-                        ['zoom'],
-                        5, 10,
-                        7, 12,
-                        9, 14
-                    ],
-                    'text-anchor': 'center',
-                    'text-max-width': 8,
-                    'text-allow-overlap': false,
-                    'text-ignore-placement': false,
-                    'text-padding': 2,
-                    'visibility': 'visible'
-                },
-                paint: {
-                    'text-color': '#374151',
-                    'text-halo-color': '#ffffff',
-                    'text-halo-width': 2,
-                    'text-opacity': [
-                        'interpolate',
-                        ['linear'],
-                        ['zoom'],
-                        5, 0.7,
-                        7, 0.9,
-                        9, 1
-                    ]
-                }
-            });
-
             console.log('Občine layers added successfully');
         } catch (error) {
             console.error('Error adding občine layers:', error);

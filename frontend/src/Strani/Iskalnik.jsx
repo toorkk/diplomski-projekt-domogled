@@ -71,6 +71,7 @@ export default function Iskalnik({ onSearch }) {
     const handleClickOutside = (event) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
         setShowSuggestions(false);
+        setSearchVisible(false); // Zapre tudi search bar
       }
     };
 
@@ -84,6 +85,7 @@ export default function Iskalnik({ onSearch }) {
   const handleSuggestionClick = (suggestion) => {
     setSearchQuery(suggestion.name);
     setShowSuggestions(false);
+    setSearchVisible(false); // DODANO: Zapre search bar po izbiri predloga
     
     // Premaknemo zemljevid na izbrano lokacijo
     if (onSearch) {
@@ -96,13 +98,51 @@ export default function Iskalnik({ onSearch }) {
     }
   };
 
+  // POPRAVLJENA funkcija za Enter - izbere prvi rezultat če obstaja
   const handleSearch = (e) => {
     e.preventDefault();
+    
     if (searchQuery.trim()) {
-      if (onSearch) {
-        onSearch({ query: searchQuery });
+      // Če imamo predloge in prvi predlog obstaja, uporabi prvi predlog
+      if (suggestions.length > 0 && !loading) {
+        const firstSuggestion = suggestions[0];
+        console.log('Izbran prvi predlog:', firstSuggestion);
+        
+        // Posodobi search query z imenom prvega predloga
+        setSearchQuery(firstSuggestion.name);
+        setShowSuggestions(false);
+        setSearchVisible(false); // DODANO: Zapre search bar po Enter iskanju
+        
+        // Izvedi iskanje z koordinatami prvega predloga
+        if (onSearch) {
+          onSearch({
+            query: firstSuggestion.name,
+            coordinates: firstSuggestion.coordinates,
+            type: firstSuggestion.type,
+            properties: firstSuggestion
+          });
+        }
+      } else if (!loading) {
+        // Če ni predlogov, uporabi osnovni search (brez koordinat)
+        console.log('Ni predlogov, izvajam osnovni search:', searchQuery);
+        
+        setShowSuggestions(false);
+        setSearchVisible(false); // DODANO: Zapre search bar po osnovnem iskanju
+        
+        if (onSearch) {
+          onSearch({ query: searchQuery });
+        }
       }
+      // Če je loading=true, ne naredimo nič - počakamo da se predlogi naložijo
+    }
+  };
+
+  // DODANA funkcija za keyboard navigation
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
       setShowSuggestions(false);
+      setSearchQuery("");
+      setSearchVisible(false); // Zapre search bar na ESC
     }
   };
 
@@ -112,6 +152,7 @@ export default function Iskalnik({ onSearch }) {
       ref={searchContainerRef}
       onMouseEnter={() => setSearchVisible(true)}
       onMouseLeave={() => {
+        // NOVA LOGIKA: Zapre se samo če NISO prikazani predlogi
         if (!showSuggestions) {
           setSearchVisible(false);
         }
@@ -132,17 +173,24 @@ export default function Iskalnik({ onSearch }) {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="Iskanje lokacije..."
-              className="px-4 py-3 rounded-l-lg border-none focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+              className="px-4 py-3 rounded-l-lg border-none focus:outline-none focus:ring-2 focus:ring-gray-900 w-64"
               onFocus={() => setShowSuggestions(true)}
+              autoFocus
             />
             <button
               type="submit"
-              className="px-4 py-3 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 transition-colors duration-200"
+              disabled={loading}
+              className="px-4 py-3 bg-gray-900 text-white rounded-r-lg hover:bg-gray-700 disabled:bg-blue-400 transition-colors duration-200"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+              {loading ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              )}
             </button>
           </form>
 
@@ -152,19 +200,26 @@ export default function Iskalnik({ onSearch }) {
               {loading ? (
                 <div className="p-3 text-center text-gray-500">
                   <div className="flex items-center justify-center space-x-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
                     <span>Iskanje...</span>
                   </div>
                 </div>
               ) : suggestions.length > 0 ? (
                 <ul>
-                  {suggestions.map((suggestion) => (
+                  {suggestions.map((suggestion, index) => (
                     <li
                       key={suggestion.id}
                       onClick={() => handleSuggestionClick(suggestion)}
-                      className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                      className={`px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0 ${
+                        index === 0 ? 'bg-blue-50 border-l-4 border-l-gray-900' : ''
+                      }`}
                     >
-                      <div className="font-medium">{suggestion.name}</div>
+                      <div className="font-medium">
+                        {suggestion.name}
+                        {index === 0 && (
+                          <span className="ml-2 text-xs text-blue-600 font-normal">(Enter za izbiro)</span>
+                        )}
+                      </div>
                       {suggestion.address && (
                         <div className="text-sm text-gray-600">{suggestion.address}</div>
                       )}
@@ -173,7 +228,11 @@ export default function Iskalnik({ onSearch }) {
                 </ul>
               ) : searchQuery.length >= 3 ? (
                 <div className="p-3 text-center text-gray-500">Ni najdenih rezultatov</div>
-              ) : null}
+              ) : (
+                <div className="p-3 text-center text-gray-500">
+                  Vnesite vsaj 3 znake za iskanje
+                </div>
+              )}
             </div>
           )}
         </div>

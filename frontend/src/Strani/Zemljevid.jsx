@@ -215,21 +215,12 @@ export default function Zemljevid() {
             popupManager.current.updateFilters(validatedFilters);
         }
         
-        // Auto-reload using refs to avoid dependency loops
-        const currentMunicipality = selectedMunicipalityRef.current;
-        if (currentMunicipality?.sifko) {
-            console.log('Auto-reloading municipality data with new filters:', validatedFilters);
-            setTimeout(() => {
-                fetchPropertiesForMunicipality(currentMunicipality.sifko, validatedFilters);
-            }, 100);
-        } else {
-            // NOVO: Če ni izbrane občine, uporabite bbox loading
-            console.log('Auto-reloading view data with new filters:', validatedFilters);
-            setTimeout(() => {
-                fetchPropertiesForCurrentView(validatedFilters);
-            }, 100);
-        }
-    }, [fetchPropertiesForMunicipality, fetchPropertiesForCurrentView]);
+        // POSODOBLJENO: Samo bbox loading, ker ni več municipality click funkcionalnosti
+        console.log('Auto-reloading view data with new filters:', validatedFilters);
+        setTimeout(() => {
+            fetchPropertiesForCurrentView(validatedFilters);
+        }, 100);
+    }, [fetchPropertiesForCurrentView]);
 
     const handleDataSourceChange = useCallback((newType) => {
         console.log(`Changing data source type to: ${newType}`);
@@ -249,21 +240,12 @@ export default function Zemljevid() {
             popupManager.current.updateFilters(emptyFilters);
         }
 
-        // Auto-reload with empty filters
-        const currentMunicipality = selectedMunicipalityRef.current;
-        if (currentMunicipality?.sifko) {
-            console.log(`Auto-reloading municipality data: ${currentMunicipality.sifko}, new type: ${newType}`);
-            setTimeout(() => {
-                fetchPropertiesForMunicipality(currentMunicipality.sifko, {});
-            }, 100);
-        } else {
-            // NOVO: Če ni izbrane občine, uporabite bbox loading
-            console.log(`Auto-reloading view data, new type: ${newType}`);
-            setTimeout(() => {
-                fetchPropertiesForCurrentView({});
-            }, 100);
-        }
-    }, [fetchPropertiesForMunicipality, fetchPropertiesForCurrentView]);
+        // POSODOBLJENO: Samo bbox loading, ker ni več municipality click funkcionalnosti
+        console.log(`Auto-reloading view data, new type: ${newType}`);
+        setTimeout(() => {
+            fetchPropertiesForCurrentView({});
+        }, 100);
+    }, [fetchPropertiesForCurrentView]);
 
     // ===========================================
     // MUNICIPALITY AND REGION HANDLERS
@@ -275,17 +257,7 @@ export default function Zemljevid() {
         const sifko = municipalityFeature.properties.SIFKO;
         const municipalityName = getMunicipalityName(municipalityFeature);
 
-        const currentMunicipality = selectedMunicipalityRef.current;
-        if (currentMunicipality?.sifko === sifko) {
-            console.log(`Municipality ${municipalityName} already selected - ignoring click`);
-            return;
-        }
-
-        console.log('Municipality clicked:', municipalityName, 'SIFKO:', sifko);
-
-        if (popupManager.current) {
-            popupManager.current.handleMunicipalityChange();
-        }
+        console.log('Municipality clicked for zoom only:', municipalityName, 'SIFKO:', sifko);
 
         // Clear municipality hover when selecting
         setHoveredMunicipality(null);
@@ -301,17 +273,16 @@ export default function Zemljevid() {
             bounds: bounds
         });
 
+        // SAMO zoom na kataster, brez nalaganja specifičnih podatkov
         map.current.fitBounds(bounds, {
             padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
             duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION,
             essential: true
         });
 
-        // Load with current filters
-        const currentFilters = activeFiltersRef.current;
-        console.log('Loading municipality with current filters:', currentFilters);
-        fetchPropertiesForMunicipality(sifko, currentFilters);
-    }, [fetchPropertiesForMunicipality]);
+        // NE nalagamo podatkov za specifičen kataster - podatki se bodo naložili
+        // samodejno preko zoom/move event handlerjev na podlagi bbox-a
+    }, []);
 
     const handleObcinaClick = useCallback((obcinaFeature) => {
         if (!map.current || !obcinaFeature) return;
@@ -390,7 +361,7 @@ export default function Zemljevid() {
             duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION
         });
 
-        // NOVO: Po resetu preverite ali naj se nepremičnine prikažejo
+        // POSODOBLJENO: Po resetu preverite ali naj se nepremičnine prikažejo
         setTimeout(() => {
             const currentFilters = activeFiltersRef.current;
             fetchPropertiesForCurrentView(currentFilters);
@@ -515,7 +486,7 @@ export default function Zemljevid() {
                 currentHoveredSifko = hoveredSifko;
                 
                 if (!selectedMunicipality || selectedMunicipality.sifko !== hoveredSifko) {
-                    map.current.getCanvas().style.cursor = 'pointer';
+                    map.current.getCanvas().style.cursor = 'pointer'; // Vrnjen pointer za klikljivost
                     
                     setHoveredMunicipality({
                         name: hoveredMunicipalityName,
@@ -554,12 +525,12 @@ export default function Zemljevid() {
         // Uporabljamo mousemove namesto mouseenter za boljše sledenje
         map.current.on('mousemove', 'municipalities-fill', hoverMoveHandler);
         map.current.on('mouseleave', 'municipalities-fill', hoverLeaveHandler);
-        map.current.on('click', 'municipalities-fill', clickHandler);
+        map.current.on('click', 'municipalities-fill', clickHandler); // Vrnjen click handler
 
         map.current._municipalityHandlers = {
             hoverMoveHandler,
             hoverLeaveHandler,
-            clickHandler
+            clickHandler // Vrnjen clickHandler
         };
     }, [selectedMunicipality, handleMunicipalityClick]);
 
@@ -576,20 +547,14 @@ export default function Zemljevid() {
                 layerManager.current.updateLayerVisibilityByZoom(currentZoom);
             }
 
-            // NOVO: Samodejno nalaganje nepremičnin na določenem zoom nivoju
+            // POSODOBLJENO: Samodejno nalaganje nepremičnin - ni več municipality logic
             clearTimeout(timeoutId);
             timeoutId = setTimeout(() => {
                 const currentFilters = activeFiltersRef.current;
                 console.log('Zoom-triggered property loading with filters:', currentFilters);
                 
-                // Če je občina/kataster izbran, uporabite staro logiko
-                const currentMunicipality = selectedMunicipalityRef.current;
-                if (currentMunicipality?.sifko) {
-                    fetchPropertiesForMunicipality(currentMunicipality.sifko, currentFilters);
-                } else {
-                    // NOVO: Sicer uporabite novo logiko za samodejno nalaganje
-                    fetchPropertiesForCurrentView(currentFilters);
-                }
+                // SAMO bbox loading, ker ni več municipality click funkcionalnosti
+                fetchPropertiesForCurrentView(currentFilters);
             }, TIMEOUTS.ZOOM_DEBOUNCE);
         };
 
@@ -684,14 +649,17 @@ export default function Zemljevid() {
         }
     }, [selectedObcina]);
 
-    // Map initialization
+    // Map initialization - NO DEPENDENCIES TO AVOID LOOPS
     useEffect(() => {
         if (!map.current && mapContainer.current) {
             map.current = new maplibregl.Map({
                 container: mapContainer.current,
                 style: MAP_CONFIG.STYLE_URL,
                 center: MAP_CONFIG.INITIAL_CENTER,
-                zoom: MAP_CONFIG.INITIAL_ZOOM
+                zoom: MAP_CONFIG.INITIAL_ZOOM,
+                minZoom: 7.5,    // Maksimalni zoom OUT - ne more zoom out pod 6
+                maxZoom: 20,   // Maksimalni zoom IN - ne more zoom in čez 18
+                attributionControl: false
             });
 
             map.current.addControl(new maplibregl.NavigationControl(), UI_CONFIG.CONTROLS.POSITION);
@@ -703,12 +671,12 @@ export default function Zemljevid() {
                 loadObcine();
                 loadMunicipalities();
                 layerManager.current.updateLayerVisibilityByZoom(MAP_CONFIG.INITIAL_ZOOM);
-                setupZoomHandler();
+                setupZoomHandler(); // Call directly, not as dependency
             });
         }
 
         return cleanup;
-    }, []);
+    }, []); // EMPTY DEPENDENCIES - NO LOOPS
 
     // ===========================================
     // RENDER
