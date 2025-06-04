@@ -4,19 +4,8 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
   const [loading, setLoading] = useState(true);
   const [property, setProperty] = useState(null);
   const [error, setError] = useState(null);
-  const [selectedEnergyIndex, setSelectedEnergyIndex] = useState(0); // Index za izbrano energetsko izkaznico
-  const [selectedPoselId, setSelectedPoselId] = useState(null); // ID izbranega posla
-
-  // Dynamic color classes based on data source
-  const getColorClasses = () => {
-    const isNajem = dataSource === 'np';
-    return {
-      headerBg: isNajem ? 'bg-emerald-400' : 'bg-blue-300',
-      headerText: 'text-gray-800'
-    };
-  };
-
-  const colors = getColorClasses();
+  const [selectedEnergyIndex, setSelectedEnergyIndex] = useState(0);
+  const [selectedPoselId, setSelectedPoselId] = useState(null);
 
   useEffect(() => {
     // Funkcija za nalaganje podrobnosti
@@ -67,35 +56,15 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
     fetchPropertyDetails();
   }, [propertyId, dataSource]);
 
-  // Sestavljanje naslova
-  const getNaslov = () => {
-    if (!representativeProperty) return '';
 
-    const parts = [];
-    if (representativeProperty.ulica) parts.push(representativeProperty.ulica);
-    if (representativeProperty.hisna_stevilka) parts.push(representativeProperty.hisna_stevilka);
-    if (representativeProperty.dodatek_hs) parts.push(representativeProperty.dodatek_hs);
-    return parts.join(' ');
+  const getColorClasses = () => {
+    const isNajem = dataSource === 'np';
+    return {
+      headerBg: isNajem ? 'bg-emerald-400' : 'bg-blue-300',
+      headerText: 'text-gray-800'
+    };
   };
 
-  const getNaslovDodatek = () => {
-    const naslovDodatek = [];
-    if (representativeProperty.obcina) naslovDodatek.push(representativeProperty.obcina);
-    if (representativeProperty.stev_stanovanja) naslovDodatek.push(`št. stan: ${representativeProperty.stev_stanovanja}`);
-
-    return naslovDodatek.length > 0
-      ? naslovDodatek.join(', ')
-      : '';
-  };
-
-  const formatPrice = (price) => {
-    if (!price) return null;
-    return Math.round(price).toLocaleString('sl-SI');
-  };
-
-  const getPriceLabel = () => {
-    return dataSource === 'kpp' ? 'Cena' : 'Najemnina';
-  };
 
   const getEnergyClassColor = (razred) => {
     const colors = {
@@ -112,6 +81,51 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
     return colors[razred] || 'bg-gray-400 text-white';
   };
 
+
+  const getNaslov = () => {
+    if (!representativeProperty) return '';
+
+    const parts = [];
+    if (representativeProperty.ulica) parts.push(representativeProperty.ulica);
+    if (representativeProperty.hisna_stevilka) parts.push(representativeProperty.hisna_stevilka);
+    if (representativeProperty.dodatek_hs) parts.push(representativeProperty.dodatek_hs);
+    return parts.join(' ');
+  };
+
+
+  const getNaslovDodatek = () => {
+    const naslovDodatek = [];
+    if (representativeProperty.obcina) naslovDodatek.push(representativeProperty.obcina);
+    if (representativeProperty.stev_stanovanja) naslovDodatek.push(`št. stan: ${representativeProperty.stev_stanovanja}`);
+
+    return naslovDodatek.length > 0
+      ? naslovDodatek.join(', ')
+      : '';
+  };
+
+  const getTrznostPosla = (trznost) => {
+    const trznostMap = {
+      '1': 'Tržen posel',
+      '2': 'Tržen posel - neustrezni podatki',
+      '3': 'Drug posel',
+      '4': 'Neopredeljen posel',
+      '5': 'V preverjanju',
+    };
+    return trznostMap[trznost] || 'Neznana';
+  };
+
+
+  const formatPrice = (price) => {
+    if (!price) return null;
+    return Math.round(price).toLocaleString('sl-SI');
+  };
+
+
+  const getPriceLabel = () => {
+    return dataSource === 'kpp' ? 'Cena' : 'Najemnina';
+  };
+
+
   // Pridobi najnovejše/reprezentativne podatke o delu_stavbe. za zdaj malo nesmiselno. v prihodnosti za menjavo med prikazi istega dela stavbe skozi leta
   const getRepresentativeProperty = () => {
     if (!property) return null;
@@ -119,17 +133,21 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
     return property.reprezentativni_del_stavbe;
   };
 
+
   // Funkcija za pridobivanje delov stavb povezanih s poslom
   const getConnectedBuildingParts = (poselId) => {
     if (!property.povezani_deli_stavb) return [];
     return property.povezani_deli_stavb.filter(del => del.posel_id === poselId);
   };
 
+
   const getSelectedPosel = () => {
     if (!property?.povezani_posli || !selectedPoselId) return null;
     return property.povezani_posli.find(posel => posel.posel_id === selectedPoselId);
   };
 
+
+  const colors = getColorClasses();
   const representativeProperty = getRepresentativeProperty();
   const selectedPosel = getSelectedPosel();
   const connectedParts = selectedPosel ? getConnectedBuildingParts(selectedPosel.posel_id) : [];
@@ -138,6 +156,7 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
   const filteredConnectedParts = connectedParts.filter(part =>
     part.stevilka_dela_stavbe !== representativeProperty?.stevilka_dela_stavbe
   );
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center top-30 mb-3">
@@ -234,12 +253,12 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
                             </>
                           )}
 
-                          {representativeProperty.dejanska_raba && (
-                            <>
-                              <div className="text-gray-600">Opis objekta:</div>
-                              <div className="font-medium text-gray-800">{representativeProperty.dejanska_raba}</div>
-                            </>
-                          )}
+
+                          <>
+                            <div className="text-gray-600">Opis objekta:</div>
+                            <div className="font-medium text-gray-800">{representativeProperty.dejanska_raba ? representativeProperty.dejanska_raba : 'Neznano'}</div>
+                          </>
+                          
                         </div>
                       </div>
                     </div>
@@ -395,7 +414,7 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
                               {dataSource === 'kpp' && selectedPosel.trznost_posla && (
                                 <div className="flex justify-between">
                                   <span className="text-gray-600">Tržnost posla:</span>
-                                  <span className="font-medium text-gray-800">{selectedPosel.trznost_posla}</span>
+                                  <span className="font-medium text-gray-800">{getTrznostPosla(selectedPosel.trznost_posla)}</span>
                                 </div>
                               )}
                             </div>
