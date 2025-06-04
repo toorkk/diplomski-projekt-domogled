@@ -30,23 +30,23 @@ SELECT
 d.id_posla,
 d.sifra_ko,
 TRIM(d.ime_ko) as ime_ko,
-TRIM(d.obcina) as obcina,
-d.stevilka_stavbe,
-d.stevilka_dela_stavbe,
+UPPER(TRIM(d.obcina)) as obcina,
+TRIM(d.stevilka_stavbe) as stevilka_stavbe,
+TRIM(d.stevilka_dela_stavbe) as stevilka_dela_stavbe,
 
-TRIM(d.naselje) as naselje,
-d.ulica,
+UPPER(TRIM(d.naselje)) as naselje,
+UPPER(TRIM(d.ulica)) as ulica,
 CASE 
     WHEN d.hisna_stevilka IS NULL OR TRIM(d.hisna_stevilka) = '' THEN NULL
     WHEN d.hisna_stevilka ~ '^-?\d+\.?\d*$' THEN CAST(CAST(d.hisna_stevilka AS NUMERIC) AS INTEGER)
     ELSE NULL 
 END as hisna_stevilka,
-d.dodatek_hs,
+UPPER(TRIM(d.dodatek_hs)) as dodatek_hs,
 d.stevilka_stanovanja_ali_poslovnega_prostora,
 d.vrsta_oddanih_prostorov,
 d.opremljenost_oddanih_prostorov,
 
-d.opombe_o_oddanih_prostorih,
+TRIM(d.opombe_o_oddanih_prostorih) as opombe_o_oddanih_prostorih,
 d.leto_izgradnje_stavbe,
 LOWER(TRIM(d.dejanska_raba_dela_stavbe)) as dejanska_raba,
 LOWER(TRIM(d.lega_dela_stavbe_v_stavbi)) as lega_v_stavbi,

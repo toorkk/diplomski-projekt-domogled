@@ -39,17 +39,17 @@ SELECT
     id_posla,
     sifra_ko,
     TRIM(ime_ko) as ime_ko,
-    TRIM(obcina) as obcina,
-    stevilka_stavbe,
-    stevilka_dela_stavbe,
-    TRIM(naselje) as naselje,
-    ulica,
+    UPPER(TRIM(obcina)) as obcina,
+    TRIM(stevilka_stavbe) as stevilka_stavbe,
+    TRIM(stevilka_dela_stavbe) as stevilka_dela_stavbe,
+    UPPER(TRIM(naselje)) as naselje,
+    UPPER(TRIM(ulica)) as ulica,
     CASE 
         WHEN hisna_stevilka IS NULL OR TRIM(hisna_stevilka) = '' THEN NULL
         WHEN hisna_stevilka ~ '^-?\d+\.?\d*$' THEN CAST(CAST(hisna_stevilka AS NUMERIC) AS INTEGER)
         ELSE NULL 
     END as hisna_stevilka,
-    dodatek_hs,
+    UPPER(TRIM(dodatek_hs)) as dodatek_hs,
     stevilka_stanovanja_ali_poslovnega_prostora,
     vrsta_dela_stavbe,
     leto_izgradnje_dela_stavbe,
@@ -64,7 +64,7 @@ SELECT
     stevilo_zunanjih_parkirnih_mest,
     atrij,
     povrsina_atrija,
-    opombe_o_nepremicnini,
+    TRIM(opombe_o_nepremicnini) as opombe_o_nepremicnini,
     LOWER(TRIM(dejanska_raba_dela_stavbe)) as dejanska_raba_dela_stavbe,
     LOWER(TRIM(lega_dela_stavbe_v_stavbi)) as lega_dela_stavbe_v_stavbi,
     stevilo_sob,
