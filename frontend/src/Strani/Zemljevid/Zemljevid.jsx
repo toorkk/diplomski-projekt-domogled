@@ -3,14 +3,14 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 // Komponente
-import Filter from "../Filter";
-import Switcher from "./Switcher";
-import Iskalnik from "./Iskalnik";
-import Podrobnosti from "./Podrobnosti";
-import PopupManager from "./PopupManager";
+import Filter from "../../Filter.jsx";
+import Switcher from "./Switcher.jsx";
+import Iskalnik from "./Iskalnik.jsx";
+import Podrobnosti from "./Podrobnosti.jsx";
+import PopupManager from "./PopupManager.jsx";
 
 // Importanje managerjev
-import LayerManager from "./LayerManager";
+import LayerManager from "./LayerManager.jsx";
 import {
     MAP_CONFIG,
     DATA_SOURCE_CONFIG,
@@ -34,8 +34,8 @@ import {
 
 // Stili in JSON podatki (katastri, občine)
 import '../Stili/Zemljevid.css';
-import municipalitiesData from '../Občine/KatObčine.json';
-import obcineData from '../Občine/OB.json';
+import municipalitiesData from '../../Občine/KatObčine.json';
+import obcineData from '../../Občine/OB.json';
 
 export default function Zemljevid() {
     // Refs

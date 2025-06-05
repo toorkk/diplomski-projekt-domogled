@@ -1,8 +1,8 @@
 import { useState } from "react";
 import Navbar from "./Navbar";
-import Zemljevid from "./Strani/Zemljevid";
+import Zemljevid from "./Strani/Zemljevid/Zemljevid";
 import Primerjevalnik from "./Strani/Primerjevalnik";
-import Statistika from "./Strani/Statistika";
+import Statistika from "./Strani/Statistika/Statistika";
 import Izracun from "./Strani/Izračun";
 
 export default function App() {
