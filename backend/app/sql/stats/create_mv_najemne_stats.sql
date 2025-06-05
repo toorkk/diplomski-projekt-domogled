@@ -1,0 +1,136 @@
+DROP MATERIALIZED VIEW IF EXISTS stats.mv_najemne_statistike;
+CREATE MATERIALIZED VIEW stats.mv_najemne_statistike AS
+WITH najemni_podatki AS (
+    SELECT 
+        n.obcina,
+        n.ime_ko,
+        n.tip_nepremicnine,
+        n.leto,
+        
+        -- Cene
+        CASE 
+            WHEN n.povrsina_uporabna > 0 THEN np.najemnina / n.povrsina_uporabna 
+            ELSE NULL 
+        END as najemnina_m2,
+        np.najemnina as skupna_najemnina,
+        
+        -- Velikost
+        n.povrsina,
+        n.povrsina_uporabna,
+        
+        -- Starost
+        CASE 
+            WHEN n.leto_izgradnje_stavbe IS NOT NULL THEN n.leto - n.leto_izgradnje_stavbe
+            ELSE NULL
+        END as starost_stavbe,
+        
+        -- Opremljenost
+        CASE 
+            WHEN n.opremljenost = 1 THEN 1 
+            ELSE 0 
+        END as je_opremljena,
+        
+        -- Agencija
+        CASE WHEN np.posredovanje_agencije = true THEN 1 ELSE 0 END as je_agencijska,
+        
+        np.datum_sklenitve,
+        np.datum_prenehanja_najemanja,
+        EXTRACT(YEAR FROM np.datum_sklenitve) as leto_posla,
+        
+        -- Ali je trenutno aktivno
+        CASE 
+            WHEN (np.datum_prenehanja_najemanja IS NULL OR np.datum_prenehanja_najemanja > CURRENT_DATE)
+                AND (np.datum_zakljucka_najema IS NULL OR np.datum_zakljucka_najema > CURRENT_DATE)
+            THEN 1 ELSE 0 
+        END as trenutno_aktivna
+        
+    FROM core.np_del_stavbe n
+    JOIN core.np_posel np ON n.posel_id = np.posel_id
+    WHERE np.najemnina IS NOT NULL 
+      AND np.najemnina > 0
+      AND n.povrsina_uporabna IS NOT NULL 
+      AND n.povrsina_uporabna > 0
+      AND np.trznost_posla = 1 -- samo tržni posli
+      AND n.ime_ko IS NOT NULL
+      AND n.obcina IS NOT NULL
+)
+
+-- NIVO 1: Statistike po KO (agregirano samo po ime_ko)
+SELECT 
+    NULL as obcina,  -- NULL ker je agregirano čez več občin (KO je lahko v več občinah)
+    ime_ko,
+    tip_nepremicnine,
+    leto_posla as leto,
+    
+    -- Cenovni podatki m2
+    AVG(najemnina_m2) as povprecna_najemnina_m2,
+    PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY najemnina_m2) as p10_najemnina_m2,
+    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY najemnina_m2) as p90_najemnina_m2,
+    
+    -- Skupne najemnine
+    AVG(skupna_najemnina) as povprecna_skupna_najemnina,
+    PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY skupna_najemnina) as p10_skupna_najemnina,
+    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY skupna_najemnina) as p90_skupna_najemnina,
+    
+    -- Velikosti
+    AVG(povrsina) as povprecna_velikost_m2,
+    PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY povrsina) as p10_velikost_m2,
+    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY povrsina) as p90_velikost_m2,
+    
+    -- Starost
+    AVG(starost_stavbe) as povprecna_starost_stavbe,
+    PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY starost_stavbe) as p10_starost_stavbe,
+    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY starost_stavbe) as p90_starost_stavbe,
+    
+    -- Opremljenost
+    AVG(je_opremljena::numeric) * 100 as delez_opremljenih_pct,
+    
+    -- Agencijske vs zasebne
+    AVG(je_agencijska::numeric) * 100 as delez_agencijskih_pct,
+    
+    COUNT(*) as stevilo_poslov,
+    SUM(trenutno_aktivna) as trenutno_v_najemu
+    
+FROM najemni_podatki
+WHERE tip_nepremicnine IN ('stanovanje', 'hisa')
+GROUP BY ime_ko, tip_nepremicnine, leto_posla
+
+UNION ALL
+
+-- NIVO 2: Agregirane statistike po OBČINAH (agregirano samo po obcina)
+SELECT 
+    obcina,
+    NULL as ime_regije,  -- NULL ker gledamo samo občine
+    tip_nepremicnine,
+    leto_posla as leto,
+    
+    AVG(najemnina_m2) as povprecna_najemnina_m2,
+    PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY najemnina_m2) as p10_najemnina_m2,
+    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY najemnina_m2) as p90_najemnina_m2,
+    
+    AVG(skupna_najemnina) as povprecna_skupna_najemnina,
+    PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY skupna_najemnina) as p10_skupna_najemnina,
+    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY skupna_najemnina) as p90_skupna_najemnina,
+    
+    AVG(povrsina) as povprecna_velikost_m2,
+    PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY povrsina) as p10_velikost_m2,
+    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY povrsina) as p90_velikost_m2,
+    
+    AVG(starost_stavbe) as povprecna_starost_stavbe,
+    PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY starost_stavbe) as p10_starost_stavbe,
+    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY starost_stavbe) as p90_starost_stavbe,
+    
+    AVG(je_opremljena::numeric) * 100 as delez_opremljenih_pct,
+    AVG(je_agencijska::numeric) * 100 as delez_agencijskih_pct,
+    
+    COUNT(*) as stevilo_poslov,
+    SUM(trenutno_aktivna) as trenutno_v_najemu
+    
+FROM najemni_podatki
+WHERE tip_nepremicnine IN ('stanovanje', 'hisa')
+GROUP BY obcina, tip_nepremicnine, leto_posla;  -- Samo po obcina, brez ime_ko
+
+-- Indeksi za materialized view
+CREATE INDEX idx_mv_najemne_regija_leto ON stats.mv_najemne_statistike(obcina, tip_nepremicnine, leto);
+CREATE INDEX idx_mv_najemne_ko_leto ON stats.mv_najemne_statistike(ime_ko, tip_nepremicnine, leto);
+CREATE INDEX idx_mv_najemne_tip ON stats.mv_najemne_statistike(tip_nepremicnine);

@@ -1,5 +1,5 @@
 import os
-from fastapi import Depends, HTTPException, Query, BackgroundTasks
+from fastapi import Depends, HTTPException, Path, Query, BackgroundTasks
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -9,6 +9,7 @@ from .property_service import PropertyService
 from .data_ingestion import DataIngestionService
 from .deduplication import DeduplicationService
 from .energetska_izkaznica_ingestion import EnergetskaIzkaznicaIngestionService
+from .statistics_service import StatisticsService
 
 
 ingestion_service = DataIngestionService(DATABASE_URL)
@@ -16,6 +17,9 @@ ingestion_service = DataIngestionService(DATABASE_URL)
 deduplication_service = DeduplicationService(DATABASE_URL)
 
 ei_ingestion_service = EnergetskaIzkaznicaIngestionService(DATABASE_URL)
+
+stats_service = StatisticsService(DATABASE_URL)
+
 
 # =============================================================================
 # DATA INGESTION ENDPOINTI
@@ -227,12 +231,8 @@ async def energetske_izkaznice_status():
         try:
             with ei_ingestion_service.engine.connect() as conn:
                 count = conn.execute(text("SELECT COUNT(*) FROM core.energetska_izkaznica")).scalar()
-                last_updated = conn.execute(text(
-                    "SELECT MAX(datum_uvoza) FROM core.energetska_izkaznica"
-                )).scalar()
         except:
             count = 0
-            last_updated = None
         
         return JSONResponse(
             status_code=200,
@@ -240,7 +240,6 @@ async def energetske_izkaznice_status():
                 "status": "success",
                 "database_stats": {
                     "total_records": count,
-                    "last_updated": str(last_updated) if last_updated else None
                 },
                 "last_logs": last_lines
             }
@@ -422,3 +421,155 @@ def get_cluster_properties(
     except Exception as e:
         print(f"Error in get_cluster_properties: {str(e)}")  # Debug
         raise HTTPException(status_code=500, detail=f"db error: {str(e)}")
+    
+
+# =============================================================================
+# STATISTIKE ENDPOINTI
+# =============================================================================
+
+async def posodobi_statistike(background_tasks: BackgroundTasks):
+    """
+    Napolni/posodobi VSE statistike
+    
+    Primer uporabe:
+    - POST /api/statistike/posodobi
+    """
+    try:
+        background_tasks.add_task(
+            stats_service.refresh_all_statistics
+        )
+        
+        return JSONResponse(
+            status_code=202,
+            content={
+                "status": "sprejeto",
+                "sporocilo": "Posodabljanje vseh statistik se je začelo",
+                "regije": "vse",
+                "opomba": "Preveri status z GET /api/statistike/status"
+            }
+        )
+        
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "napaka", "sporocilo": str(e)}
+        )
+
+
+async def statistike_status():
+    """
+    Status posodobitev statistik
+    
+    Primer uporabe:
+    - GET /api/statistike/status
+    """
+    try:
+        zadnji_log = []
+        if os.path.exists("statistics.log"):
+            with open("statistics.log", "r", encoding='utf-8') as f:
+                zadnji_log = f.readlines()[-15:]
+        else:
+            zadnji_log = ["Statistike še niso bile posodobljene."]
+        
+        status_info = stats_service.get_statistics_status()
+        
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": "uspeh",
+                "info_statistike": status_info,
+                "zadnji_log": zadnji_log
+            }
+        )
+        
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "napaka", "sporocilo": str(e)}
+        )
+
+
+def vse_statistike(
+    tip_regije: str = Path(..., description="Tip regije: 'obcina', 'katastrska_obcina', 'slovenija'"),
+    regija: str = Path(..., description="Ime regije (občina/KO/slovenia)")
+):
+    """
+    Pridobi VSE statistike za določeno obcino/KO/slovenijo
+    
+    Vrne vse statistike organizirane po:
+    - prodaja/najem
+    - stanovanja/hiše  
+    - letni podatki + zadnjih 12 mesecev
+    - vsi percentili in lastnosti
+    
+    Primer uporabe:
+    - GET /api/statistike/vse/LJUBLJANA
+    - GET /api/statistike/vse/LJUBLJANA?tip_regije=obcina
+    - GET /api/statistike/vse/slovenia?tip_regije=slovenija
+    """
+    try:
+        # Validiraj tip regije
+        veljavni_tipi = ["obcina", "katastrska_obcina", "slovenija"]
+        if tip_regije not in veljavni_tipi:
+            raise ValueError(f"tip_regije mora biti eden od: {', '.join(veljavni_tipi)}")
+        
+        # Pridobi vse statistike
+        rezultat = stats_service.get_full_statistics(regija, tip_regije)
+        
+        if rezultat["status"] == "error":
+            raise HTTPException(status_code=404, detail=rezultat["message"])
+        
+        return JSONResponse(
+            status_code=200,
+            content=rezultat
+        )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Neveljavni parametri: {str(e)}")
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"DB napaka: {str(e)}")
+
+
+def splosne_statistike(
+    tip_regije: str = Path(..., description="Tip regije: 'obcina', 'katastrska_obcina', 'slovenija'"),
+    regija: str = Path(..., description="Ime regije (občina/KO/slovenia)")
+):
+    """
+    Pridobi samo splosne/ključne statistike za regijo
+    
+    Vrne samo osnovne statistike za zadnjih 12 mesecev:
+    - povprečne cene
+    - število poslov
+    - povprečne velikosti
+    - povprečne starosti
+    
+    Primer uporabe:
+    - GET /api/statistike/splosne/LJUBLJANA
+    - GET /api/statistike/splosne/LJUBLJANA?tip_regije=obcina
+    - GET /api/statistike/splosne/slovenia?tip_regije=slovenija
+    """
+    try:
+        # Validiraj tip regije
+        veljavni_tipi = ["obcina", "katastrska_obcina", "slovenija"]
+        if tip_regije not in veljavni_tipi:
+            raise ValueError(f"tip_regije mora biti eden od: {', '.join(veljavni_tipi)}")
+        
+        # Pridobi splošne statistike
+        rezultat = stats_service.get_general_statistics(regija, tip_regije)
+        
+        if rezultat["status"] == "error":
+            raise HTTPException(status_code=404, detail=rezultat["message"])
+        
+        return JSONResponse(
+            status_code=200,
+            content=rezultat
+        )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Neveljavni parametri: {str(e)}")
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"DB napaka: {str(e)}")

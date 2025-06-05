@@ -18,6 +18,7 @@ logger = setup_logger("data_ingestion", "data_ingestion.log", "INGEST", year_fil
 
 
 class DataIngestionService:
+    
     def __init__(self, db_url: str):
         self.db_url = db_url
         self.engine = create_engine(db_url)
