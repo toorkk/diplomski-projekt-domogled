@@ -138,16 +138,18 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
   // Big screen (filter na levi strani)
   if (!isMobile) {
     return (
-      <div className="absolute top-32 md:top-40 lg:top-48 left-0 z-10 flex">
+      <div 
+        className="absolute top-32 md:top-40 lg:top-48 left-0 z-10 flex"
+        style={{ height: '65vh', minHeight: '500px', maxHeight: '700px' }} // POVEČAN HEIGHT
+      >
         {/* Zaprt filter - desktop */}
         <button
           onClick={() => setIsOpen(true)}
           className={`bg-white shadow-lg border-r border-gray-200 hover:bg-gray-50 transition-all duration-300 flex items-center justify-center flex-shrink-0 ${
-            isOpen ? 'opacity-0 pointer-events-none w-0' : 'opacity-100'
+            isOpen ? 'opacity-0 pointer-events-none w-0' : 'opacity-100 w-12'
           }`}
           style={{
-            width: isOpen ? '0px' : '50px',
-            height: '50vh',
+            height: '100%', // Uporabi poln height containerja
             borderTopRightRadius: '12px',
             borderBottomRightRadius: '12px'
           }}
@@ -175,18 +177,17 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
 
         {/* Odprt filter - desktop */}
         <div 
-          className={`bg-white rounded-r-xl shadow-lg border border-gray-200 transition-all duration-300 ease-out ${
+          className={`bg-white rounded-r-xl shadow-lg border border-gray-200 transition-all duration-300 ease-out flex flex-col ${
             isOpen 
               ? 'w-80 md:w-96 opacity-100' 
               : 'w-0 opacity-0 overflow-hidden'
           }`}
           style={{
-            height: '100vh',
-            maxHeight: '580px',
-            minHeight: '400px'
+            height: '100%' // Uporabi poln height containerja
           }}
         >
-          <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-200">
+          {/* Header - fiksni */}
+          <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-200 flex-shrink-0">
             <div className="flex items-center space-x-2">
               <h2 className="text-lg md:text-xl font-semibold text-gray-800 whitespace-nowrap">
                 Filtri
@@ -205,8 +206,8 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
             </button>
           </div>
           
-          {/* filter content */}
-          <div className="p-4 md:p-6 overflow-y-auto">
+          {/* Filter content - scrollable */}
+          <div className="flex-1 overflow-y-auto p-4 md:p-6">
             <div className="space-y-6">
               
               {/* leto */}
@@ -342,7 +343,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
     );
   }
 
-  // Mobile version (filter spodaj)
+  // Mobile version (filter spodaj) - FIKSNI HEIGHT
   return (
     <div className="fixed bottom-0 left-0 right-0 z-10">
       {/* Zaprt filter - mobile */}
@@ -378,15 +379,19 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
         </button>
       )}
 
-      {/* Odprt filter - mobile (slide gor) */}
+      {/* Odprt filter - mobile (fiksni height) */}
       <div 
-        className={`bg-white rounded-t-xl shadow-lg border-t border-gray-200 transition-all duration-300 ease-out overflow-hidden ${
+        className={`bg-white rounded-t-xl shadow-lg border-t border-gray-200 transition-all duration-300 ease-out flex flex-col ${
           isOpen 
-            ? 'max-h-96 opacity-100' 
-            : 'max-h-0 opacity-0'
+            ? 'opacity-100 translate-y-0' 
+            : 'opacity-0 translate-y-full'
         }`}
+        style={{
+          height: '500px' // POVEĆAN HEIGHT za mobile (prej 400px)
+        }}
       >
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        {/* Header - fiksni */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center space-x-2">
             <h2 className="text-lg font-semibold text-gray-800">Filtri</h2>
             {hasActiveFilters && (
@@ -403,8 +408,8 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
           </button>
         </div>
         
-        {/* mobile filter content */}
-        <div className="p-4 overflow-y-auto max-h-80">
+        {/* Mobile filter content - scrollable */}
+        <div className="flex-1 overflow-y-auto p-4">
           <div className="space-y-4">
             
             {/* leto */}
