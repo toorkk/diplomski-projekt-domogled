@@ -14,7 +14,7 @@ class PopupManager {
         this.onPropertySelectCallback = null;
         this.eventHandlers = {};
 
-        // Initialize ClusterExpander
+        // Inicializacija cluster expanderja
         this.clusterExpander = new ClusterExpander(map);
     }
 
@@ -38,7 +38,7 @@ class PopupManager {
         this.onPropertySelectCallback = onPropertySelect;
         this._cleanupEventHandlers();
 
-        // Setup main click handlers
+        // Setup glavnih click hanlerjev
         this._setupPropertyClickHandlers();
         this._setupClusterClickHandlers();
         this._setupExpandedPropertyHandlers();
@@ -53,7 +53,6 @@ class PopupManager {
             }
         };
 
-        // Add handlers for both property layers
         [LAYER_IDS.PROPERTIES.MAIN, LAYER_IDS.PROPERTIES.TEXT].forEach(layerId => {
             this.map.on('click', layerId, handler);
         });
@@ -117,7 +116,7 @@ class PopupManager {
             const wasExpanded = await this.clusterExpander.handleClusterClick(lngLat, clusterProperties);
             
             if (!wasExpanded) {
-                // Fallback to showing basic cluster info
+
                 this._showClusterInfo(lngLat, clusterProperties);
             }
         } catch (error) {
@@ -192,7 +191,7 @@ class PopupManager {
         }
     }
 
-    // Public cleanup methods for different scenarios
+    // Cleanup metode za razlicne scenarije
     handleMunicipalityChange() {
         console.log('PopupManager: Municipality change detected - cleaning up clusters');
         this.clusterExpander.collapseAllClusters();
@@ -208,7 +207,7 @@ class PopupManager {
     handleZoomChange() {
         console.log('PopupManager: Zoom change detected - cleaning up clusters');
         this.clusterExpander.collapseAllClusters();
-        // Don't close popup on zoom, only clusters
+        // zapre clustre na zoomu ne pa popupe
     }
 
     handleDataReload() {
@@ -223,7 +222,7 @@ class PopupManager {
         this.clusterExpander.collapseAllClusters();
     }
 
-    // Public API for cluster management
+    // Api za cluster management
     collapseAllClusters() {
         this.clusterExpander.collapseAllClusters();
     }
@@ -233,24 +232,24 @@ class PopupManager {
     }
 
     _cleanupEventHandlers() {
-        // Remove property click handlers
+        // Odstrani property click handlerje
         if (this.eventHandlers.propertyClick) {
             [LAYER_IDS.PROPERTIES.MAIN, LAYER_IDS.PROPERTIES.TEXT].forEach(layerId => {
                 this.map.off('click', layerId, this.eventHandlers.propertyClick);
             });
         }
 
-        // Remove cluster click handler
+        // Odstrani cluster click handler
         if (this.eventHandlers.clusterClick) {
             this.map.off('click', LAYER_IDS.CLUSTERS.MAIN, this.eventHandlers.clusterClick);
         }
 
-        // Remove expanded property handler
+        // Odstrani expanded property handler
         if (this.eventHandlers.expandedPropertyClick) {
             this.map.getContainer().removeEventListener('expandedPropertyClick', this.eventHandlers.expandedPropertyClick);
         }
 
-        // Remove hover handlers
+        // Odstrani hover handlerje
         if (this.eventHandlers.hoverLayers && this.eventHandlers.hoverEnter && this.eventHandlers.hoverLeave) {
             this.eventHandlers.hoverLayers.forEach(layerId => {
                 this.map.off('mouseenter', layerId, this.eventHandlers.hoverEnter);
@@ -264,18 +263,18 @@ class PopupManager {
     cleanup() {
         console.log('PopupManager: Starting cleanup...');
 
-        // Cleanup cluster expander
+        // Pocisti clsuter expander
         if (this.clusterExpander) {
             this.clusterExpander.cleanup();
         }
 
-        // Cleanup event handlers
+        // Pocisti event handlerje
         this._cleanupEventHandlers();
 
-        // Cleanup popup
+        // Pocisti popup
         this._closeCurrentPopup();
 
-        // Reset callbacks
+        // Resetira callback-e
         this.onPropertySelectCallback = null;
 
         console.log('PopupManager: Cleanup completed');

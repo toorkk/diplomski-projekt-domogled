@@ -93,11 +93,11 @@ export const SOURCE_IDS = {
     EXPANDED_PREFIX: 'expanded-'
 };
 
-// Zoom levels for different data types
+// Zoom leveli za different data type
 export const ZOOM_LEVELS = {
-    OBCINE_THRESHOLD: 9, // Below this zoom show občine, above show municipalities
-    MUNICIPALITY_DETAIL: 12, // When to load property data
-    AUTO_LOAD_PROPERTIES: 11 // NOVO: Samodejno nalaganje nepremičnin na tem zoom nivoju
+    OBCINE_THRESHOLD: 9,
+    MUNICIPALITY_DETAIL: 12, 
+    AUTO_LOAD_PROPERTIES: 11 
 };
 
 // Zoom-dependent styling
@@ -170,7 +170,7 @@ export const ZOOM_STYLES = {
             11, 1
         ]
     },
-    // Nove vrednosti za občine
+    
     OBCINE: {
         DEFAULT_LINE_WIDTH: [
             'interpolate',

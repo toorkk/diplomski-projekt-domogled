@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 export default function Switcher({ activeType, onChangeType }) {
   const [isMobile, setIsMobile] = useState(false);
 
-  // Detect screen size
+  // Detecta screen velikost
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
@@ -14,7 +14,7 @@ export default function Switcher({ activeType, onChangeType }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Dynamic positioning based on screen size
+  // Pozicioniranje glede na screen velikost
   const positionClasses = isMobile 
     ? 'absolute top-25 left-4 right-4' 
     : 'absolute top-10 right-20';

@@ -127,33 +127,33 @@ class StatisticsLayerManager {
     }
 
     // Control visibility based on zoom level
-    updateLayerVisibilityByZoom(currentZoom) {
-        const showObcineLabels = currentZoom < ZOOM_LEVELS.OBCINE_THRESHOLD;
-        const showObcineFill = currentZoom < ZOOM_LEVELS.OBCINE_THRESHOLD;
-        const showMunicipalities = currentZoom >= ZOOM_LEVELS.OBCINE_THRESHOLD;
+    updateLayerVisibilityByZoom(currentZoom, forceShowMunicipalities = false) {
+    const showObcineLabels = currentZoom < ZOOM_LEVELS.OBCINE_THRESHOLD;
+    const showObcineFill = currentZoom < ZOOM_LEVELS.OBCINE_THRESHOLD;
+    const showMunicipalities = currentZoom >= ZOOM_LEVELS.OBCINE_THRESHOLD || forceShowMunicipalities;
 
-        // Control občine layers visibility
-        if (this.hasLayer(LAYER_IDS.OBCINE.FILL)) {
-            this.map.setLayoutProperty(LAYER_IDS.OBCINE.FILL, 'visibility', showObcineFill ? 'visible' : 'none');
-            this.map.setLayoutProperty(LAYER_IDS.OBCINE.OUTLINE, 'visibility', 'visible'); // Always visible for context
-            
-            if (this.hasLayer(LAYER_IDS.OBCINE.LABELS)) {
-                this.map.setLayoutProperty(LAYER_IDS.OBCINE.LABELS, 'visibility', showObcineLabels ? 'visible' : 'none');
-            }
+    // Control občine layers visibility
+    if (this.hasLayer(LAYER_IDS.OBCINE.FILL)) {
+        this.map.setLayoutProperty(LAYER_IDS.OBCINE.FILL, 'visibility', showObcineFill ? 'visible' : 'none');
+        this.map.setLayoutProperty(LAYER_IDS.OBCINE.OUTLINE, 'visibility', 'visible'); // Always visible for context
+        
+        if (this.hasLayer(LAYER_IDS.OBCINE.LABELS)) {
+            this.map.setLayoutProperty(LAYER_IDS.OBCINE.LABELS, 'visibility', showObcineLabels ? 'visible' : 'none');
         }
-
-        // Control municipalities layers visibility
-        if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.FILL)) {
-            this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'visibility', showMunicipalities ? 'visible' : 'none');
-            this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'visibility', showMunicipalities ? 'visible' : 'none');
-            
-            if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.LABELS)) {
-                this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.LABELS, 'visibility', showMunicipalities ? 'visible' : 'none');
-            }
-        }
-
-        console.log(`Zoom ${currentZoom}: Občine ${showObcineFill ? 'clickable' : 'disabled'}, Municipalities ${showMunicipalities ? 'visible' : 'hidden'}`);
     }
+
+    // Control municipalities layers visibility
+    if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.FILL)) {
+        this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'visibility', showMunicipalities ? 'visible' : 'none');
+        this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'visibility', showMunicipalities ? 'visible' : 'none');
+        
+        if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.LABELS)) {
+            this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.LABELS, 'visibility', showMunicipalities ? 'visible' : 'none');
+        }
+    }
+
+    console.log(`Zoom ${currentZoom}: Občine ${showObcineFill ? 'clickable' : 'disabled'}, Municipalities ${showMunicipalities ? 'visible' : 'hidden'}`);
+}
     
     addMunicipalitiesLayers(municipalitiesData) {
         if (this.map.getSource(SOURCE_IDS.MUNICIPALITIES)) {

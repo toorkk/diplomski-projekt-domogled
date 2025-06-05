@@ -1,4 +1,4 @@
-// utils/mapUtils.js
+// utils/mapUtils.jsx
 import maplibregl from "maplibre-gl";
 import { DATA_SOURCE_CONFIG, COLOR_SCHEME, API_CONFIG } from './MapConstants.jsx';
 
@@ -60,11 +60,11 @@ export const createPriceExpression = (dataSourceType) => {
     }
 };
 
-// Helper function to build query parameters from filters
+// Helper funkcija ki builda query parametre za filter
 export const buildFilterParams = (filters = {}) => {
     const params = new URLSearchParams();
     
-    // Add all non-null filter values
+
     Object.entries(filters).forEach(([key, value]) => {
         if (value !== null && value !== undefined && value !== '') {
             params.append(key, value);
@@ -83,7 +83,6 @@ export const buildPropertiesUrl = (bbox, zoom, dataSource, sifko = null, municip
         data_source: dataSource
     });
     
-    // Add optional location filters
     if (sifko) {
         params.append('sifko', sifko.toString());
     }
@@ -92,7 +91,6 @@ export const buildPropertiesUrl = (bbox, zoom, dataSource, sifko = null, municip
         params.append('municipality', municipality);
     }
     
-    // Add property filters
     Object.entries(filters).forEach(([key, value]) => {
         if (value !== null && value !== undefined && value !== '') {
             params.append(key, value.toString());
@@ -108,7 +106,6 @@ export const buildClusterDetailsUrl = (clusterId, dataSource, zoom, filters = {}
         zoom: zoom.toString()
     });
     
-    // Add property filters to cluster details as well
     Object.entries(filters).forEach(([key, value]) => {
         if (value !== null && value !== undefined && value !== '') {
             params.append(key, value.toString());
@@ -118,16 +115,16 @@ export const buildClusterDetailsUrl = (clusterId, dataSource, zoom, filters = {}
     return `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CLUSTER_DETAILS}/${clusterId}/properties?${params.toString()}`;
 };
 
-// Validate filter values
+// Validira filter vrednosti
 export const validateFilters = (filters, dataSourceType) => {
     const validated = {};
     
-    // Year validation
+    // Year validacija
     if (filters.filter_leto && filters.filter_leto >= 2000 && filters.filter_leto <= new Date().getFullYear()) {
         validated.filter_leto = parseInt(filters.filter_leto);
     }
     
-    // Price validation
+    // Price validacija
     if (filters.min_cena && filters.min_cena >= 0) {
         validated.min_cena = parseFloat(filters.min_cena);
     }
@@ -160,7 +157,7 @@ export const validateFilters = (filters, dataSourceType) => {
     return validated;
 };
 
-// Format filter summary for display
+
 export const formatFilterSummary = (filters, dataSourceType) => {
     const parts = [];
     
@@ -231,7 +228,7 @@ export const calculateExpansionRadius = (zoom, baseRadius = 0.005) => {
     return baseRadius / Math.pow(2, Math.max(0, zoom - 13));
 };
 
-// Maplibre layer style helpers
+// Maplibre stili
 export const createMunicipalityOutlineStyle = (selectedSifko = null) => ({
     'line-color': [
         'case',
@@ -286,11 +283,22 @@ export const handleApiError = (error, context) => {
     throw error;
 };
 
-// Municipality utilities
+// Kataster utilities
 export const getMunicipalityName = (municipalityFeature) => {
-    const sifko = municipalityFeature.properties.SIFKO;
-    return municipalityFeature.properties.IMEKO || `KO ${sifko}`;
+  const name = municipalityFeature.properties.NAZIV || municipalityFeature.properties.IMEKO;
+  const code = municipalityFeature.properties.SIFKO;
+  
+  if (name && code) {
+    return `${name} (${code})`;
+  } else if (name) {
+    return name;
+  } else if (code) {
+    return `KO ${code}`;
+  } else {
+    return 'Neznana občina';
+  }
 };
+
 
 // Občina utilities
 export const getObcinaName = (obcinaFeature) => {
