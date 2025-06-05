@@ -1,0 +1,299 @@
+from typing import Dict, Any, List, Optional
+from sqlalchemy import create_engine, text
+from .logging_utils import setup_logger
+from .sql_utils import get_sql_query
+
+logger = setup_logger("statistics", "statistics.log", "STATS")
+
+
+class StatisticsService:
+    
+    def __init__(self, db_url: str):
+        self.db_url = db_url
+        self.engine = create_engine(db_url)
+
+
+    def refresh_all_statistics(self) -> Dict[str, Any]:
+        """
+        Napolni/posodobi vse statistike za vse regije
+        """
+        try:
+            logger.info("=" * 60)
+            logger.info("ZAČETEK POSODABLJANJA VSEH STATISTIK")
+            logger.info("=" * 60)
+            
+            logger.info("Posodabljam statistike za vse regije")
+            
+            # 1. Posodobi materialized views
+            self._refresh_materialized_views()
+            
+            # 2. Počisti cache
+            self._clear_cache()
+            
+            # 3. Polni cache z vsemi statistikami
+            self._populate_all_cache()
+            
+            # 4. Preveri rezultate
+            status = self.get_statistics_status()
+            
+            logger.info("=" * 60)
+            logger.info("VSE STATISTIKE USPEŠNO POSODOBLJENE")
+            logger.info("=" * 60)
+            
+            return {
+                "status": "success", 
+                "message": "Vse statistike uspešno posodobljene", 
+                "details": status["statistics"]
+            }
+            
+        except Exception as e:
+            logger.error(f"Napaka pri posodabljanju statistik: {str(e)}")
+            return {"status": "error", "message": str(e)}
+
+    def get_statistics_status(self) -> Dict[str, Any]:
+        """
+        Status statistik
+        """
+        try:
+            with self.engine.connect() as conn:
+                # Osnovne statistike o cache
+                cache_count = conn.execute(text("SELECT COUNT(*) FROM stats.statistike_cache")).scalar()
+                
+                regions_count = conn.execute(text(
+                    "SELECT COUNT(DISTINCT ime_regije) FROM stats.statistike_cache"
+                )).scalar()
+                
+                # Razdelitev po tipih
+                razdelitev_query = """
+                SELECT 
+                    tip_posla,
+                    tip_obdobja,
+                    COUNT(*) as stevilo
+                FROM stats.statistike_cache 
+                GROUP BY tip_posla, tip_obdobja
+                ORDER BY tip_posla, tip_obdobja
+                """
+                
+                result = conn.execute(text(razdelitev_query))
+                razdelitev = [{"tip_posla": row.tip_posla, "tip_obdobja": row.tip_obdobja, "stevilo": row.stevilo} 
+                           for row in result.fetchall()]
+                
+                # Materialized views
+                try:
+                    mv_prodajne_count = conn.execute(text("SELECT COUNT(*) FROM stats.mv_prodajne_statistike")).scalar()
+                    mv_najemne_count = conn.execute(text("SELECT COUNT(*) FROM stats.mv_najemne_statistike")).scalar()
+                except:
+                    mv_prodajne_count = 0
+                    mv_najemne_count = 0
+                
+                return {
+                    "status": "success",
+                    "statistics": {
+                        "cache_zapisov": cache_count,
+                        "stevilo_regij": regions_count,
+                        "mv_prodajni_zapisi": mv_prodajne_count,
+                        "mv_najemni_zapisi": mv_najemne_count,
+                        "razdelitev_po_tipih": razdelitev
+                    }
+                }
+                
+        except Exception as e:
+            logger.error(f"Napaka pri pridobivanju statusa: {str(e)}")
+            return {"status": "error", "message": str(e)}
+
+    def get_full_statistics(self, regija: str, tip_regije: str = "obcina") -> Dict[str, Any]:
+        """
+        Pridobi VSE statistike za določeno regijo/KO/Slovenijo
+        """
+        try:
+            with self.engine.connect() as conn:
+                # Pridobi vse statistike za regijo
+                query = """
+                SELECT *
+                FROM stats.statistike_cache 
+                WHERE tip_regije = :tip_regije AND ime_regije = :regija
+                ORDER BY tip_posla, tip_nepremicnine, tip_obdobja, leto DESC
+                """
+                
+                result = conn.execute(text(query), {"tip_regije": tip_regije, "regija": regija})
+                rows = result.fetchall()
+                
+                if not rows:
+                    return {"status": "error", "message": f"Statistike za regijo '{regija}' niso najdene"}
+                
+                # Organiziraj podatke po strukturah
+                statistike = {
+                    "prodaja": {
+                        "stanovanje": {"letno": [], "zadnjih_12m": None},
+                        "hisa": {"letno": [], "zadnjih_12m": None}
+                    },
+                    "najem": {
+                        "stanovanje": {"letno": [], "zadnjih_12m": None},
+                        "hisa": {"letno": [], "zadnjih_12m": None}
+                    },
+                }
+                
+                for row in rows:
+                    # Struktura podatkov za vsak zapis
+                    podatek = {
+                        "leto": row.leto,
+                        "cene": {
+                            "povprecna_cena_m2": float(row.povprecna_cena_m2) if row.povprecna_cena_m2 else None,
+                            "percentil_10_cena_m2": float(row.percentil_10_cena_m2) if row.percentil_10_cena_m2 else None,
+                            "percentil_90_cena_m2": float(row.percentil_90_cena_m2) if row.percentil_90_cena_m2 else None,
+                            "povprecna_skupna_cena": float(row.povprecna_skupna_cena) if row.povprecna_skupna_cena else None,
+                            "percentil_10_skupna_cena": float(row.percentil_10_skupna_cena) if row.percentil_10_skupna_cena else None,
+                            "percentil_90_skupna_cena": float(row.percentil_90_skupna_cena) if row.percentil_90_skupna_cena else None,
+                        },
+                        "aktivnost": {
+                            "stevilo_poslov": row.stevilo_poslov,
+                            "trenutno_v_najemu": row.trenutno_v_najemu
+                        },
+                        "lastnosti": {
+                            "povprecna_velikost_m2": float(row.povprecna_velikost_m2) if row.povprecna_velikost_m2 else None,
+                            "percentil_10_velikost_m2": float(row.percentil_10_velikost_m2) if row.percentil_10_velikost_m2 else None,
+                            "percentil_90_velikost_m2": float(row.percentil_90_velikost_m2) if row.percentil_90_velikost_m2 else None,
+                            "povprecna_starost_stavbe": row.povprecna_starost_stavbe,
+                            "percentil_10_starost_stavbe": row.percentil_10_starost_stavbe,
+                            "percentil_90_starost_stavbe": row.percentil_90_starost_stavbe,
+                            "delez_opremljenih_pct": float(row.delez_opremljenih_pct) if row.delez_opremljenih_pct else None,
+                            "delez_agencijskih_pct": float(row.delez_agencijskih_pct) if row.delez_agencijskih_pct else None
+                        }
+                    }
+                    
+                    # Razporedi v ustrezno kategorijo
+                    tip_trans = row.tip_posla
+                    tip_nep = row.tip_nepremicnine
+                    tip_obd = row.tip_obdobja
+                    
+                    if tip_obd == "letno":
+                        statistike[tip_trans][tip_nep]["letno"].append(podatek)
+                    else:  # zadnjih_12m
+                        statistike[tip_trans][tip_nep]["zadnjih_12m"] = podatek
+                    
+                return {"status": "success", "statistike": statistike}
+                
+        except Exception as e:
+            logger.error(f"Napaka pri pridobivanju statistik za regijo {regija}: {str(e)}")
+            return {"status": "error", "message": str(e)}
+
+    def get_general_statistics(self, regija: str, tip_regije: str = "obcina") -> Dict[str, Any]:
+        """
+        Pridobi samo splošne/ključne statistike za regijo
+        """
+        try:
+            with self.engine.connect() as conn:
+                query = """
+                SELECT 
+                    ime_regije,
+                    tip_nepremicnine,
+                    tip_posla,
+                    povprecna_cena_m2,
+                    povprecna_skupna_cena,
+                    stevilo_poslov,
+                    trenutno_v_najemu,
+                    povprecna_velikost_m2,
+                    povprecna_starost_stavbe
+                FROM stats.statistike_cache 
+                WHERE tip_regije = :tip_regije 
+                  AND ime_regije = :regija
+                  AND tip_obdobja = 'zadnjih_12m'
+                ORDER BY tip_posla, tip_nepremicnine
+                """
+                
+                result = conn.execute(text(query), {"tip_regije": tip_regije, "regija": regija})
+                rows = result.fetchall()
+                
+                if not rows:
+                    return {"status": "error", "message": f"Splošne statistike za regijo '{regija}' niso najdene"}
+                
+                splosne = {
+                    "regija": regija,
+                    "tip_regije": tip_regije,
+                    "obdobje": "zadnjih_12_mesecev",
+                    "pregled": {},
+                }
+                
+                for row in rows:
+                    key = f"{row.tip_posla}_{row.tip_nepremicnine}"
+                    splosne["pregled"][key] = {
+                        "tip_posla": row.tip_posla,
+                        "tip_nepremicnine": row.tip_nepremicnine,
+                        "povprecna_cena_m2": float(row.povprecna_cena_m2) if row.povprecna_cena_m2 else None,
+                        "povprecna_skupna_cena": float(row.povprecna_skupna_cena) if row.povprecna_skupna_cena else None,
+                        "stevilo_poslov": row.stevilo_poslov,
+                        "trenutno_v_najemu": row.trenutno_v_najemu,
+                        "povprecna_velikost_m2": float(row.povprecna_velikost_m2) if row.povprecna_velikost_m2 else None,
+                        "povprecna_starost_stavbe": row.povprecna_starost_stavbe
+                    }
+                
+                return {"status": "success", "splosne_statistike": splosne}
+                
+        except Exception as e:
+            logger.error(f"Napaka pri pridobivanju splošnih statistik za regijo {regija}: {str(e)}")
+            return {"status": "error", "message": str(e)}
+
+
+
+
+    # POMOŽNE METODE
+    
+    def _refresh_materialized_views(self):
+        """Posodobi materialized views."""
+        with self.engine.connect() as conn:
+            trans = conn.begin()
+            try:
+                logger.info("Posodabljam materialized views...")
+                
+                sales_mv_sql = get_sql_query('stats/create_mv_prodajne_stats.sql')
+                conn.execute(text(sales_mv_sql))
+                
+                rental_mv_sql = get_sql_query('stats/create_mv_najemne_stats.sql')
+                conn.execute(text(rental_mv_sql))
+                
+                trans.commit()
+                logger.info("Materialized views uspešno posodobljeni")
+                
+            except Exception as e:
+                trans.rollback()
+                raise
+
+    def _clear_cache(self):
+        """Počisti celoten cache."""
+        with self.engine.connect() as conn:
+            trans = conn.begin()
+            try:
+                conn.execute(text("TRUNCATE TABLE stats.statistike_cache"))
+                logger.info("Počiščen celoten cache")
+                
+                trans.commit()
+                
+            except Exception as e:
+                trans.rollback()
+                raise
+
+    def _populate_all_cache(self):
+        """Polni cache z vsemi statistikami za vse regije."""
+        with self.engine.connect() as conn:
+            trans = conn.begin()
+            try:
+                logger.info("Polnim cache z vsemi statistikami...")
+                
+                sales_sql = get_sql_query('stats/populate_prodajne_statistike_cache.sql')
+                result = conn.execute(text(sales_sql))
+                logger.info(f"Vstavljena prodajna statistika: {result.rowcount} zapisov")
+                
+                rental_sql = get_sql_query('stats/populate_najemne_statistike_cache.sql')
+                result = conn.execute(text(rental_sql))
+                logger.info(f"Vstavljena najemna statistika: {result.rowcount} zapisov")
+                
+                last_12m_sql = get_sql_query('stats/populate_zadnjih_12m_stats.sql')
+                conn.execute(text(last_12m_sql))
+                logger.info("Dodane statistike za zadnjih 12 mesecev")
+                
+                trans.commit()
+                logger.info("Vsi cache podatki uspešno naloženi")
+                
+            except Exception as e:
+                trans.rollback()
+                raise

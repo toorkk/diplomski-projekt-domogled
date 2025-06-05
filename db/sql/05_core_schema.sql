@@ -1,7 +1,9 @@
 CREATE SCHEMA IF NOT EXISTS core;
 
+DROP MATERIALIZED VIEW IF EXISTS stats.mv_najemne_statistike CASCADE;
+DROP MATERIALIZED VIEW IF EXISTS stats.mv_prodajne_statistike CASCADE;
 
-DROP TABLE IF EXISTS core.np_del_stavbe;
+DROP TABLE IF EXISTS core.np_del_stavbe CASCADE;
 CREATE TABLE core.np_del_stavbe (
   del_stavbe_id         SERIAL          PRIMARY KEY,
   posel_id              INTEGER         NOT NULL,
@@ -22,6 +24,7 @@ CREATE TABLE core.np_del_stavbe (
   opombe                TEXT,
   leto_izgradnje_stavbe INTEGER,
   dejanska_raba         VARCHAR(100),
+  tip_nepremicnine      VARCHAR(19),
   lega_v_stavbi         VARCHAR(20),
 
   povrsina              NUMERIC(10,2),
@@ -34,7 +37,7 @@ CREATE TABLE core.np_del_stavbe (
 );
 
 
-DROP TABLE IF EXISTS core.kpp_del_stavbe;
+DROP TABLE IF EXISTS core.kpp_del_stavbe CASCADE;
 CREATE TABLE core.kpp_del_stavbe (
     del_stavbe_id                           SERIAL          PRIMARY KEY,
     posel_id                                INTEGER         NOT NULL,
@@ -64,6 +67,7 @@ CREATE TABLE core.kpp_del_stavbe (
     povrsina_atrija                         NUMERIC(10,2),
     opombe                                  TEXT,
     dejanska_raba                           VARCHAR(310),
+    tip_nepremicnine                        VARCHAR(19),
     lega_v_stavbi                           VARCHAR(50),
     stevilo_sob                             INTEGER,
     povrsina                                NUMERIC(10,2),
@@ -145,6 +149,8 @@ CREATE TABLE core.np_del_stavbe_deduplicated (
     stevilka_stavbe             INTEGER         NOT NULL,
     stevilka_dela_stavbe        INTEGER         NOT NULL,
     dejanska_raba               VARCHAR(310)    NOT NULL,
+    
+    tip_nepremicnine            VARCHAR(19),
 
     obcina                      VARCHAR(102),
     naselje                     VARCHAR(103),
@@ -185,6 +191,8 @@ CREATE TABLE core.kpp_del_stavbe_deduplicated (
     stevilka_stavbe             INTEGER         NOT NULL,
     stevilka_dela_stavbe        INTEGER         NOT NULL,
     dejanska_raba               VARCHAR(310)    NOT NULL,
+
+    tip_nepremicnine            VARCHAR(19),
 
     obcina                      VARCHAR(102),
     naselje                     VARCHAR(103),

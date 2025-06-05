@@ -6,3 +6,4 @@ Get-Content sql/02_np_staging_schema.sql | docker exec -i domogled-db psql -U po
 Get-Content sql/03_kpp_staging_schema.sql | docker exec -i domogled-db psql -U postgres -d domogled
 Get-Content sql/04_ei_staging_schema.sql | docker exec -i domogled-db psql -U postgres -d domogled
 Get-Content sql/05_core_schema.sql | docker exec -i domogled-db psql -U postgres -d domogled
+Get-Content sql/06_stats_schema.sql | docker exec -i domogled-db psql -U postgres -d domogled
