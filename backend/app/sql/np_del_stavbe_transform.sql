@@ -77,8 +77,10 @@ dejanska_raba,
 tip_nepremicnine,
 lega_v_stavbi,
 
-povrsina, 
-povrsina_uporabna, 
+povrsina_uradna,
+povrsina_pogodba,
+povrsina_uporabna_uradna,
+povrsina_uporabna_pogodba, 
 prostori,
 
 coordinates, 
@@ -99,19 +101,35 @@ CASE
     WHEN d.hisna_stevilka ~ '^-?\d+\.?\d*$' THEN CAST(CAST(d.hisna_stevilka AS NUMERIC) AS INTEGER)
     ELSE NULL 
 END as hisna_stevilka,
-UPPER(TRIM(d.dodatek_hs)) as dodatek_hs,
+CASE 
+    WHEN d.dodatek_hs IS NULL OR TRIM(d.dodatek_hs) = '' THEN NULL
+    WHEN d.dodatek_hs ~ '^[A-Za-z0-9]+$' THEN UPPER(TRIM(d.dodatek_hs))
+    ELSE NULL
+END as dodatek_hs,
 d.stevilka_stanovanja_ali_poslovnega_prostora,
 d.vrsta_oddanih_prostorov,
 d.opremljenost_oddanih_prostorov,
 
 TRIM(d.opombe_o_oddanih_prostorih) as opombe_o_oddanih_prostorih,
-d.leto_izgradnje_stavbe,
+CASE 
+    WHEN d.leto_izgradnje_stavbe BETWEEN 1500 AND EXTRACT(YEAR FROM CURRENT_DATE) 
+        THEN d.leto_izgradnje_stavbe
+    ELSE NULL 
+END as leto_izgradnje_stavbe,  
 LOWER(TRIM(d.dejanska_raba_dela_stavbe)) as dejanska_raba,
 COALESCE(rm.category, 'neopredeljeno') as tip_nepremicnine,
 LOWER(TRIM(d.lega_dela_stavbe_v_stavbi)) as lega_v_stavbi,
 
-d.povrsina_dela_stavbe,
-d.uporabna_povrsina_dela_stavbe,
+d.povrsina_dela_stavbe as povrsina_uradna,
+COALESCE(
+    d.povrsina_oddanih_prostorov,
+    d.povrsina_dela_stavbe  -- če je oddan cel del stavbe
+) as povrsina_pogodba,
+d.uporabna_povrsina_dela_stavbe as povrsina_uporabna_uradna,
+COALESCE(
+    d.uporabna_povrsina_oddanih_prostorov,
+    d.uporabna_povrsina_dela_stavbe  -- če je oddan cel del stavbe
+) as povrsina_uporabna_pogodba,
 d.prostori_dela_stavbe,
 
 ST_Transform(ST_SetSRID(ST_MakePoint(d.e_centroid, d.n_centroid), 3794), 4326),

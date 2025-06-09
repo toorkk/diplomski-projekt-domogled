@@ -9,14 +9,15 @@ WITH najemni_podatki AS (
         
         -- Cene
         CASE 
-            WHEN n.povrsina_uporabna > 0 THEN np.najemnina / n.povrsina_uporabna 
+            WHEN COALESCE(n.povrsina_uporabna_uradna, n.povrsina_uporabna_pogodba, n.povrsina_uradna, n.povrsina_pogodba) > 0 
+            THEN np.najemnina / COALESCE(n.povrsina_uporabna_uradna, n.povrsina_uporabna_pogodba, n.povrsina_uradna, n.povrsina_pogodba)
             ELSE NULL 
         END as najemnina_m2,
         np.najemnina as skupna_najemnina,
         
         -- Velikost
-        n.povrsina,
-        n.povrsina_uporabna,
+        COALESCE(n.povrsina_pogodba, n.povrsina_uradna) as povrsina,
+        COALESCE(n.povrsina_uporabna_pogodba, n.povrsina_uporabna_uradna) as povrsina_uporabna,
         
         -- Starost
         CASE 
@@ -48,8 +49,8 @@ WITH najemni_podatki AS (
     JOIN core.np_posel np ON n.posel_id = np.posel_id
     WHERE np.najemnina IS NOT NULL 
       AND np.najemnina > 0
-      AND n.povrsina_uporabna IS NOT NULL 
-      AND n.povrsina_uporabna > 0
+      AND COALESCE( n.povrsina_uradna, n.povrsina_pogodba) IS NOT NULL 
+      AND COALESCE( n.povrsina_uradna, n.povrsina_pogodba) > 0
       AND np.trznost_posla = 1 -- samo tržni posli
       AND n.ime_ko IS NOT NULL
       AND n.obcina IS NOT NULL

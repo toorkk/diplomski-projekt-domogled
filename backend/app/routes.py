@@ -266,8 +266,8 @@ def get_properties_geojson(
     filter_leto: int = Query(None, description="Filter po letu posla (opcijsko)"),
     min_cena: float = Query(None, description="Minimalna cena/najemnina (opcijsko)"),
     max_cena: float = Query(None, description="Maksimalna cena/najemnina (opcijsko)"),
-    min_povrsina: float = Query(None, description="Minimalna uporabna površina (opcijsko)"),
-    max_povrsina: float = Query(None, description="Maksimalna uporabna površina (opcijsko)"),
+    min_povrsina: float = Query(None, description="Minimalna površina (opcijsko)"),
+    max_povrsina: float = Query(None, description="Maksimalna površina (opcijsko)"),
 
     db: Session = Depends(get_db)
 ):
@@ -361,8 +361,8 @@ def get_cluster_properties(
     filter_leto: int = Query(None, description="Filter po letu posla (opcijsko)"),
     min_cena: float = Query(None, description="Minimalna cena/najemnina (opcijsko)"),
     max_cena: float = Query(None, description="Maksimalna cena/najemnina (opcijsko)"),
-    min_povrsina: float = Query(None, description="Minimalna uporabna površina (opcijsko)"),
-    max_povrsina: float = Query(None, description="Maksimalna uporabna površina (opcijsko)"),
+    min_povrsina: float = Query(None, description="Minimalna površina (opcijsko)"),
+    max_povrsina: float = Query(None, description="Maksimalna površina (opcijsko)"),
     db: Session = Depends(get_db)
 ):
     """

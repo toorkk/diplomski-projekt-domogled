@@ -9,7 +9,6 @@ INSERT INTO core.kpp_posel (
     opombe,
     posredovanje_agencije,
     trznost_posla,
-    vrsta_akta,
     datum_zadnje_spremembe,
     datum_zadnje_uveljavitve,
     leto
@@ -25,7 +24,6 @@ SELECT
     opombe_o_pravnem_poslu,
     CASE WHEN posredovanje_nepremicninske_agencije = 1 THEN TRUE ELSE FALSE END,
     trznost_posla,
-    vrsta_akta,
     TO_DATE(NULLIF(datum_zadnje_spremembe_posla, ''), 'DD.MM.YYYY'),
     TO_DATE(NULLIF(datum_zadnje_uveljavitve_posla, ''), 'DD.MM.YYYY'),
     leto

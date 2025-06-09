@@ -26,9 +26,10 @@ CREATE TABLE core.np_del_stavbe (
   dejanska_raba         VARCHAR(100),
   tip_nepremicnine      VARCHAR(19),
   lega_v_stavbi         VARCHAR(20),
-
-  povrsina              NUMERIC(10,2),
-  povrsina_uporabna     NUMERIC(10,2),
+  povrsina_uradna       NUMERIC(10,2),
+  povrsina_pogodba      NUMERIC(10,2),
+  povrsina_uporabna_uradna NUMERIC(10,2), -- samo za najemnes
+  povrsina_uporabna_pogodba NUMERIC(10,2), -- samo za najemne
   prostori              TEXT,
 
   -- podatki so pretvorjeni iz slovenskega sistema (SRID 3794) v WGS84
@@ -57,27 +58,19 @@ CREATE TABLE core.kpp_del_stavbe (
     stavba_je_dokoncana                     INTEGER,        --- not sure ce to obdrzimo
     gradbena_faza                           INTEGER,        --- not sure ce to obdrzimo
     novogradnja                             INTEGER,
-    prodana_povrsina                        NUMERIC(10,2),
     prodani_delez                           VARCHAR(199),
-    prodana_povrsina_dela_stavbe            NUMERIC(10,2),
-    prodana_uporabna_povrsina_dela_stavbe   NUMERIC(10,2),
     nadstropje                              INTEGER,
-    stevilo_zunanjih_parkirnih_mest         INTEGER,
-    atrij                                   INTEGER,
-    povrsina_atrija                         NUMERIC(10,2),
     opombe                                  TEXT,
     dejanska_raba                           VARCHAR(310),
     tip_nepremicnine                        VARCHAR(19),
     lega_v_stavbi                           VARCHAR(50),
     stevilo_sob                             INTEGER,
-    povrsina                                NUMERIC(10,2),
-    povrsina_uporabna                       NUMERIC(10,2),
+    povrsina_uradna                         NUMERIC(10,2),
+    povrsina_pogodba                        NUMERIC(10,2),
     prostori                                TEXT,
     pogodbena_cena                          NUMERIC(20,2),
     stopnja_ddv                             NUMERIC(5,2),
-
-  -- podatki so pretvorjeni iz slovenskega sistema (SRID 3794) v WGS84
-    coordinates                             GEOMETRY(Point, 4326),
+    coordinates                             GEOMETRY(Point, 4326),  -- podatki so pretvorjeni iz slovenskega sistema (SRID 3794) v WGS84
     leto                                    INTEGER
 );
 
@@ -106,8 +99,8 @@ CREATE TABLE core.np_posel (
   posredovanje_agencije        BOOLEAN,
   datum_zadnje_spremembe       DATE,
   datum_zadnje_uveljavitve     DATE,
-  vrsta_akta                   SMALLINT,
-  trznost_posla                SMALLINT,
+  vrsta_akta                   SMALLINT, -- samo za najemne
+  trznost_posla                SMALLINT, --od 2015 dalje
 
   leto                         INTEGER
 );
@@ -124,16 +117,11 @@ CREATE TABLE core.kpp_posel (
     vkljuceno_ddv           BOOLEAN,
     stopnja_ddv             NUMERIC(5,2),
     
-    -- ta dva povzrocata tezave pri importu v to tabelo is staging
-    --datum_izteka_lizinga DATE,
-    --datum_prenehanja_lizinga DATE,
-    
     opombe                  TEXT,
     posredovanje_agencije   BOOLEAN,
     datum_zadnje_spremembe  DATE,
     datum_zadnje_uveljavitve DATE,
-    trznost_posla           SMALLINT,
-    vrsta_akta              SMALLINT,
+    trznost_posla           SMALLINT, --od 2015 dalje
     leto                    INTEGER
 );
 
@@ -159,8 +147,10 @@ CREATE TABLE core.np_del_stavbe_deduplicated (
     dodatek_hs                  VARCHAR(10),
     stev_stanovanja             INTEGER,
 
-    povrsina                    NUMERIC(10,2),
-    povrsina_uporabna           NUMERIC(10,2),
+    povrsina_uradna             NUMERIC(10,2),
+    povrsina_pogodba            NUMERIC(10,2),
+    povrsina_uporabna_uradna    NUMERIC(10,2), -- samo za najemnes
+    povrsina_uporabna_pogodba   NUMERIC(10,2), -- samo za najemne
     leto_izgradnje_stavbe       INTEGER,
     opremljenost                SMALLINT,
 
@@ -201,8 +191,9 @@ CREATE TABLE core.kpp_del_stavbe_deduplicated (
     dodatek_hs                  VARCHAR(10),
     stev_stanovanja             INTEGER,
     
-    povrsina                    NUMERIC(10,2),
-    povrsina_uporabna           NUMERIC(10,2),
+
+    povrsina_uradna             NUMERIC(10,2),
+    povrsina_pogodba            NUMERIC(10,2),
     leto_izgradnje_stavbe       INTEGER,
     stevilo_sob                 INTEGER,
 

@@ -9,14 +9,14 @@ WITH prodajni_podatki AS (
         
         -- Cene
         CASE 
-            WHEN k.povrsina_uporabna > 0 THEN kp.cena / k.povrsina_uporabna 
+            WHEN COALESCE( k.povrsina_uradna, k.povrsina_pogodba) > 0 
+            THEN kp.cena / COALESCE( k.povrsina_uradna, k.povrsina_pogodba)
             ELSE NULL 
         END as cena_m2,
         kp.cena as skupna_cena,
         
         -- Velikost
-        k.povrsina,
-        k.povrsina_uporabna,
+        COALESCE(k.povrsina_uradna, k.povrsina_pogodba) as povrsina,
         
         -- Starost
         CASE 
@@ -34,8 +34,8 @@ WITH prodajni_podatki AS (
     JOIN core.kpp_posel kp ON k.posel_id = kp.posel_id
     WHERE kp.cena IS NOT NULL 
       AND kp.cena > 0
-      AND k.povrsina_uporabna IS NOT NULL 
-      AND k.povrsina_uporabna > 0
+      AND COALESCE(k.povrsina_uradna, k.povrsina_pogodba) IS NOT NULL 
+      AND COALESCE(k.povrsina_uradna, k.povrsina_pogodba) > 0
       AND kp.trznost_posla = 1 -- samo tržni posli
       AND k.ime_ko IS NOT NULL
       AND k.obcina IS NOT NULL
