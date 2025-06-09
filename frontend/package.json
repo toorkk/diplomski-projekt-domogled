@@ -16,6 +16,7 @@
     "frontend": "file:",
     "lodash": "^4.17.21",
     "maplibre-gl": "^5.5.0",
+    "papaparse": "^5.5.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "recharts": "^2.15.3",

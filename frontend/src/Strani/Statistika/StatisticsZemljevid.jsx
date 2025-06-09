@@ -22,7 +22,7 @@ import {
 
 // Stili in JSON podatki (katastri, občine)
 import '../Stili/Zemljevid.css';
-import municipalitiesData from '../../Občine/KatObčine.json';
+import municipalitiesData from '../../Občine/KatObčine_z_obcinami.json';
 import obcineData from '../../Občine/OB.json';
 
 export default function StatisticsZemljevid({ 
@@ -198,6 +198,8 @@ export default function StatisticsZemljevid({
         if (layerManager.current) {
             layerManager.current.updateObcinaHover(null);
             layerManager.current.updateMunicipalityHover(null);
+            // 🆕 Resetiraj filtre katastrov
+            layerManager.current.resetFilters();
         }
 
         const overlayLayerId = 'obcina-mask';
@@ -420,9 +422,13 @@ export default function StatisticsZemljevid({
         }
     }, [selectedMunicipality]);
 
+    // 🆕 Posodobljen useEffect za selectedObcina z imenom občine
     useEffect(() => {
         if (map.current && layerManager.current) {
-            layerManager.current.updateObcinaSelection(selectedObcina?.obcinaId);
+            layerManager.current.updateObcinaSelection(
+                selectedObcina?.obcinaId, 
+                selectedObcina?.name  // Dodamo ime občine za filtriranje
+            );
         }
     }, [selectedObcina]);
 

@@ -7,6 +7,9 @@ export default function Statistika() {
     const [selectedMunicipality, setSelectedMunicipality] = useState(null);
     const [selectedObcina, setSelectedObcina] = useState(null);
     const [activeTab, setActiveTab] = useState('prodaja'); // nov state za tab switcher
+    const [chartType, setChartType] = useState('stanovanje'); // nov state za graf switcher
+    const [chartType2, setChartType2] = useState('stanovanje'); // nov state za drugi graf switcher
+    const [chartType3, setChartType3] = useState('stanovanje'); // nov state za četrti graf switcher
     const [statisticsData, setStatisticsData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -18,32 +21,77 @@ export default function Statistika() {
     const prepareChartData = () => {
         if (!statisticsData || !statisticsData[activeTab]) return [];
 
-        const stanovanjeData = statisticsData[activeTab]?.stanovanje?.letno || [];
-        const hisaData = statisticsData[activeTab]?.hisa?.letno || [];
+        const typeData = statisticsData[activeTab]?.[chartType]?.letno || [];
 
-        // Ustvari set vseh let
-        const allYears = new Set([
-            ...stanovanjeData.map(d => d.leto),
-            ...hisaData.map(d => d.leto)
-        ]);
+        // Pripravi podatke za graf samo za izbrani tip
+        const chartData = typeData.map(d => ({
+            leto: d.leto,
+            povprecna: d.cene?.povprecna_cena_m2 || null,
+            p10: d.cene?.percentil_10_cena_m2 || null,
+            p90: d.cene?.percentil_90_cena_m2 || null,
+        })).sort((a, b) => a.leto - b.leto);
 
-        // Pripravi podatke za graf
-        const chartData = Array.from(allYears).sort().map(leto => {
-            const stanovanjeYear = stanovanjeData.find(d => d.leto === leto);
-            const hisaYear = hisaData.find(d => d.leto === leto);
+        return chartData;
+    };
 
-            return {
-                leto: leto,
-                // Stanovanje podatki
-                stanovanje_povprecna: stanovanjeYear?.cene?.povprecna_cena_m2 || null,
-                stanovanje_p10: stanovanjeYear?.cene?.percentil_10_cena_m2 || null,
-                stanovanje_p90: stanovanjeYear?.cene?.percentil_90_cena_m2 || null,
-                // Hiša podatki
-                hisa_povprecna: hisaYear?.cene?.povprecna_cena_m2 || null,
-                hisa_p10: hisaYear?.cene?.percentil_10_cena_m2 || null,
-                hisa_p90: hisaYear?.cene?.percentil_90_cena_m2 || null,
-            };
+    const prepareChart2Data = () => {
+        if (!statisticsData || !statisticsData[activeTab]) return [];
+
+        const typeData = statisticsData[activeTab]?.[chartType2]?.letno || [];
+
+        // Pripravi podatke za graf celotne cene
+        const chartData = typeData.map(d => ({
+            leto: d.leto,
+            povprecna: d.cene?.povprecna_skupna_cena || null,
+            p10: d.cene?.percentil_10_skupna_cena || null,
+            p90: d.cene?.percentil_90_skupna_cena || null,
+        })).sort((a, b) => a.leto - b.leto);
+
+        return chartData;
+    };
+
+    const prepareActivityData = () => {
+        if (!statisticsData || !statisticsData[activeTab]) return [];
+
+        // Zberi vsa leta iz obeh tipov nepremičnin
+        const stanovanjePodatki = statisticsData[activeTab]?.stanovanje?.letno || [];
+        const hisePodatki = statisticsData[activeTab]?.hisa?.letno || [];
+
+        // Ustvari mapo z leti
+        const letaMap = new Map();
+
+        // Dodaj podatke za stanovanja
+        stanovanjePodatki.forEach(d => {
+            if (!letaMap.has(d.leto)) {
+                letaMap.set(d.leto, { leto: d.leto, stanovanja: 0, hise: 0 });
+            }
+            letaMap.get(d.leto).stanovanja = d.aktivnost?.stevilo_poslov || 0;
         });
+
+        // Dodaj podatke za hiše
+        hisePodatki.forEach(d => {
+            if (!letaMap.has(d.leto)) {
+                letaMap.set(d.leto, { leto: d.leto, stanovanja: 0, hise: 0 });
+            }
+            letaMap.get(d.leto).hise = d.aktivnost?.stevilo_poslov || 0;
+        });
+
+        // Pretvori v array in sortiraj
+        return Array.from(letaMap.values()).sort((a, b) => a.leto - b.leto);
+    };
+
+    const prepareSizeChartData = () => {
+        if (!statisticsData || !statisticsData[activeTab]) return [];
+
+        const typeData = statisticsData[activeTab]?.[chartType3]?.letno || [];
+
+        // Pripravi podatke za graf velikosti samo za izbrani tip
+        const chartData = typeData.map(d => ({
+            leto: d.leto,
+            povprecna: d.lastnosti?.povprecna_velikost_m2 || null,
+            p10: d.lastnosti?.percentil_10_velikost_m2 || null,
+            p90: d.lastnosti?.percentil_90_velikost_m2 || null,
+        })).sort((a, b) => a.leto - b.leto);
 
         return chartData;
     };
@@ -70,6 +118,72 @@ export default function Statistika() {
         return null;
     };
 
+    // Custom tooltip za celotno ceno (z localeString)
+    const CustomTooltip2 = ({ active, payload, label }) => {
+        if (active && payload && payload.length) {
+            return (
+                <div className="bg-white p-3 border border-gray-300 rounded-lg shadow-lg">
+                    <p className="font-semibold">{`Leto: ${label}`}</p>
+                    {payload.map((entry, index) => {
+                        if (entry.value !== null) {
+                            return (
+                                <p key={index} style={{ color: entry.color }}>
+                                    {`${entry.name}: €${Math.round(entry.value).toLocaleString()}`}
+                                </p>
+                            );
+                        }
+                        return null;
+                    })}
+                </div>
+            );
+        }
+        return null;
+    };
+
+    // Custom tooltip za število poslov
+    const CustomTooltip3 = ({ active, payload, label }) => {
+        if (active && payload && payload.length) {
+            return (
+                <div className="bg-white p-3 border border-gray-300 rounded-lg shadow-lg">
+                    <p className="font-semibold">{`Leto: ${label}`}</p>
+                    {payload.map((entry, index) => {
+                        if (entry.value !== null && entry.value !== undefined) {
+                            return (
+                                <p key={index} style={{ color: entry.color }}>
+                                    {`${entry.name}: ${entry.value}`}
+                                </p>
+                            );
+                        }
+                        return null;
+                    })}
+                </div>
+            );
+        }
+        return null;
+    };
+
+    // Custom tooltip za velikost (z m²) - nova verzija
+    const CustomTooltip4 = ({ active, payload, label }) => {
+        if (active && payload && payload.length) {
+            return (
+                <div className="bg-white p-3 border border-gray-300 rounded-lg shadow-lg">
+                    <p className="font-semibold">{`Leto: ${label}`}</p>
+                    {payload.map((entry, index) => {
+                        if (entry.value !== null && entry.value !== undefined) {
+                            return (
+                                <p key={index} style={{ color: entry.color }}>
+                                    {`${entry.name}: ${Math.round(entry.value)} m²`}
+                                </p>
+                            );
+                        }
+                        return null;
+                    })}
+                </div>
+            );
+        }
+        return null;
+    };
+
     // ===========================================
     // API FUNCTIONS
     // ===========================================
@@ -77,22 +191,22 @@ export default function Statistika() {
     const fetchStatistics = async (regionName, regionType) => {
         setLoading(true);
         setError(null);
-        
+
         try {
             // Pretvorimo ime regije v velike črke
             const regionNameUpper = regionName.toUpperCase();
-            
+
             console.log('Calling API with:', {
                 regionName: regionName,
                 regionNameUpper: regionNameUpper,
                 regionType: regionType,
                 encodedName: encodeURIComponent(regionNameUpper)
             });
-            
+
             const response = await fetch(`http://localhost:8000/api/statistike/vse/${regionType}/${encodeURIComponent(regionNameUpper)}`);
-            
+
             console.log('API Response status:', response.status);
-            
+
             if (!response.ok) {
                 // Poskusi pridobiti error message iz response
                 let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
@@ -106,10 +220,10 @@ export default function Statistika() {
                 }
                 throw new Error(errorMessage);
             }
-            
+
             const data = await response.json();
             console.log('API Response data:', data);
-            
+
             if (data.status === 'success') {
                 setStatisticsData(data.statistike);
             } else {
@@ -133,19 +247,19 @@ export default function Statistika() {
         // Clear občina selection when municipality is selected
         if (municipalityData) {
             setSelectedObcina(null);
-            
+
             // Izvleci samo ime katastrske občine (brez SIFKO kode)
             let municipalityName = municipalityData.name;
-            
+
             // Če ime vsebuje oklepaje z SIFKO kodo, jo odstrani
             // Primer: "LJUBLJANA (1732)" -> "LJUBLJANA"
             if (municipalityName.includes('(') && municipalityName.includes(')')) {
                 municipalityName = municipalityName.split('(')[0].trim();
             }
-            
+
             console.log('Original municipality name:', municipalityData.name);
             console.log('Cleaned municipality name:', municipalityName);
-            
+
             // Fetch statistics for kataster (katastrska_obcina)
             fetchStatistics(municipalityName, 'katastrska_obcina');
         } else {
@@ -173,13 +287,13 @@ export default function Statistika() {
         <div className="min-h-screen bg-gray-100 pt-16 pb-8 px-8">
             {/* Container za celoten dashboard */}
             <div className="max-w-none mx-8">
-                
+
                 {/* Kombiniran container - zemljevid zgoraj, statistike spodaj, brez gapa */}
                 <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-                    
+
                     {/* Zemljevid sekcija - zgoraj */}
                     <div className="h-[600px]">
-                        <StatisticsZemljevid 
+                        <StatisticsZemljevid
                             onMunicipalitySelect={handleMunicipalitySelect}
                             onObcinaSelect={handleObcinaSelect}
                             selectedMunicipality={selectedMunicipality}
@@ -194,21 +308,19 @@ export default function Statistika() {
                             <div className="flex space-x-8">
                                 <button
                                     onClick={() => setActiveTab('prodaja')}
-                                    className={`pb-2 px-4 text-sm font-medium transition-colors relative ${
-                                        activeTab === 'prodaja'
-                                            ? 'text-black border-b-2 border-black'
-                                            : 'text-gray-400 border-b-2 border-transparent hover:text-gray-600'
-                                    }`}
+                                    className={`pb-2 px-4 text-sm font-medium transition-colors relative ${activeTab === 'prodaja'
+                                        ? 'text-black border-b-2 border-black'
+                                        : 'text-gray-400 border-b-2 border-transparent hover:text-gray-600'
+                                        }`}
                                 >
                                     Prodaja
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('najem')}
-                                    className={`pb-2 px-4 text-sm font-medium transition-colors relative ${
-                                        activeTab === 'najem'
-                                            ? 'text-black border-b-2 border-black'
-                                            : 'text-gray-400 border-b-2 border-transparent hover:text-gray-600'
-                                    }`}
+                                    className={`pb-2 px-4 text-sm font-medium transition-colors relative ${activeTab === 'najem'
+                                        ? 'text-black border-b-2 border-black'
+                                        : 'text-gray-400 border-b-2 border-transparent hover:text-gray-600'
+                                        }`}
                                 >
                                     Najem
                                 </button>
@@ -264,72 +376,76 @@ export default function Statistika() {
                                                 </p>
                                             </div>
 
-                                            {/* Statistike grid */}
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {/* Statistike grid - Individual Box Style */}
+                                            <div className="space-y-6">
                                                 {/* Stanovanje */}
                                                 {statisticsData[activeTab]?.stanovanje?.zadnjih_12m && (
-                                                    <div className="bg-white border border-gray-200 rounded-lg p-4">
-                                                        <h4 className="font-semibold text-gray-800 mb-3">
-                                                            Stanovanje - {activeTab}
+                                                    <div>
+                                                        <h4 className="text-lg font-bold text-gray-800 mb-4">
+                                                            Stanovanja - {activeTab}
                                                         </h4>
-                                                        
-                                                        <div className="space-y-2">
-                                                            {/* Cena */}
-                                                            <div className="flex justify-between">
-                                                                <span className="text-sm text-gray-600">Povprečna cena/m²:</span>
-                                                                <span className="font-medium">
-                                                                    {statisticsData[activeTab].stanovanje.zadnjih_12m.cene.povprecna_cena_m2 ? 
+                                                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                                                            {/* Cena/m² */}
+                                                            <div className="bg-white rounded-2xl p-4 shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
+                                                                <div className="mb-2">
+                                                                    <div className="text-xs text-gray-500">Cena/m²</div>
+                                                                </div>
+                                                                <div className="text-xl font-bold text-gray-800">
+                                                                    {statisticsData[activeTab].stanovanje.zadnjih_12m.cene.povprecna_cena_m2 ?
                                                                         `€${Math.round(statisticsData[activeTab].stanovanje.zadnjih_12m.cene.povprecna_cena_m2)}` : 'N/A'
                                                                     }
-                                                                </span>
+                                                                </div>
                                                             </div>
-                                                            
+
                                                             {/* Skupna cena */}
-                                                            <div className="flex justify-between">
-                                                                <span className="text-sm text-gray-600">Povprečna skupna cena:</span>
-                                                                <span className="font-medium">
-                                                                    {statisticsData[activeTab].stanovanje.zadnjih_12m.cene.povprecna_skupna_cena ? 
+                                                            <div className="bg-white rounded-2xl p-4 shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
+                                                                <div className="mb-2">
+                                                                    <div className="text-xs text-gray-500">Skupna cena</div>
+                                                                </div>
+                                                                <div className="text-xl font-bold text-gray-800">
+                                                                    {statisticsData[activeTab].stanovanje.zadnjih_12m.cene.povprecna_skupna_cena ?
                                                                         `€${Math.round(statisticsData[activeTab].stanovanje.zadnjih_12m.cene.povprecna_skupna_cena).toLocaleString()}` : 'N/A'
                                                                     }
-                                                                </span>
-                                                            </div>
-                                                            
-                                                            {/* Število poslov */}
-                                                            <div className="flex justify-between">
-                                                                <span className="text-sm text-gray-600">Število poslov:</span>
-                                                                <span className="font-medium">
-                                                                    {statisticsData[activeTab].stanovanje.zadnjih_12m.aktivnost.stevilo_poslov || 0}
-                                                                </span>
-                                                            </div>
-                                                            
-                                                            {/* Trenutno v najemu (samo za najem) */}
-                                                            {activeTab === 'najem' && (
-                                                                <div className="flex justify-between">
-                                                                    <span className="text-sm text-gray-600">Trenutno v najemu:</span>
-                                                                    <span className="font-medium">
-                                                                        {statisticsData[activeTab].stanovanje.zadnjih_12m.aktivnost.trenutno_v_najemu || 0}
-                                                                    </span>
                                                                 </div>
-                                                            )}
-                                                            
-                                                            {/* Povprečna velikost */}
-                                                            <div className="flex justify-between">
-                                                                <span className="text-sm text-gray-600">Povprečna velikost:</span>
-                                                                <span className="font-medium">
-                                                                    {statisticsData[activeTab].stanovanje.zadnjih_12m.lastnosti.povprecna_velikost_m2 ? 
+                                                            </div>
+
+                                                            {/* Velikost */}
+                                                            <div className="bg-white rounded-2xl p-4 shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
+                                                                <div className="mb-2">
+                                                                    <div className="text-xs text-gray-500">Velikost</div>
+                                                                </div>
+                                                                <div className="text-xl font-bold text-gray-800">
+                                                                    {statisticsData[activeTab].stanovanje.zadnjih_12m.lastnosti.povprecna_velikost_m2 ?
                                                                         `${Math.round(statisticsData[activeTab].stanovanje.zadnjih_12m.lastnosti.povprecna_velikost_m2)} m²` : 'N/A'
                                                                     }
-                                                                </span>
+                                                                </div>
                                                             </div>
-                                                            
-                                                            {/* Starost stavbe */}
-                                                            <div className="flex justify-between">
-                                                                <span className="text-sm text-gray-600">Povprečna starost:</span>
-                                                                <span className="font-medium">
-                                                                    {statisticsData[activeTab].stanovanje.zadnjih_12m.lastnosti.povprecna_starost_stavbe ? 
+
+                                                            {/* Posli/Najem */}
+                                                            <div className="bg-white rounded-2xl p-4 shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
+                                                                <div className="mb-2">
+                                                                    <div className="text-xs text-gray-500">
+                                                                        {activeTab === 'najem' ? 'V najemu' : 'Št. poslov'}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="text-xl font-bold text-gray-800">
+                                                                    {activeTab === 'najem' ?
+                                                                        (statisticsData[activeTab].stanovanje.zadnjih_12m.aktivnost.trenutno_v_najemu || 0) :
+                                                                        (statisticsData[activeTab].stanovanje.zadnjih_12m.aktivnost.stevilo_poslov || 0)
+                                                                    }
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Starost */}
+                                                            <div className="bg-white rounded-2xl p-4 shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
+                                                                <div className="mb-2">
+                                                                    <div className="text-xs text-gray-500">Starost</div>
+                                                                </div>
+                                                                <div className="text-xl font-bold text-gray-800">
+                                                                    {statisticsData[activeTab].stanovanje.zadnjih_12m.lastnosti.povprecna_starost_stavbe ?
                                                                         `${statisticsData[activeTab].stanovanje.zadnjih_12m.lastnosti.povprecna_starost_stavbe} let` : 'N/A'
                                                                     }
-                                                                </span>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -337,68 +453,72 @@ export default function Statistika() {
 
                                                 {/* Hiša */}
                                                 {statisticsData[activeTab]?.hisa?.zadnjih_12m && (
-                                                    <div className="bg-white border border-gray-200 rounded-lg p-4">
-                                                        <h4 className="font-semibold text-gray-800 mb-3">
-                                                            Hiša - {activeTab}
+                                                    <div>
+                                                        <h4 className="text-lg font-bold text-gray-800 mb-4">
+                                                            Hiše - {activeTab}
                                                         </h4>
-                                                        
-                                                        <div className="space-y-2">
-                                                            {/* Cena */}
-                                                            <div className="flex justify-between">
-                                                                <span className="text-sm text-gray-600">Povprečna cena/m²:</span>
-                                                                <span className="font-medium">
-                                                                    {statisticsData[activeTab].hisa.zadnjih_12m.cene.povprecna_cena_m2 ? 
+                                                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                                                            {/* Cena/m² */}
+                                                            <div className="bg-white rounded-2xl p-4 shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
+                                                                <div className="mb-2">
+                                                                    <div className="text-xs text-gray-500">Cena/m²</div>
+                                                                </div>
+                                                                <div className="text-xl font-bold text-gray-800">
+                                                                    {statisticsData[activeTab].hisa.zadnjih_12m.cene.povprecna_cena_m2 ?
                                                                         `€${Math.round(statisticsData[activeTab].hisa.zadnjih_12m.cene.povprecna_cena_m2)}` : 'N/A'
                                                                     }
-                                                                </span>
+                                                                </div>
                                                             </div>
-                                                            
+
                                                             {/* Skupna cena */}
-                                                            <div className="flex justify-between">
-                                                                <span className="text-sm text-gray-600">Povprečna skupna cena:</span>
-                                                                <span className="font-medium">
-                                                                    {statisticsData[activeTab].hisa.zadnjih_12m.cene.povprecna_skupna_cena ? 
+                                                            <div className="bg-white rounded-2xl p-4 shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
+                                                                <div className="mb-2">
+                                                                    <div className="text-xs text-gray-500">Skupna cena</div>
+                                                                </div>
+                                                                <div className="text-xl font-bold text-gray-800">
+                                                                    {statisticsData[activeTab].hisa.zadnjih_12m.cene.povprecna_skupna_cena ?
                                                                         `€${Math.round(statisticsData[activeTab].hisa.zadnjih_12m.cene.povprecna_skupna_cena).toLocaleString()}` : 'N/A'
                                                                     }
-                                                                </span>
-                                                            </div>
-                                                            
-                                                            {/* Število poslov */}
-                                                            <div className="flex justify-between">
-                                                                <span className="text-sm text-gray-600">Število poslov:</span>
-                                                                <span className="font-medium">
-                                                                    {statisticsData[activeTab].hisa.zadnjih_12m.aktivnost.stevilo_poslov || 0}
-                                                                </span>
-                                                            </div>
-                                                            
-                                                            {/* Trenutno v najemu (samo za najem) */}
-                                                            {activeTab === 'najem' && (
-                                                                <div className="flex justify-between">
-                                                                    <span className="text-sm text-gray-600">Trenutno v najemu:</span>
-                                                                    <span className="font-medium">
-                                                                        {statisticsData[activeTab].hisa.zadnjih_12m.aktivnost.trenutno_v_najemu || 0}
-                                                                    </span>
                                                                 </div>
-                                                            )}
-                                                            
-                                                            {/* Povprečna velikost */}
-                                                            <div className="flex justify-between">
-                                                                <span className="text-sm text-gray-600">Povprečna velikost:</span>
-                                                                <span className="font-medium">
-                                                                    {statisticsData[activeTab].hisa.zadnjih_12m.lastnosti.povprecna_velikost_m2 ? 
+                                                            </div>
+
+                                                            {/* Velikost */}
+                                                            <div className="bg-white rounded-2xl p-4 shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
+                                                                <div className="mb-2">
+                                                                    <div className="text-xs text-gray-500">Velikost</div>
+                                                                </div>
+                                                                <div className="text-xl font-bold text-gray-800">
+                                                                    {statisticsData[activeTab].hisa.zadnjih_12m.lastnosti.povprecna_velikost_m2 ?
                                                                         `${Math.round(statisticsData[activeTab].hisa.zadnjih_12m.lastnosti.povprecna_velikost_m2)} m²` : 'N/A'
                                                                     }
-                                                                </span>
+                                                                </div>
                                                             </div>
-                                                            
-                                                            {/* Starost stavbe */}
-                                                            <div className="flex justify-between">
-                                                                <span className="text-sm text-gray-600">Povprečna starost:</span>
-                                                                <span className="font-medium">
-                                                                    {statisticsData[activeTab].hisa.zadnjih_12m.lastnosti.povprecna_starost_stavbe ? 
+
+                                                            {/* Posli/Najem */}
+                                                            <div className="bg-white rounded-2xl p-4 shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
+                                                                <div className="mb-2">
+                                                                    <div className="text-xs text-gray-500">
+                                                                        {activeTab === 'najem' ? 'V najemu' : 'Št. poslov'}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="text-xl font-bold text-gray-800">
+                                                                    {activeTab === 'najem' ?
+                                                                        (statisticsData[activeTab].hisa.zadnjih_12m.aktivnost.trenutno_v_najemu || 0) :
+                                                                        (statisticsData[activeTab].hisa.zadnjih_12m.aktivnost.stevilo_poslov || 0)
+                                                                    }
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Starost */}
+                                                            <div className="bg-white rounded-2xl p-4 shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
+                                                                <div className="mb-2">
+                                                                    <div className="text-xs text-gray-500">Starost</div>
+                                                                </div>
+                                                                <div className="text-xl font-bold text-gray-800">
+                                                                    {statisticsData[activeTab].hisa.zadnjih_12m.lastnosti.povprecna_starost_stavbe ?
                                                                         `${statisticsData[activeTab].hisa.zadnjih_12m.lastnosti.povprecna_starost_stavbe} let` : 'N/A'
                                                                     }
-                                                                </span>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -412,93 +532,315 @@ export default function Statistika() {
                                                 </div>
                                             )}
 
-                                            {/* Graf - Povprečna cena m² po letih */}
-                                            {prepareChartData().length > 0 && (
-                                                <div className="bg-white border border-gray-200 rounded-lg p-6">
-                                                    <h4 className="font-semibold text-gray-800 mb-4">
-                                                        Povprečna cena/m² po letih - {activeTab}
-                                                    </h4>
-                                                    <div className="h-80">
-                                                        <ResponsiveContainer width="100%" height="100%">
-                                                            <LineChart data={prepareChartData()}>
-                                                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                                                <XAxis 
-                                                                    dataKey="leto" 
-                                                                    stroke="#666"
-                                                                    tick={{ fontSize: 12 }}
-                                                                />
-                                                                <YAxis 
-                                                                    stroke="#666"
-                                                                    tick={{ fontSize: 12 }}
-                                                                    tickFormatter={(value) => `€${value}`}
-                                                                />
-                                                                <Tooltip content={<CustomTooltip />} />
-                                                                <Legend />
-                                                                
-                                                                {/* Stanovanje linije */}
-                                                                <Line 
-                                                                    type="monotone" 
-                                                                    dataKey="stanovanje_povprecna" 
-                                                                    stroke="#3b82f6" 
-                                                                    strokeWidth={3}
-                                                                    name="Stanovanje - Povprečna"
-                                                                    dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-                                                                    connectNulls={false}
-                                                                />
-                                                                <Line 
-                                                                    type="monotone" 
-                                                                    dataKey="stanovanje_p10" 
-                                                                    stroke="#93c5fd" 
-                                                                    strokeWidth={2}
-                                                                    strokeDasharray="5 5"
-                                                                    name="Stanovanje - 10. percentil"
-                                                                    dot={{ fill: '#93c5fd', strokeWidth: 1, r: 3 }}
-                                                                    connectNulls={false}
-                                                                />
-                                                                <Line 
-                                                                    type="monotone" 
-                                                                    dataKey="stanovanje_p90" 
-                                                                    stroke="#1e40af" 
-                                                                    strokeWidth={2}
-                                                                    strokeDasharray="5 5"
-                                                                    name="Stanovanje - 90. percentil"
-                                                                    dot={{ fill: '#1e40af', strokeWidth: 1, r: 3 }}
-                                                                    connectNulls={false}
-                                                                />
-                                                                
-                                                                {/* Hiša linije */}
-                                                                <Line 
-                                                                    type="monotone" 
-                                                                    dataKey="hisa_povprecna" 
-                                                                    stroke="#10b981" 
-                                                                    strokeWidth={3}
-                                                                    name="Hiša - Povprečna"
-                                                                    dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
-                                                                    connectNulls={false}
-                                                                />
-                                                                <Line 
-                                                                    type="monotone" 
-                                                                    dataKey="hisa_p10" 
-                                                                    stroke="#6ee7b7" 
-                                                                    strokeWidth={2}
-                                                                    strokeDasharray="5 5"
-                                                                    name="Hiša - 10. percentil"
-                                                                    dot={{ fill: '#6ee7b7', strokeWidth: 1, r: 3 }}
-                                                                    connectNulls={false}
-                                                                />
-                                                                <Line 
-                                                                    type="monotone" 
-                                                                    dataKey="hisa_p90" 
-                                                                    stroke="#047857" 
-                                                                    strokeWidth={2}
-                                                                    strokeDasharray="5 5"
-                                                                    name="Hiša - 90. percentil"
-                                                                    dot={{ fill: '#047857', strokeWidth: 1, r: 3 }}
-                                                                    connectNulls={false}
-                                                                />
-                                                            </LineChart>
-                                                        </ResponsiveContainer>
+                                            {/* Graf sekcija - štirje grafi */}
+                                            {(prepareChartData().length > 0 || prepareActivityData().length > 0 || prepareSizeChartData().length > 0) && (
+                                                <div className="space-y-4">
+                                                    {/* Prva vrsta - Prvi dva grafa */}
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    {/* Graf 1 - Cena/m² */}
+                                                    {prepareChartData().length > 0 && (
+                                                        <div className="bg-white border border-gray-200 rounded-lg p-4">
+                                                            {/* Graf switcher */}
+                                                            <div className="flex justify-between items-center mb-4">
+                                                                <h4 className="font-semibold text-gray-800">
+                                                                    Povprečna cena/m² po letih
+                                                                </h4>
+                                                                <div className="flex space-x-2">
+                                                                    <button
+                                                                        onClick={() => setChartType('stanovanje')}
+                                                                        className={`px-3 py-1 text-xs font-medium rounded transition-colors ${chartType === 'stanovanje'
+                                                                            ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                                                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                                            }`}
+                                                                    >
+                                                                        Stanovanje
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => setChartType('hisa')}
+                                                                        className={`px-3 py-1 text-xs font-medium rounded transition-colors ${chartType === 'hisa'
+                                                                            ? 'bg-green-100 text-green-700 border border-green-300'
+                                                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                                            }`}
+                                                                    >
+                                                                        Hiša
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="h-64">
+                                                                <ResponsiveContainer width="100%" height="100%">
+                                                                    <LineChart data={prepareChartData()}>
+                                                                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                                                        <XAxis
+                                                                            dataKey="leto"
+                                                                            stroke="#666"
+                                                                            tick={{ fontSize: 11 }}
+                                                                        />
+                                                                        <YAxis
+                                                                            stroke="#666"
+                                                                            tick={{ fontSize: 11 }}
+                                                                            tickFormatter={(value) => `€${value}`}
+                                                                        />
+                                                                        <Tooltip content={<CustomTooltip />} />
+                                                                        <Legend />
+
+                                                                        {/* Dinamične linije glede na chartType */}
+                                                                        <Line
+                                                                            type="monotone"
+                                                                            dataKey="povprecna"
+                                                                            stroke={chartType === 'stanovanje' ? "#3b82f6" : "#10b981"}
+                                                                            strokeWidth={3}
+                                                                            name="Povprečna"
+                                                                            dot={{ fill: chartType === 'stanovanje' ? "#3b82f6" : "#10b981", strokeWidth: 2, r: 4 }}
+                                                                            connectNulls={false}
+                                                                        />
+                                                                        <Line
+                                                                            type="monotone"
+                                                                            dataKey="p10"
+                                                                            stroke={chartType === 'stanovanje' ? "#93c5fd" : "#6ee7b7"}
+                                                                            strokeWidth={2}
+                                                                            strokeDasharray="5 5"
+                                                                            name="10. percentil"
+                                                                            dot={{ fill: chartType === 'stanovanje' ? "#93c5fd" : "#6ee7b7", strokeWidth: 1, r: 3 }}
+                                                                            connectNulls={false}
+                                                                        />
+                                                                        <Line
+                                                                            type="monotone"
+                                                                            dataKey="p90"
+                                                                            stroke={chartType === 'stanovanje' ? "#1e40af" : "#047857"}
+                                                                            strokeWidth={2}
+                                                                            strokeDasharray="5 5"
+                                                                            name="90. percentil"
+                                                                            dot={{ fill: chartType === 'stanovanje' ? "#1e40af" : "#047857", strokeWidth: 1, r: 3 }}
+                                                                            connectNulls={false}
+                                                                        />
+                                                                    </LineChart>
+                                                                </ResponsiveContainer>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Graf 2 - Celotna cena */}
+                                                    {prepareChart2Data().length > 0 && (
+                                                        <div className="bg-white border border-gray-200 rounded-lg p-4">
+                                                            {/* Graf switcher */}
+                                                            <div className="flex justify-between items-center mb-4">
+                                                                <h4 className="font-semibold text-gray-800">
+                                                                    Povprečna celotna cena po letih
+                                                                </h4>
+                                                                <div className="flex space-x-2">
+                                                                    <button
+                                                                        onClick={() => setChartType2('stanovanje')}
+                                                                        className={`px-3 py-1 text-xs font-medium rounded transition-colors ${chartType2 === 'stanovanje'
+                                                                            ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                                                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                                            }`}
+                                                                    >
+                                                                        Stanovanje
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => setChartType2('hisa')}
+                                                                        className={`px-3 py-1 text-xs font-medium rounded transition-colors ${chartType2 === 'hisa'
+                                                                            ? 'bg-green-100 text-green-700 border border-green-300'
+                                                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                                            }`}
+                                                                    >
+                                                                        Hiša
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="h-64">
+                                                                <ResponsiveContainer width="100%" height="100%">
+                                                                    <LineChart data={prepareChart2Data()}>
+                                                                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                                                        <XAxis
+                                                                            dataKey="leto"
+                                                                            stroke="#666"
+                                                                            tick={{ fontSize: 11 }}
+                                                                        />
+                                                                        <YAxis
+                                                                            stroke="#666"
+                                                                            tick={{ fontSize: 11 }}
+                                                                            tickFormatter={(value) => `€${(value / 1000).toFixed(0)}k`}
+                                                                        />
+                                                                        <Tooltip content={<CustomTooltip2 />} />
+                                                                        <Legend />
+
+                                                                        {/* Dinamične linije glede na chartType2 */}
+                                                                        <Line
+                                                                            type="monotone"
+                                                                            dataKey="povprecna"
+                                                                            stroke={chartType2 === 'stanovanje' ? "#3b82f6" : "#10b981"}
+                                                                            strokeWidth={3}
+                                                                            name="Povprečna"
+                                                                            dot={{ fill: chartType2 === 'stanovanje' ? "#3b82f6" : "#10b981", strokeWidth: 2, r: 4 }}
+                                                                            connectNulls={false}
+                                                                        />
+                                                                        <Line
+                                                                            type="monotone"
+                                                                            dataKey="p10"
+                                                                            stroke={chartType2 === 'stanovanje' ? "#93c5fd" : "#6ee7b7"}
+                                                                            strokeWidth={2}
+                                                                            strokeDasharray="5 5"
+                                                                            name="10. percentil"
+                                                                            dot={{ fill: chartType2 === 'stanovanje' ? "#93c5fd" : "#6ee7b7", strokeWidth: 1, r: 3 }}
+                                                                            connectNulls={false}
+                                                                        />
+                                                                        <Line
+                                                                            type="monotone"
+                                                                            dataKey="p90"
+                                                                            stroke={chartType2 === 'stanovanje' ? "#1e40af" : "#047857"}
+                                                                            strokeWidth={2}
+                                                                            strokeDasharray="5 5"
+                                                                            name="90. percentil"
+                                                                            dot={{ fill: chartType2 === 'stanovanje' ? "#1e40af" : "#047857", strokeWidth: 1, r: 3 }}
+                                                                            connectNulls={false}
+                                                                        />
+                                                                    </LineChart>
+                                                                </ResponsiveContainer>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
                                                     </div>
+
+                                                    {/* Druga vrsta - Tretji in četrti graf */}
+                                                    {(prepareActivityData().length > 0 || prepareSizeChartData().length > 0) && (
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                            {/* Graf 3 - Število poslov po letih */}
+                                                            {prepareActivityData().length > 0 && (
+                                                                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                                                                    <div className="flex justify-between items-center mb-4">
+                                                                        <h4 className="font-semibold text-gray-800">
+                                                                            {activeTab === 'najem' ? 'Število najemov po letih' : 'Število prodaj po letih'}
+                                                                        </h4>
+                                                                    </div>
+                                                                    
+                                                                    <div className="h-64">
+                                                                        <ResponsiveContainer width="100%" height="100%">
+                                                                            <LineChart data={prepareActivityData()}>
+                                                                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                                                                <XAxis 
+                                                                                    dataKey="leto" 
+                                                                                    stroke="#666"
+                                                                                    tick={{ fontSize: 11 }}
+                                                                                />
+                                                                                <YAxis 
+                                                                                    stroke="#666"
+                                                                                    tick={{ fontSize: 11 }}
+                                                                                />
+                                                                                <Tooltip content={<CustomTooltip3 />} />
+                                                                                <Legend />
+                                                                                
+                                                                                <Line 
+                                                                                    type="monotone" 
+                                                                                    dataKey="stanovanja" 
+                                                                                    stroke="#3b82f6"
+                                                                                    strokeWidth={3}
+                                                                                    name="Stanovanja"
+                                                                                    dot={{ fill: "#3b82f6", strokeWidth: 2, r: 4 }}
+                                                                                    connectNulls={false}
+                                                                                />
+                                                                                <Line 
+                                                                                    type="monotone" 
+                                                                                    dataKey="hise" 
+                                                                                    stroke="#10b981"
+                                                                                    strokeWidth={3}
+                                                                                    name="Hiše"
+                                                                                    dot={{ fill: "#10b981", strokeWidth: 2, r: 4 }}
+                                                                                    connectNulls={false}
+                                                                                />
+                                                                            </LineChart>
+                                                                        </ResponsiveContainer>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Graf 4 - Velikost po letih */}
+                                                            {prepareSizeChartData().length > 0 && (
+                                                                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                                                                    {/* Graf switcher */}
+                                                                    <div className="flex justify-between items-center mb-4">
+                                                                        <h4 className="font-semibold text-gray-800">
+                                                                            Povprečna velikost po letih
+                                                                        </h4>
+                                                                        <div className="flex space-x-2">
+                                                                            <button
+                                                                                onClick={() => setChartType3('stanovanje')}
+                                                                                className={`px-3 py-1 text-xs font-medium rounded transition-colors ${chartType3 === 'stanovanje'
+                                                                                    ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                                                                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                                                    }`}
+                                                                            >
+                                                                                Stanovanje
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => setChartType3('hisa')}
+                                                                                className={`px-3 py-1 text-xs font-medium rounded transition-colors ${chartType3 === 'hisa'
+                                                                                    ? 'bg-green-100 text-green-700 border border-green-300'
+                                                                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                                                    }`}
+                                                                            >
+                                                                                Hiša
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                    
+                                                                    <div className="h-64">
+                                                                        <ResponsiveContainer width="100%" height="100%">
+                                                                            <LineChart data={prepareSizeChartData()}>
+                                                                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                                                                <XAxis 
+                                                                                    dataKey="leto" 
+                                                                                    stroke="#666"
+                                                                                    tick={{ fontSize: 11 }}
+                                                                                />
+                                                                                <YAxis 
+                                                                                    stroke="#666"
+                                                                                    tick={{ fontSize: 11 }}
+                                                                                    tickFormatter={(value) => `${value} m²`}
+                                                                                />
+                                                                                <Tooltip content={<CustomTooltip4 />} />
+                                                                                <Legend />
+                                                                                
+                                                                                {/* Dinamične linije glede na chartType3 */}
+                                                                                <Line 
+                                                                                    type="monotone" 
+                                                                                    dataKey="povprecna" 
+                                                                                    stroke={chartType3 === 'stanovanje' ? "#3b82f6" : "#10b981"}
+                                                                                    strokeWidth={3}
+                                                                                    name="Povprečna"
+                                                                                    dot={{ fill: chartType3 === 'stanovanje' ? "#3b82f6" : "#10b981", strokeWidth: 2, r: 4 }}
+                                                                                    connectNulls={false}
+                                                                                />
+                                                                                <Line 
+                                                                                    type="monotone" 
+                                                                                    dataKey="p10" 
+                                                                                    stroke={chartType3 === 'stanovanje' ? "#93c5fd" : "#6ee7b7"}
+                                                                                    strokeWidth={2}
+                                                                                    strokeDasharray="5 5"
+                                                                                    name="10. percentil"
+                                                                                    dot={{ fill: chartType3 === 'stanovanje' ? "#93c5fd" : "#6ee7b7", strokeWidth: 1, r: 3 }}
+                                                                                    connectNulls={false}
+                                                                                />
+                                                                                <Line 
+                                                                                    type="monotone" 
+                                                                                    dataKey="p90" 
+                                                                                    stroke={chartType3 === 'stanovanje' ? "#1e40af" : "#047857"}
+                                                                                    strokeWidth={2}
+                                                                                    strokeDasharray="5 5"
+                                                                                    name="90. percentil"
+                                                                                    dot={{ fill: chartType3 === 'stanovanje' ? "#1e40af" : "#047857", strokeWidth: 1, r: 3 }}
+                                                                                    connectNulls={false}
+                                                                                />
+                                                                            </LineChart>
+                                                                        </ResponsiveContainer>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
