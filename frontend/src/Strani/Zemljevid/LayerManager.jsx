@@ -89,11 +89,12 @@ class LayerManager {
             COLOR_SCHEME.OBCINA.DEFAULT
         ]);
 
+        // POPRAVKA: Fiksne line-width vrednosti brez zoom expressions
         this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-width', [
             'case',
             ['==', ['get', 'OB_ID'], selectedObcinaId || -1],
-            ZOOM_STYLES.OBCINE.SELECTED_LINE_WIDTH,
-            ZOOM_STYLES.OBCINE.DEFAULT_LINE_WIDTH
+            3.0,  // Fiksna selected line width
+            1.2   // Fiksna default line width
         ]);
 
         // Update opacity for better visibility of selected
@@ -101,7 +102,7 @@ class LayerManager {
             'case',
             ['==', ['get', 'OB_ID'], selectedObcinaId || -1],
             1.0,  // Popolna vidnost za selected
-            ZOOM_STYLES.OBCINE.DEFAULT_OPACITY
+            0.6   // Fiksna default opacity
         ]);
 
         // Update click filter - disable clicks on selected občina, but only control the fill layer
@@ -114,7 +115,7 @@ class LayerManager {
         }
     }
 
-    // NEW: Update občina hover state
+    // POPRAVLJENA: Update občina hover state z fiksnimi vrednostmi
     updateObcinaHover(hoveredObcinaId = null) {
         if (!this.map.getLayer(LAYER_IDS.OBCINE.OUTLINE)) return;
 
@@ -126,18 +127,20 @@ class LayerManager {
             COLOR_SCHEME.OBCINA.DEFAULT
         ]);
 
+        // POPRAVKA: Fiksne line-width vrednosti brez zoom expressions
         this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-width', [
             'case',
             ['==', ['get', 'OB_ID'], hoveredObcinaId || -1],
-            ZOOM_STYLES.OBCINE.HOVER_LINE_WIDTH,
-            ZOOM_STYLES.OBCINE.DEFAULT_LINE_WIDTH
+            2.5,  // Fiksna hover line width
+            1.2   // Fiksna default line width
         ]);
 
+        // POPRAVKA: Fiksne opacity vrednosti brez zoom expressions
         this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-opacity', [
             'case',
             ['==', ['get', 'OB_ID'], hoveredObcinaId || -1],
-            0.9,  // Povečana vidnost za hover
-            ZOOM_STYLES.OBCINE.DEFAULT_OPACITY
+            0.9,  // Fiksna hover opacity
+            0.6   // Fiksna default opacity
         ]);
     }
 
@@ -155,15 +158,21 @@ class LayerManager {
             // Outline layer - ALWAYS visible for context
             this.map.setLayoutProperty(LAYER_IDS.OBCINE.OUTLINE, 'visibility', 'visible');
             
-            // Labels layer - only when zoomed out
-            this.map.setLayoutProperty(LAYER_IDS.OBCINE.LABELS, 'visibility', showObcineLabels ? 'visible' : 'none');
+            // Labels layer - only if it exists
+            if (this.hasLayer(LAYER_IDS.OBCINE.LABELS)) {
+                this.map.setLayoutProperty(LAYER_IDS.OBCINE.LABELS, 'visibility', showObcineLabels ? 'visible' : 'none');
+            }
         }
 
         // Control municipalities layers visibility
         if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.FILL)) {
             this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'visibility', showMunicipalities ? 'visible' : 'none');
             this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'visibility', showMunicipalities ? 'visible' : 'none');
-            this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.LABELS, 'visibility', showMunicipalities ? 'visible' : 'none');
+            
+            // Labels layer - only if it exists
+            if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.LABELS)) {
+                this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.LABELS, 'visibility', showMunicipalities ? 'visible' : 'none');
+            }
         }
 
         console.log(`Zoom ${currentZoom}: Občine outline always visible, labels ${showObcineLabels ? 'visible' : 'hidden'}, fill ${showObcineFill ? 'clickable' : 'disabled'}, Municipalities ${showMunicipalities ? 'visible' : 'hidden'}`);
@@ -215,18 +224,27 @@ class LayerManager {
     updateMunicipalitySelection(selectedSifko = null) {
         if (!this.map.getLayer(LAYER_IDS.MUNICIPALITIES.OUTLINE)) return;
 
-        // Use createMunicipalityOutlineStyle for consistent styling
-        const outlineStyle = createMunicipalityOutlineStyle(selectedSifko);
+        // POPRAVKA: Uporabi fiksne vrednosti namesto createMunicipalityOutlineStyle
+        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-color', [
+            'case',
+            ['==', ['get', 'SIFKO'], selectedSifko || -1],
+            COLOR_SCHEME.MUNICIPALITY.SELECTED,
+            COLOR_SCHEME.MUNICIPALITY.DEFAULT
+        ]);
         
-        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-color', outlineStyle['line-color']);
-        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-width', outlineStyle['line-width']);
+        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-width', [
+            'case',
+            ['==', ['get', 'SIFKO'], selectedSifko || -1],
+            2.5,  // Fiksna selected line width
+            1.0   // Fiksna default line width
+        ]);
 
         // Update opacity for selected municipality
         this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-opacity', [
             'case',
             ['==', ['get', 'SIFKO'], selectedSifko || -1],
             1.0,  // Popolna vidnost za selected
-            ZOOM_STYLES.MUNICIPALITIES.LINE_OPACITY
+            0.7   // Fiksna default opacity
         ]);
 
         // Update click filter
@@ -239,7 +257,7 @@ class LayerManager {
         }
     }
 
-    // NEW: Update municipality hover state
+    // POPRAVLJENA: Update municipality hover state z fiksnimi vrednostmi
     updateMunicipalityHover(hoveredSifko = null) {
         if (!this.map.getLayer(LAYER_IDS.MUNICIPALITIES.OUTLINE)) return;
 
@@ -251,18 +269,20 @@ class LayerManager {
             COLOR_SCHEME.MUNICIPALITY.DEFAULT
         ]);
 
+        // POPRAVKA: Fiksne line-width vrednosti brez zoom expressions
         this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-width', [
             'case',
             ['==', ['get', 'SIFKO'], hoveredSifko || -1],
-            ZOOM_STYLES.MUNICIPALITIES.HOVER_LINE_WIDTH,
-            ZOOM_STYLES.MUNICIPALITIES.LINE_WIDTH
+            2.0,  // Fiksna hover line width
+            1.0   // Fiksna default line width
         ]);
 
+        // POPRAVKA: Fiksne opacity vrednosti brez zoom expressions
         this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-opacity', [
             'case',
             ['==', ['get', 'SIFKO'], hoveredSifko || -1],
-            1.0,  // Popolna vidnost za hover
-            ZOOM_STYLES.MUNICIPALITIES.LINE_OPACITY
+            1.0,  // Fiksna hover opacity
+            0.7   // Fiksna default opacity
         ]);
     }
 
@@ -496,17 +516,19 @@ class LayerManager {
     cleanup() {
         console.log('LayerManager: Starting cleanup...');
 
-        // Remove občine layers
-        this.removeLayerAndSource(
-            [LAYER_IDS.OBCINE.LABELS, LAYER_IDS.OBCINE.OUTLINE, LAYER_IDS.OBCINE.FILL],
-            SOURCE_IDS.OBCINE
-        );
+        // Remove občine layers - only cleanup existing layers
+        const obcineLayers = [LAYER_IDS.OBCINE.FILL, LAYER_IDS.OBCINE.OUTLINE];
+        if (this.hasLayer(LAYER_IDS.OBCINE.LABELS)) {
+            obcineLayers.push(LAYER_IDS.OBCINE.LABELS);
+        }
+        this.removeLayerAndSource(obcineLayers, SOURCE_IDS.OBCINE);
 
-        // Remove municipalities layers
-        this.removeLayerAndSource(
-            [LAYER_IDS.MUNICIPALITIES.LABELS, LAYER_IDS.MUNICIPALITIES.OUTLINE, LAYER_IDS.MUNICIPALITIES.FILL],
-            SOURCE_IDS.MUNICIPALITIES
-        );
+        // Remove municipalities layers - only cleanup existing layers  
+        const municipalityLayers = [LAYER_IDS.MUNICIPALITIES.FILL, LAYER_IDS.MUNICIPALITIES.OUTLINE];
+        if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.LABELS)) {
+            municipalityLayers.push(LAYER_IDS.MUNICIPALITIES.LABELS);
+        }
+        this.removeLayerAndSource(municipalityLayers, SOURCE_IDS.MUNICIPALITIES);
 
         // Remove properties layers
         this.removePropertiesLayers();
