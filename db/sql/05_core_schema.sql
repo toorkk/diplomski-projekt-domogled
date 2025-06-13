@@ -26,9 +26,10 @@ CREATE TABLE core.np_del_stavbe (
   dejanska_raba         VARCHAR(100),
   tip_nepremicnine      VARCHAR(19),
   lega_v_stavbi         VARCHAR(20),
-
-  povrsina              NUMERIC(10,2),
-  povrsina_uporabna     NUMERIC(10,2),
+  povrsina_uradna       NUMERIC(10,2),
+  povrsina_pogodba      NUMERIC(10,2),
+  povrsina_uporabna_uradna NUMERIC(10,2), -- samo za najemnes
+  povrsina_uporabna_pogodba NUMERIC(10,2), -- samo za najemne
   prostori              TEXT,
 
   -- podatki so pretvorjeni iz slovenskega sistema (SRID 3794) v WGS84
@@ -54,30 +55,22 @@ CREATE TABLE core.kpp_del_stavbe (
     stev_stanovanja                         INTEGER,
     vrsta                                   SMALLINT,
     leto_izgradnje_stavbe                   INTEGER,
-    stavba_je_dokoncana                     INTEGER,        --- not sure ce to obdrzimo
-    gradbena_faza                           INTEGER,        --- not sure ce to obdrzimo
+    stavba_je_dokoncana                     INTEGER,
+    gradbena_faza                           INTEGER,
     novogradnja                             INTEGER,
-    prodana_povrsina                        NUMERIC(10,2),
     prodani_delez                           VARCHAR(199),
-    prodana_povrsina_dela_stavbe            NUMERIC(10,2),
-    prodana_uporabna_povrsina_dela_stavbe   NUMERIC(10,2),
-    nadstropje                              INTEGER,
-    stevilo_zunanjih_parkirnih_mest         INTEGER,
-    atrij                                   INTEGER,
-    povrsina_atrija                         NUMERIC(10,2),
-    opombe                                  TEXT,
+    nadstropje                              INTEGER,        -- ta podatek se vec ne vpisuje
+    opombe                                  TEXT,           -- ta podatek se vec ne vpisuje
     dejanska_raba                           VARCHAR(310),
     tip_nepremicnine                        VARCHAR(19),
     lega_v_stavbi                           VARCHAR(50),
-    stevilo_sob                             INTEGER,
-    povrsina                                NUMERIC(10,2),
-    povrsina_uporabna                       NUMERIC(10,2),
+    stevilo_sob                             INTEGER,        -- ta podatek se vec ne vpisuje
+    povrsina_uradna                         NUMERIC(10,2),
+    povrsina_pogodba                        NUMERIC(10,2),
     prostori                                TEXT,
     pogodbena_cena                          NUMERIC(20,2),
     stopnja_ddv                             NUMERIC(5,2),
-
-  -- podatki so pretvorjeni iz slovenskega sistema (SRID 3794) v WGS84
-    coordinates                             GEOMETRY(Point, 4326),
+    coordinates                             GEOMETRY(Point, 4326),  -- podatki so pretvorjeni iz slovenskega sistema (SRID 3794) v WGS84
     leto                                    INTEGER
 );
 
@@ -103,11 +96,10 @@ CREATE TABLE core.np_posel (
   datum_zakljucka_najema       DATE,
 
   opombe                       TEXT,
-  posredovanje_agencije        BOOLEAN,
   datum_zadnje_spremembe       DATE,
   datum_zadnje_uveljavitve     DATE,
-  vrsta_akta                   SMALLINT,
-  trznost_posla                SMALLINT,
+  vrsta_akta                   SMALLINT, -- samo za najemne
+  trznost_posla                SMALLINT, --od 2015 dalje
 
   leto                         INTEGER
 );
@@ -124,16 +116,10 @@ CREATE TABLE core.kpp_posel (
     vkljuceno_ddv           BOOLEAN,
     stopnja_ddv             NUMERIC(5,2),
     
-    -- ta dva povzrocata tezave pri importu v to tabelo is staging
-    --datum_izteka_lizinga DATE,
-    --datum_prenehanja_lizinga DATE,
-    
     opombe                  TEXT,
-    posredovanje_agencije   BOOLEAN,
     datum_zadnje_spremembe  DATE,
     datum_zadnje_uveljavitve DATE,
-    trznost_posla           SMALLINT,
-    vrsta_akta              SMALLINT,
+    trznost_posla           SMALLINT, --od 2015 dalje
     leto                    INTEGER
 );
 
@@ -159,8 +145,10 @@ CREATE TABLE core.np_del_stavbe_deduplicated (
     dodatek_hs                  VARCHAR(10),
     stev_stanovanja             INTEGER,
 
-    povrsina                    NUMERIC(10,2),
-    povrsina_uporabna           NUMERIC(10,2),
+    povrsina_uradna             NUMERIC(10,2),
+    povrsina_pogodba            NUMERIC(10,2),
+    povrsina_uporabna_uradna    NUMERIC(10,2), -- samo za najemnes
+    povrsina_uporabna_pogodba   NUMERIC(10,2), -- samo za najemne
     leto_izgradnje_stavbe       INTEGER,
     opremljenost                SMALLINT,
 
@@ -201,10 +189,11 @@ CREATE TABLE core.kpp_del_stavbe_deduplicated (
     dodatek_hs                  VARCHAR(10),
     stev_stanovanja             INTEGER,
     
-    povrsina                    NUMERIC(10,2),
-    povrsina_uporabna           NUMERIC(10,2),
+
+    povrsina_uradna             NUMERIC(10,2),
+    povrsina_pogodba            NUMERIC(10,2),
     leto_izgradnje_stavbe       INTEGER,
-    stevilo_sob                 INTEGER,
+    stevilo_sob                 INTEGER,       -- ta podatek se vec ne vpisuje
 
     zadnja_cena                 NUMERIC(20,2),
     zadnje_vkljuceno_ddv        BOOLEAN,
@@ -288,3 +277,27 @@ CREATE INDEX idx_kpp_del_stavbe_deduplicated_related_ids    ON core.kpp_del_stav
 DROP INDEX IF EXISTS core.idx_energetska_izkaznica_ko_stavba;
 
 CREATE INDEX idx_energetska_izkaznica_ko_stavba ON core.energetska_izkaznica(sifra_ko, stevilka_stavbe, stevilka_dela_stavbe);
+
+
+-- dodatni indeksi za deduplication
+CREATE INDEX IF NOT EXISTS idx_np_del_stavbe_nepremicnina_tip 
+ON core.np_del_stavbe (sifra_ko, stevilka_stavbe, stevilka_dela_stavbe) 
+WHERE tip_nepremicnine IN ('stanovanje', 'hisa') AND coordinates IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_np_del_stavbe_posel_leto 
+ON core.np_del_stavbe (posel_id, leto DESC, del_stavbe_id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_np_posel_datum_sort 
+ON core.np_posel (datum_sklenitve DESC NULLS LAST, posel_id DESC) 
+WHERE datum_sklenitve IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_kpp_del_stavbe_nepremicnina_tip 
+ON core.kpp_del_stavbe (sifra_ko, stevilka_stavbe, stevilka_dela_stavbe) 
+WHERE tip_nepremicnine IN ('stanovanje', 'hisa') AND coordinates IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_kpp_del_stavbe_posel_leto 
+ON core.kpp_del_stavbe (posel_id, leto DESC, del_stavbe_id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_kpp_posel_datum_sort 
+ON core.kpp_posel (datum_sklenitve DESC NULLS LAST, posel_id DESC) 
+WHERE datum_sklenitve IS NOT NULL;

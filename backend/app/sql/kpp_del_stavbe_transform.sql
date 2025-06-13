@@ -71,21 +71,15 @@ INSERT INTO core.kpp_del_stavbe (
     stavba_je_dokoncana,
     gradbena_faza,
     novogradnja,
-    prodana_povrsina,
     prodani_delez,
-    prodana_povrsina_dela_stavbe,
-    prodana_uporabna_povrsina_dela_stavbe,
     nadstropje,
-    stevilo_zunanjih_parkirnih_mest,
-    atrij,
-    povrsina_atrija,
     opombe,
     dejanska_raba,
     tip_nepremicnine,
     lega_v_stavbi,
     stevilo_sob,
-    povrsina,
-    povrsina_uporabna,
+    povrsina_uradna,
+    povrsina_pogodba,
     prostori,
     pogodbena_cena,
     stopnja_ddv,
@@ -106,33 +100,37 @@ SELECT
         WHEN hisna_stevilka ~ '^-?\d+\.?\d*$' THEN CAST(CAST(hisna_stevilka AS NUMERIC) AS INTEGER)
         ELSE NULL 
     END as hisna_stevilka,
-    UPPER(TRIM(dodatek_hs)) as dodatek_hs,
+    CASE 
+        WHEN dodatek_hs IS NULL OR TRIM(dodatek_hs) = '' THEN NULL
+        WHEN dodatek_hs ~ '^[A-Za-z0-9]+$' THEN UPPER(TRIM(dodatek_hs))
+        ELSE NULL
+    END as dodatek_hs,
     stevilka_stanovanja_ali_poslovnega_prostora,
     vrsta_dela_stavbe,
-    leto_izgradnje_dela_stavbe,
+    CASE 
+        WHEN leto_izgradnje_dela_stavbe BETWEEN 1500 AND EXTRACT(YEAR FROM CURRENT_DATE) 
+            THEN leto_izgradnje_dela_stavbe
+        ELSE NULL 
+    END as leto_izgradnje_stavbe,   
     stavba_je_dokoncana,
     gradbena_faza,
     novogradnja,
-    prodana_povrsina,
     prodani_delez_dela_stavbe,
-    prodana_povrsina_dela_stavbe,
-    prodana_uporabna_povrsina_dela_stavbe,
     CAST(CAST(nadstropje_dela_stavbe AS NUMERIC) AS INTEGER) as nadstropje_dela_stavbe,
-    stevilo_zunanjih_parkirnih_mest,
-    atrij,
-    povrsina_atrija,
     TRIM(opombe_o_nepremicnini) as opombe_o_nepremicnini,
     LOWER(TRIM(dejanska_raba_dela_stavbe)) as dejanska_raba_dela_stavbe,
     COALESCE(rm.category, 'neopredeljeno') as tip_nepremicnine,
     LOWER(TRIM(lega_dela_stavbe_v_stavbi)) as lega_dela_stavbe_v_stavbi,
     stevilo_sob,
-    povrsina_dela_stavbe,
-    uporabna_povrsina,
+    povrsina_dela_stavbe as povrsina_uradna,
+    COALESCE(
+        prodana_povrsina_dela_stavbe, 
+        prodana_povrsina
+    ) as povrsina_pogodba,
     prostori_dela_stavbe,
     pogodbena_cena_dela_stavbe,
     stopnja_ddv_dela_stavbe,
-    -- Convert Slovenian coordinate system (D48/GK) to WGS84
-    ST_Transform(ST_SetSRID(ST_MakePoint(e_centroid, n_centroid), 3794), 4326),
+    ST_Transform(ST_SetSRID(ST_MakePoint(e_centroid, n_centroid), 3794), 4326),    -- Convert Slovenian coordinate system (D48/GK) to WGS84
     leto
 FROM staging.kpp_del_stavbe
 LEFT JOIN raba_mapping rm ON LOWER(TRIM(dejanska_raba_dela_stavbe)) = rm.dejanska_raba

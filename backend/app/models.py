@@ -19,7 +19,7 @@ class NpDelStavbe(Base):
 
     naselje = Column(String(103))
     ulica = Column(String(300))
-    hisna_stevilka = Column(String(40))
+    hisna_stevilka = Column(Integer)
     dodatek_hs = Column(String(10))
     stev_stanovanja = Column(Integer)
     vrsta = Column(SmallInteger)
@@ -28,11 +28,15 @@ class NpDelStavbe(Base):
     opombe = Column(Text)
     leto_izgradnje_stavbe = Column(Integer)
     dejanska_raba = Column(String(100))
+    tip_nepremicnine = Column(String(19))
     lega_v_stavbi = Column(String(20))
 
-    povrsina = Column(Numeric(10, 2))
-    povrsina_uporabna = Column(Numeric(10, 2))
+    povrsina_uradna = Column(Numeric(10, 2))
+    povrsina_pogodba = Column(Numeric(10, 2))
+    povrsina_uporabna_uradna = Column(Numeric(10, 2))
+    povrsina_uporabna_pogodba = Column(Numeric(10, 2))
     prostori = Column(Text)
+    
     coordinates = Column(Geometry('Point', 4326))
     leto = Column(Integer)
 
@@ -52,15 +56,19 @@ class NpDelStavbeDeduplicated(Base):
     stevilka_dela_stavbe = Column(Integer, nullable=False)
     dejanska_raba = Column(String(310), nullable=False)
     
+    tip_nepremicnine = Column(String(19))
+    
     obcina = Column(String(102))
     naselje = Column(String(103))
     ulica = Column(String(300))
-    hisna_stevilka = Column(String(40))
+    hisna_stevilka = Column(Integer)
     dodatek_hs = Column(String(10))
     stev_stanovanja = Column(Integer)
     
-    povrsina = Column(Numeric(10, 2))
-    povrsina_uporabna = Column(Numeric(10, 2))
+    povrsina_uradna = Column(Numeric(10, 2))
+    povrsina_pogodba = Column(Numeric(10, 2))
+    povrsina_uporabna_uradna = Column(Numeric(10, 2))
+    povrsina_uporabna_pogodba = Column(Numeric(10, 2))
     leto_izgradnje_stavbe = Column(Integer)
     opremljenost = Column(SmallInteger)
     
@@ -86,23 +94,26 @@ class NpPosel(Base):
     
     posel_id = Column(Integer, primary_key=True)
     vrsta_posla = Column(SmallInteger)
+    
     datum_uveljavitve = Column(Date)
     datum_sklenitve = Column(Date)
     najemnina = Column(Numeric(20, 2))
     vkljuceno_stroski = Column(Boolean)
     vkljuceno_ddv = Column(Boolean)
     stopnja_ddv = Column(Numeric(5, 2))
+    
     datum_zacetka_najemanja = Column(Date)
     datum_prenehanja_najemanja = Column(Date)
     cas_najemanja = Column(Integer)
     trajanje_najemanja = Column(Integer)
     datum_zakljucka_najema = Column(Date)
+    
     opombe = Column(Text)
-    posredovanje_agencije = Column(Boolean)
     datum_zadnje_spremembe = Column(Date)
     datum_zadnje_uveljavitve = Column(Date)
     vrsta_akta = Column(SmallInteger)
     trznost_posla = Column(SmallInteger)
+    
     leto = Column(Integer)
 
 
@@ -120,7 +131,7 @@ class KppDelStavbe(Base):
     
     naselje = Column(String(103))
     ulica = Column(String(300))
-    hisna_stevilka = Column(String(40))
+    hisna_stevilka = Column(Integer)
     dodatek_hs = Column(String(10))
     stev_stanovanja = Column(Integer)
     vrsta = Column(SmallInteger)
@@ -128,20 +139,17 @@ class KppDelStavbe(Base):
     stavba_je_dokoncana = Column(Integer)
     gradbena_faza = Column(Integer)
     novogradnja = Column(Integer)
-    prodana_povrsina = Column(Numeric(10, 2))
     prodani_delez = Column(String(199))
-    prodana_povrsina_dela_stavbe = Column(Numeric(10, 2))
-    prodana_uporabna_povrsina_dela_stavbe = Column(Numeric(10, 2))
     nadstropje = Column(Integer)
-    stevilo_zunanjih_parkirnih_mest = Column(Integer)
-    atrij = Column(Integer)
-    povrsina_atrija = Column(Numeric(10, 2))
     opombe = Column(Text)
     dejanska_raba = Column(String(310))
+    tip_nepremicnine = Column(String(19))
     lega_v_stavbi = Column(String(50))
     stevilo_sob = Column(Integer)
-    povrsina = Column(Numeric(10, 2))
-    povrsina_uporabna = Column(Numeric(10, 2))
+    
+    povrsina_uradna = Column(Numeric(10, 2))
+    povrsina_pogodba = Column(Numeric(10, 2))
+    
     prostori = Column(Text)
     pogodbena_cena = Column(Numeric(20, 2))
     stopnja_ddv = Column(Numeric(5, 2))
@@ -165,15 +173,17 @@ class KppDelStavbeDeduplicated(Base):
     stevilka_dela_stavbe = Column(Integer, nullable=False)
     dejanska_raba = Column(String(310), nullable=False)
     
+    tip_nepremicnine = Column(String(19))
+    
     obcina = Column(String(102))
     naselje = Column(String(103))
     ulica = Column(String(300))
-    hisna_stevilka = Column(String(40))
+    hisna_stevilka = Column(Integer)
     dodatek_hs = Column(String(10))
     stev_stanovanja = Column(Integer)
     
-    povrsina = Column(Numeric(10, 2))
-    povrsina_uporabna = Column(Numeric(10, 2))
+    povrsina_uradna = Column(Numeric(10, 2)) 
+    povrsina_pogodba = Column(Numeric(10, 2))
     leto_izgradnje_stavbe = Column(Integer)
     stevilo_sob = Column(Integer)
     
@@ -188,7 +198,6 @@ class KppDelStavbeDeduplicated(Base):
 
     energetske_izkaznice = Column(ARRAY(Integer))
     energijski_razred = Column(String(3))
-
     
     coordinates = Column(Geometry('Point', 4326), nullable=False)
 
@@ -199,17 +208,17 @@ class KppPosel(Base):
     
     posel_id = Column(Integer, primary_key=True)
     vrsta_posla = Column(SmallInteger)
+    
     datum_uveljavitve = Column(Date)
     datum_sklenitve = Column(Date)
     cena = Column(Numeric(12, 2))
     vkljuceno_ddv = Column(Boolean)
     stopnja_ddv = Column(Numeric(5, 2))
+    
     opombe = Column(Text)
-    posredovanje_agencije = Column(Boolean)
     datum_zadnje_spremembe = Column(Date)
     datum_zadnje_uveljavitve = Column(Date)
     trznost_posla = Column(SmallInteger)
-    vrsta_akta = Column(SmallInteger)
     leto = Column(Integer)
 
 

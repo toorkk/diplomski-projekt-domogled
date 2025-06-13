@@ -4,7 +4,7 @@ DROP TABLE IF EXISTS stats.statistike_cache CASCADE;
 CREATE TABLE stats.statistike_cache (
     id SERIAL PRIMARY KEY,
     
-    tip_regije VARCHAR(20) NOT NULL, -- 'obcina', 'ko', 'slovenija'
+    tip_regije VARCHAR(20) NOT NULL, -- 'obcina', 'katastrska_obcina', 'slovenija'
     ime_regije VARCHAR(100) NOT NULL, -- ime občine/KO ali 'slovenija'
     tip_nepremicnine VARCHAR(20) NOT NULL, -- 'stanovanje', 'hisa'
     tip_posla VARCHAR(10) NOT NULL, -- 'prodaja', 'najem'
@@ -22,18 +22,15 @@ CREATE TABLE stats.statistike_cache (
     stevilo_poslov INTEGER DEFAULT 0,
     trenutno_v_najemu INTEGER DEFAULT 0, -- samo za najem
     
-    povprecna_velikost_m2 DECIMAL(8,2),
-    percentil_10_velikost_m2 DECIMAL(8,2),
-    percentil_90_velikost_m2 DECIMAL(8,2),
+    povprecna_velikost_m2 DECIMAL(10,2),
+    percentil_10_velikost_m2 DECIMAL(9,2),
+    percentil_90_velikost_m2 DECIMAL(12,2),
     
     povprecna_starost_stavbe INTEGER,
     percentil_10_starost_stavbe INTEGER,
     percentil_90_starost_stavbe INTEGER,
     
     delez_opremljenih_pct DECIMAL(5,2), -- samo za najem
-    
-    -- AGENCIJSKE VS ZASEBNE
-    delez_agencijskih_pct DECIMAL(5,2),
         
     CONSTRAINT uq_statistike_cache UNIQUE(tip_regije, ime_regije, tip_nepremicnine, tip_posla, tip_obdobja, leto)
 );

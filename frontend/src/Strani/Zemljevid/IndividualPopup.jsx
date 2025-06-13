@@ -25,6 +25,28 @@ const IndividualPopup = ({ properties, dataSourceType = 'prodaja' }) => {
             ? `<p class="text-blue-100 text-sm">${naslovDodatek.join(', ')}</p>` 
             : '';
     };
+
+    const getPovrsina = () => {
+        const povrsina = {};
+
+        if (properties.povrsina_uradna)
+            povrsina.celotna = `${properties.povrsina_uradna} m² (uradna)`;
+        else if (properties.povrsina_pogodba)
+            povrsina.celotna = `${properties.povrsina_pogodba} m² (pogodba)`;
+        else
+            povrsina.celotna = 'neznano';
+
+        if( properties.data_source == 'kpp') return povrsina;
+        
+        if (properties.povrsina_uporabna_uradna)
+            povrsina.uporabna = `${properties.povrsina_uporabna_uradna} m² (uradna)`;
+        else if (properties.povrsina_uporabna_pogodba)
+            povrsina.uporabna = `${properties.povrsina_uporabna_pogodba} m² (pogodba)`;
+        else
+            povrsina.uporabna = 'neznano';
+
+        return povrsina;
+    };
     
     const contractCount = properties.stevilo_poslov || 1;
     const hasMultipleContracts = properties.ima_vec_poslov || false;
@@ -59,6 +81,7 @@ const IndividualPopup = ({ properties, dataSourceType = 'prodaja' }) => {
     
     const priceInfo = getLatestPriceInfo();
     const naslovDodatek = getNaslovDodatek();
+    const povrsina = getPovrsina();
     
     return `
         <div class="font-sans rounded-lg overflow-hidden w-80">
@@ -96,10 +119,9 @@ const IndividualPopup = ({ properties, dataSourceType = 'prodaja' }) => {
                 <div class="text-sm mb-4">
                     <div class="grid grid-cols-2 gap-y-2 mb-2">
                         
-                        ${properties.povrsina ? `
-                        <div class="text-gray-600">Površina / Uporabna:</div>
-                        <div class="font-medium">${properties.povrsina} m² / ${properties.povrsina_uporabna} m²</div>
-                        ` : ''}
+                        <div class="text-gray-600">Površina ${properties.data_source == 'np' ? '/ Uporabna' : ''}:</div>
+                        <div class="font-medium">${povrsina.celotna} ${properties.data_source == 'np' ? '/ ' + povrsina.uporabna : ''}</div>
+                        
 
                         ${properties.stevilo_sob ? `
                         <div class="text-gray-600">Število sob:</div>

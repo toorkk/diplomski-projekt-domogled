@@ -107,8 +107,8 @@ def apply_property_filters(query, DeduplicatedModel, filters: dict, data_source:
             query = query.filter(DeduplicatedModel.zadnja_cena <= filters['max_cena'])
     
     if filters.get('min_povrsina'):
-        query = query.filter(DeduplicatedModel.povrsina_uporabna >= filters['min_povrsina'])
+        query = query.filter(DeduplicatedModel.povrsina_uradna >= filters['min_povrsina'])
     if filters.get('max_povrsina'):
-        query = query.filter(DeduplicatedModel.povrsina_uporabna <= filters['max_povrsina'])
+        query = query.filter(DeduplicatedModel.povrsina_uradna <= filters['max_povrsina'])
     
     return query
