@@ -316,15 +316,19 @@ class PropertyService:
         
         # Priprava osnovnih posel podatkov glede na data_source
         zadnji_posel_info = {}
+        del_stavbe_np_dodatno = {}
         if data_source.lower() == "np":
+            del_stavbe_np_dodatno = {
+                "povrsina_uporabna_uradna": float(dedup_property[0].povrsina_uporabna_uradna) if dedup_property[0].povrsina_uporabna_uradna else None,
+                "povrsina_uporabna_pogodba": float(dedup_property[0].povrsina_uporabna_pogodba) if dedup_property[0].povrsina_uporabna_pogodba else None,
+            }
+
             zadnji_posel_info = {
                 "zadnja_najemnina": float(dedup_property[0].zadnja_najemnina),
                 "zadnje_vkljuceno_stroski": dedup_property[0].zadnje_vkljuceno_stroski,
                 "zadnje_vkljuceno_ddv": dedup_property[0].zadnje_vkljuceno_ddv,
                 "zadnja_stopnja_ddv": float(dedup_property[0].zadnja_stopnja_ddv) if dedup_property[0].zadnja_stopnja_ddv else None,
-
-                "povrsina_uporabna": float(dedup_property[0].povrsina_uporabna) if dedup_property[0].povrsina_uporabna else None, #to bi moralo bit nekje drugje ker ni del posla ampak dela stavbe
-            }
+           }
         else:  # kpp
             zadnji_posel_info = {
                 "zadnja_cena": float(dedup_property[0].zadnja_cena),
@@ -354,7 +358,10 @@ class PropertyService:
                 "dodatek_hs": dedup_property[0].dodatek_hs,
                 "stev_stanovanja": dedup_property[0].stev_stanovanja,
                 
-                "povrsina": float(dedup_property[0].povrsina) if dedup_property[0].povrsina else None,
+                "povrsina_uradna": float(dedup_property[0].povrsina_uradna) if dedup_property[0].povrsina_uradna else None,
+                "povrsina_pogodba": float(dedup_property[0].povrsina_pogodba) if dedup_property[0].povrsina_pogodba else None,
+                **del_stavbe_np_dodatno,  # samo za np
+
                 "leto_izgradnje_stavbe": dedup_property[0].leto_izgradnje_stavbe,
                 
                 **({"opremljenost": dedup_property[0].opremljenost} if data_source.lower() == "np" else {}),

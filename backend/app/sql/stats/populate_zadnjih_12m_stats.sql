@@ -5,7 +5,7 @@ INSERT INTO stats.statistike_cache (
     percentil_90_cena_m2, povprecna_skupna_cena, percentil_10_skupna_cena,
     percentil_90_skupna_cena, stevilo_poslov, povprecna_velikost_m2,
     percentil_10_velikost_m2, percentil_90_velikost_m2, povprecna_starost_stavbe,
-    percentil_10_starost_stavbe, percentil_90_starost_stavbe, delez_agencijskih_pct
+    percentil_10_starost_stavbe, percentil_90_starost_stavbe
 )
 SELECT 
     'katastrska_obcina' as tip_regije,
@@ -26,8 +26,7 @@ SELECT
     AVG(p90_velikost_m2) as percentil_90_velikost_m2,
     AVG(povprecna_starost_stavbe) as povprecna_starost_stavbe,
     AVG(p10_starost_stavbe) as percentil_10_starost_stavbe,
-    AVG(p90_starost_stavbe) as percentil_90_starost_stavbe,
-    AVG(delez_agencijskih_pct) as delez_agencijskih_pct
+    AVG(p90_starost_stavbe) as percentil_90_starost_stavbe
 FROM stats.mv_prodajne_statistike
 WHERE leto >= EXTRACT(YEAR FROM CURRENT_DATE) - 1
   AND obcina IS NULL  -- KO statistike
@@ -46,8 +45,7 @@ DO UPDATE SET
     percentil_90_velikost_m2 = EXCLUDED.percentil_90_velikost_m2,
     povprecna_starost_stavbe = EXCLUDED.povprecna_starost_stavbe,
     percentil_10_starost_stavbe = EXCLUDED.percentil_10_starost_stavbe,
-    percentil_90_starost_stavbe = EXCLUDED.percentil_90_starost_stavbe,
-    delez_agencijskih_pct = EXCLUDED.delez_agencijskih_pct;
+    percentil_90_starost_stavbe = EXCLUDED.percentil_90_starost_stavbe;
 
 -- PRODAJA - OBČINE (zadnjih 12 mesecev)
 INSERT INTO stats.statistike_cache (
@@ -61,8 +59,7 @@ INSERT INTO stats.statistike_cache (
     povprecna_skupna_cena, percentil_10_skupna_cena, percentil_90_skupna_cena,
     stevilo_poslov,
     povprecna_velikost_m2, percentil_10_velikost_m2, percentil_90_velikost_m2,
-    povprecna_starost_stavbe, percentil_10_starost_stavbe, percentil_90_starost_stavbe,
-    delez_agencijskih_pct
+    povprecna_starost_stavbe, percentil_10_starost_stavbe, percentil_90_starost_stavbe
 )
 SELECT 
     'obcina' as tip_regije,
@@ -83,8 +80,7 @@ SELECT
     AVG(p90_velikost_m2) as percentil_90_velikost_m2,
     AVG(povprecna_starost_stavbe) as povprecna_starost_stavbe,
     AVG(p10_starost_stavbe) as percentil_10_starost_stavbe,
-    AVG(p90_starost_stavbe) as percentil_90_starost_stavbe,
-    AVG(delez_agencijskih_pct) as delez_agencijskih_pct
+    AVG(p90_starost_stavbe) as percentil_90_starost_stavbe
 FROM stats.mv_prodajne_statistike
 WHERE leto >= EXTRACT(YEAR FROM CURRENT_DATE) - 1
   AND ime_ko IS NULL  -- Občinske statistike
@@ -103,8 +99,7 @@ DO UPDATE SET
     percentil_90_velikost_m2 = EXCLUDED.percentil_90_velikost_m2,
     povprecna_starost_stavbe = EXCLUDED.povprecna_starost_stavbe,
     percentil_10_starost_stavbe = EXCLUDED.percentil_10_starost_stavbe,
-    percentil_90_starost_stavbe = EXCLUDED.percentil_90_starost_stavbe,
-    delez_agencijskih_pct = EXCLUDED.delez_agencijskih_pct;
+    percentil_90_starost_stavbe = EXCLUDED.percentil_90_starost_stavbe;
 
 -- NAJEM - KATASTRSKE OBČINE (zadnjih 12 mesecev)
 INSERT INTO stats.statistike_cache (
@@ -120,8 +115,7 @@ INSERT INTO stats.statistike_cache (
     trenutno_v_najemu,
     povprecna_velikost_m2, percentil_10_velikost_m2, percentil_90_velikost_m2,
     povprecna_starost_stavbe, percentil_10_starost_stavbe, percentil_90_starost_stavbe,
-    delez_opremljenih_pct,
-    delez_agencijskih_pct
+    delez_opremljenih_pct
 )
 SELECT 
     'katastrska_obcina' as tip_regije,
@@ -144,8 +138,7 @@ SELECT
     AVG(povprecna_starost_stavbe) as povprecna_starost_stavbe,
     AVG(p10_starost_stavbe) as percentil_10_starost_stavbe,
     AVG(p90_starost_stavbe) as percentil_90_starost_stavbe,
-    AVG(delez_opremljenih_pct) as delez_opremljenih_pct,
-    AVG(delez_agencijskih_pct) as delez_agencijskih_pct
+    AVG(delez_opremljenih_pct) as delez_opremljenih_pct
 FROM stats.mv_najemne_statistike
 WHERE leto >= EXTRACT(YEAR FROM CURRENT_DATE) - 1
   AND obcina IS NULL  -- KO statistike
@@ -166,8 +159,7 @@ DO UPDATE SET
     povprecna_starost_stavbe = EXCLUDED.povprecna_starost_stavbe,
     percentil_10_starost_stavbe = EXCLUDED.percentil_10_starost_stavbe,
     percentil_90_starost_stavbe = EXCLUDED.percentil_90_starost_stavbe,
-    delez_opremljenih_pct = EXCLUDED.delez_opremljenih_pct,
-    delez_agencijskih_pct = EXCLUDED.delez_agencijskih_pct;
+    delez_opremljenih_pct = EXCLUDED.delez_opremljenih_pct;
 
 -- NAJEM - OBČINE (zadnjih 12 mesecev)
 INSERT INTO stats.statistike_cache (
@@ -183,8 +175,7 @@ INSERT INTO stats.statistike_cache (
     trenutno_v_najemu,
     povprecna_velikost_m2, percentil_10_velikost_m2, percentil_90_velikost_m2,
     povprecna_starost_stavbe, percentil_10_starost_stavbe, percentil_90_starost_stavbe,
-    delez_opremljenih_pct,
-    delez_agencijskih_pct
+    delez_opremljenih_pct
 )
 SELECT 
     'obcina' as tip_regije,
@@ -207,8 +198,7 @@ SELECT
     AVG(povprecna_starost_stavbe) as povprecna_starost_stavbe,
     AVG(p10_starost_stavbe) as percentil_10_starost_stavbe,
     AVG(p90_starost_stavbe) as percentil_90_starost_stavbe,
-    AVG(delez_opremljenih_pct) as delez_opremljenih_pct,
-    AVG(delez_agencijskih_pct) as delez_agencijskih_pct
+    AVG(delez_opremljenih_pct) as delez_opremljenih_pct
 FROM stats.mv_najemne_statistike
 WHERE leto >= EXTRACT(YEAR FROM CURRENT_DATE) - 1
   AND ime_ko IS NULL  -- Občinske statistike
@@ -229,5 +219,4 @@ DO UPDATE SET
     povprecna_starost_stavbe = EXCLUDED.povprecna_starost_stavbe,
     percentil_10_starost_stavbe = EXCLUDED.percentil_10_starost_stavbe,
     percentil_90_starost_stavbe = EXCLUDED.percentil_90_starost_stavbe,
-    delez_opremljenih_pct = EXCLUDED.delez_opremljenih_pct,
-    delez_agencijskih_pct = EXCLUDED.delez_agencijskih_pct;
+    delez_opremljenih_pct = EXCLUDED.delez_opremljenih_pct;

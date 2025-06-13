@@ -1,38 +1,57 @@
+-- =============================================================================
+-- DEDUPLICIRANJE KPP NEPREMIČNIN 
+-- =============================================================================
+-- Namen: Ustvari en zapis za vsako nepremičnino (kombinacija sifra_ko, stevilka_stavbe, stevilka_dela_stavbe)
+-- ki ima vsaj en zapis tipa 'stanovanje' ali 'hiša'
+-- =============================================================================
+
 INSERT INTO core.kpp_del_stavbe_deduplicated (
-    sifra_ko,
-    stevilka_stavbe,
-    stevilka_dela_stavbe,
-    dejanska_raba,
-    tip_nepremicnine,
-    obcina,
-    naselje,
-    ulica,
-    hisna_stevilka,
-    dodatek_hs,
-    stev_stanovanja,
-    povrsina_uradna,
-    povrsina_pogodba,
-    leto_izgradnje_stavbe,
-    stevilo_sob,
-    zadnja_cena,
-    zadnje_vkljuceno_ddv,
-    zadnja_stopnja_ddv,
-    zadnje_leto,
-    povezani_del_stavbe_ids,
-    povezani_posel_ids,
-    najnovejsi_del_stavbe_id,
-    coordinates
+    sifra_ko, stevilka_stavbe, stevilka_dela_stavbe, dejanska_raba, tip_nepremicnine,
+    obcina, naselje, ulica, hisna_stevilka, dodatek_hs, stev_stanovanja,
+    povrsina_uradna, povrsina_pogodba, leto_izgradnje_stavbe,
+    zadnja_cena, zadnje_vkljuceno_ddv, zadnja_stopnja_ddv, zadnje_leto,
+    povezani_del_stavbe_ids, povezani_posel_ids, najnovejsi_del_stavbe_id, coordinates
 )
-WITH normalized_data AS (
+WITH 
+
+-- KORAK 1: Najdi vse veljavne nepremičnine
+-- ========================================
+validne_nepremicnine AS (
+    SELECT DISTINCT 
+        sifra_ko, 
+        stevilka_stavbe, 
+        stevilka_dela_stavbe
+    FROM core.kpp_del_stavbe
+    WHERE tip_nepremicnine IN ('stanovanje', 'hisa')
+      AND coordinates IS NOT NULL
+      AND sifra_ko IS NOT NULL
+      AND stevilka_stavbe IS NOT NULL 
+      AND stevilka_dela_stavbe IS NOT NULL
+),
+
+-- KORAK 2: Zberi vse posel_ids za vsako nepremičnino
+-- ===================================================================
+vsi_posel_ids_nepremicnine AS (
     SELECT 
-        ds.sifra_ko,
-        ds.stevilka_stavbe,
-        ds.stevilka_dela_stavbe,
-        COALESCE(NULLIF(TRIM(ds.dejanska_raba), ''), 'neznano') as dejanska_raba,
-        ds.leto,
-        ds.del_stavbe_id,
-        ds.posel_id,
-        ds.coordinates,
+        vn.sifra_ko,
+        vn.stevilka_stavbe, 
+        vn.stevilka_dela_stavbe,
+        ARRAY_AGG(DISTINCT ds.posel_id ORDER BY ds.posel_id) as vsi_povezani_posel_ids
+    FROM validne_nepremicnine vn
+    INNER JOIN core.kpp_del_stavbe ds USING (sifra_ko, stevilka_stavbe, stevilka_dela_stavbe)
+    GROUP BY vn.sifra_ko, vn.stevilka_stavbe, vn.stevilka_dela_stavbe
+),
+
+-- KORAK 3: Najdi najnovejšo vrstico za vsako nepremičnino
+-- =======================================================
+najnovejsi_zapisi AS (
+    SELECT DISTINCT ON (vn.sifra_ko, vn.stevilka_stavbe, vn.stevilka_dela_stavbe)
+        vn.sifra_ko,
+        vn.stevilka_stavbe, 
+        vn.stevilka_dela_stavbe,
+        ds.del_stavbe_id as najnovejsi_del_stavbe_id,
+        ds.dejanska_raba,
+        ds.tip_nepremicnine,
         ds.obcina,
         ds.naselje,
         ds.ulica,
@@ -42,71 +61,106 @@ WITH normalized_data AS (
         ds.povrsina_uradna,
         ds.povrsina_pogodba,
         ds.leto_izgradnje_stavbe,
-        ds.stevilo_sob,
-        ds.tip_nepremicnine,
-        -- Dodaj row number za določitev najnovejšega zapisa
-        ROW_NUMBER() OVER (
-            PARTITION BY ds.sifra_ko, ds.stevilka_stavbe, ds.stevilka_dela_stavbe, 
-                        COALESCE(NULLIF(TRIM(ds.dejanska_raba), ''), 'neznano')
-            ORDER BY ds.leto DESC, ds.del_stavbe_id DESC
-        ) as rn
-    FROM core.kpp_del_stavbe ds
-    WHERE ds.coordinates IS NOT NULL
-      AND ds.sifra_ko IS NOT NULL
-      AND ds.stevilka_stavbe IS NOT NULL
-      AND ds.stevilka_dela_stavbe IS NOT NULL
+        ds.coordinates,
+        ds.posel_id as najnovejsi_posel_id
+    FROM validne_nepremicnine vn
+    INNER JOIN core.kpp_del_stavbe ds USING (sifra_ko, stevilka_stavbe, stevilka_dela_stavbe)
+    ORDER BY 
+        vn.sifra_ko, vn.stevilka_stavbe, vn.stevilka_dela_stavbe,
+        -- Prioriteta za izbiro "najnovejše" vrstice:
+        CASE WHEN ds.tip_nepremicnine IN ('stanovanje', 'hisa') THEN 0 ELSE 1 END,  -- 1. vzami samo domove
+        ds.leto DESC,                                                                -- 2. najnovejše leto
+        ds.del_stavbe_id DESC                                                       -- 3. najnovejši ID
 ),
-latest_contracts AS (
+
+-- KORAK 4: Najdi vse povezane dele stavb preko poslov
+-- ===================================================
+vsi_povezani_del_stavbe AS (
     SELECT 
-        nd.sifra_ko,
-        nd.stevilka_stavbe,
-        nd.stevilka_dela_stavbe,
-        nd.dejanska_raba,
-        p.cena,
-        p.vkljuceno_ddv,
-        p.stopnja_ddv,
-        p.leto,
-        ROW_NUMBER() OVER (
-            PARTITION BY nd.sifra_ko, nd.stevilka_stavbe, nd.stevilka_dela_stavbe, nd.dejanska_raba
-            ORDER BY p.datum_sklenitve DESC, p.posel_id DESC
-        ) as contract_rn
-    FROM normalized_data nd
-    INNER JOIN core.kpp_posel p ON nd.posel_id = p.posel_id
-    WHERE p.datum_sklenitve IS NOT NULL
+        vpn.sifra_ko, 
+        vpn.stevilka_stavbe, 
+        vpn.stevilka_dela_stavbe,
+        ARRAY_AGG(DISTINCT ds_vsi.del_stavbe_id ORDER BY ds_vsi.del_stavbe_id) as vsi_povezani_del_stavbe_ids
+    FROM vsi_posel_ids_nepremicnine vpn
+    INNER JOIN core.kpp_del_stavbe ds_vsi ON ds_vsi.posel_id = ANY(vpn.vsi_povezani_posel_ids)
+    GROUP BY vpn.sifra_ko, vpn.stevilka_stavbe, vpn.stevilka_dela_stavbe
+),
+
+-- KORAK 5: Najdi najnovejše podatke poslov
+-- =========================================
+zadnji_podatki_posel AS (
+    SELECT DISTINCT ON (vpn.sifra_ko, vpn.stevilka_stavbe, vpn.stevilka_dela_stavbe)
+        vpn.sifra_ko, 
+        vpn.stevilka_stavbe, 
+        vpn.stevilka_dela_stavbe,
+        posel.cena as najnov_cena,
+        posel.vkljuceno_ddv as najnov_vkljuceno_ddv,
+        posel.stopnja_ddv as najnov_stopnja_ddv,
+        EXTRACT(YEAR FROM posel.datum_sklenitve) as najnov_leto_sklenitve
+    FROM vsi_posel_ids_nepremicnine vpn
+    INNER JOIN core.kpp_posel posel ON posel.posel_id = ANY(vpn.vsi_povezani_posel_ids) 
+                                    AND posel.datum_sklenitve IS NOT NULL
+    ORDER BY vpn.sifra_ko, vpn.stevilka_stavbe, vpn.stevilka_dela_stavbe,
+             posel.datum_sklenitve DESC,
+             posel.posel_id DESC
+),
+
+-- KORAK 6: Identificiraj podvojene najnovejše posle
+-- =================================================
+podvojeni_zadnji_posli AS (
+    SELECT najnovejsi_posel_id
+    FROM najnovejsi_zapisi
+    GROUP BY najnovejsi_posel_id
+    HAVING COUNT(*) > 1
 )
+
+-- KONČNI REZULTAT
+-- ===============
 SELECT 
-    nd.sifra_ko,
-    nd.stevilka_stavbe,
-    nd.stevilka_dela_stavbe,
-    nd.dejanska_raba,
-    (ARRAY_AGG(nd.tip_nepremicnine ORDER BY nd.rn ASC))[1] as tip_nepremicnine,
-    (ARRAY_AGG(nd.obcina ORDER BY nd.rn ASC))[1] as obcina,
-    (ARRAY_AGG(nd.naselje ORDER BY nd.rn ASC))[1] as naselje,
-    (ARRAY_AGG(nd.ulica ORDER BY nd.rn ASC))[1] as ulica,
-    (ARRAY_AGG(nd.hisna_stevilka ORDER BY nd.rn ASC))[1] as hisna_stevilka,
-    (ARRAY_AGG(nd.dodatek_hs ORDER BY nd.rn ASC))[1] as dodatek_hs,
-    (ARRAY_AGG(nd.stev_stanovanja ORDER BY nd.rn ASC))[1] as stev_stanovanja,
-    (ARRAY_AGG(nd.povrsina_uradna ORDER BY nd.rn ASC))[1] as povrsina_uradna,
-    (ARRAY_AGG(nd.povrsina_pogodba ORDER BY nd.rn ASC))[1] as povrsina_pogodba,
-    (ARRAY_AGG(nd.leto_izgradnje_stavbe ORDER BY nd.rn ASC))[1] as leto_izgradnje_stavbe,
-    (ARRAY_AGG(nd.stevilo_sob ORDER BY nd.rn ASC))[1] as stevilo_sob,
-    -- podatki zadnjega posla
-    lc.cena as zadnja_cena,
-    lc.vkljuceno_ddv as zadnje_vkljuceno_ddv,
-    lc.stopnja_ddv as zadnja_stopnja_ddv,
-    lc.leto as zadnje_leto,
-    -- povezani posli in deli stavb
-    ARRAY_AGG(DISTINCT nd.del_stavbe_id ORDER BY nd.del_stavbe_id) as povezani_del_stavbe_ids,
-    ARRAY_AGG(DISTINCT nd.posel_id ORDER BY nd.posel_id) as povezani_posel_ids,
-    (ARRAY_AGG(nd.del_stavbe_id ORDER BY nd.rn ASC))[1] as najnovejsi_del_stavbe_id,
-    (ARRAY_AGG(nd.coordinates ORDER BY nd.rn ASC))[1] as coordinates
-FROM normalized_data nd
-LEFT JOIN latest_contracts lc ON (
-    nd.sifra_ko = lc.sifra_ko 
-    AND nd.stevilka_stavbe = lc.stevilka_stavbe 
-    AND nd.stevilka_dela_stavbe = lc.stevilka_dela_stavbe 
-    AND nd.dejanska_raba = lc.dejanska_raba 
-    AND lc.contract_rn = 1
-)
-GROUP BY nd.sifra_ko, nd.stevilka_stavbe, nd.stevilka_dela_stavbe, nd.dejanska_raba,
-         lc.cena, lc.vkljuceno_ddv, lc.stopnja_ddv, lc.leto;
+    -- Identifikatorji
+    nz.sifra_ko,
+    nz.stevilka_stavbe, 
+    nz.stevilka_dela_stavbe,
+    
+    -- Podatki iz najnovejše vrstice
+    nz.dejanska_raba,
+    CASE 
+        WHEN pzp.najnovejsi_posel_id IS NOT NULL 
+        THEN nz.tip_nepremicnine || ' PODV.'
+        ELSE nz.tip_nepremicnine 
+    END as tip_nepremicnine,
+    
+    -- Lokacija
+    nz.obcina,
+    nz.naselje, 
+    nz.ulica,
+    nz.hisna_stevilka,
+    nz.dodatek_hs,
+    nz.stev_stanovanja,
+    
+    -- Tehnični podatki
+    nz.povrsina_uradna,
+    nz.povrsina_pogodba, 
+    nz.leto_izgradnje_stavbe,
+    
+    -- Podatki najnovejšega posla
+    zpp.najnov_cena as zadnja_cena,
+    zpp.najnov_vkljuceno_ddv as zadnje_vkljuceno_ddv,
+    zpp.najnov_stopnja_ddv as zadnja_stopnja_ddv, 
+    zpp.najnov_leto_sklenitve as zadnje_leto,
+    
+    -- Povezave
+    vpds.vsi_povezani_del_stavbe_ids as povezani_del_stavbe_ids,
+    vpn.vsi_povezani_posel_ids as povezani_posel_ids,
+    nz.najnovejsi_del_stavbe_id,
+    
+    -- Koordinate
+    nz.coordinates
+
+FROM najnovejsi_zapisi nz
+LEFT JOIN vsi_posel_ids_nepremicnine vpn USING (sifra_ko, stevilka_stavbe, stevilka_dela_stavbe)
+LEFT JOIN vsi_povezani_del_stavbe vpds USING (sifra_ko, stevilka_stavbe, stevilka_dela_stavbe)
+LEFT JOIN zadnji_podatki_posel zpp USING (sifra_ko, stevilka_stavbe, stevilka_dela_stavbe)
+LEFT JOIN podvojeni_zadnji_posli pzp ON nz.najnovejsi_posel_id = pzp.najnovejsi_posel_id
+
+ORDER BY nz.sifra_ko, nz.stevilka_stavbe, nz.stevilka_dela_stavbe;

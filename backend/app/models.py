@@ -109,7 +109,6 @@ class NpPosel(Base):
     datum_zakljucka_najema = Column(Date)
     
     opombe = Column(Text)
-    posredovanje_agencije = Column(Boolean)
     datum_zadnje_spremembe = Column(Date)
     datum_zadnje_uveljavitve = Column(Date)
     vrsta_akta = Column(SmallInteger)
@@ -217,7 +216,6 @@ class KppPosel(Base):
     stopnja_ddv = Column(Numeric(5, 2))
     
     opombe = Column(Text)
-    posredovanje_agencije = Column(Boolean)
     datum_zadnje_spremembe = Column(Date)
     datum_zadnje_uveljavitve = Column(Date)
     trznost_posla = Column(SmallInteger)

@@ -22,18 +22,15 @@ CREATE TABLE stats.statistike_cache (
     stevilo_poslov INTEGER DEFAULT 0,
     trenutno_v_najemu INTEGER DEFAULT 0, -- samo za najem
     
-    povprecna_velikost_m2 DECIMAL(8,2),
-    percentil_10_velikost_m2 DECIMAL(8,2),
-    percentil_90_velikost_m2 DECIMAL(8,2),
+    povprecna_velikost_m2 DECIMAL(10,2),
+    percentil_10_velikost_m2 DECIMAL(9,2),
+    percentil_90_velikost_m2 DECIMAL(12,2),
     
     povprecna_starost_stavbe INTEGER,
     percentil_10_starost_stavbe INTEGER,
     percentil_90_starost_stavbe INTEGER,
     
     delez_opremljenih_pct DECIMAL(5,2), -- samo za najem
-    
-    -- AGENCIJSKE VS ZASEBNE
-    delez_agencijskih_pct DECIMAL(5,2),
         
     CONSTRAINT uq_statistike_cache UNIQUE(tip_regije, ime_regije, tip_nepremicnine, tip_posla, tip_obdobja, leto)
 );

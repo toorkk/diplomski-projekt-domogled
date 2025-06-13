@@ -157,7 +157,6 @@ class StatisticsService:
                             "percentil_10_starost_stavbe": row.percentil_10_starost_stavbe,
                             "percentil_90_starost_stavbe": row.percentil_90_starost_stavbe,
                             "delez_opremljenih_pct": float(row.delez_opremljenih_pct) if row.delez_opremljenih_pct else None,
-                            "delez_agencijskih_pct": float(row.delez_agencijskih_pct) if row.delez_agencijskih_pct else None
                         }
                     }
                     
