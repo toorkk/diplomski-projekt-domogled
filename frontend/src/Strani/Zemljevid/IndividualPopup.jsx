@@ -1,30 +1,6 @@
+import {getEnergyClassColor, getColorClasses, getNaslovDodatek, getNaslov} from './PodrobnostiHelper.jsx';
+
 const IndividualPopup = ({ properties, dataSourceType = 'prodaja' }) => {
-
-    const naslov = `${properties.ulica || ''} ${properties.hisna_stevilka || ''} ${properties.dodatek_hs || ''}`.trim();
-
-    const getColorClasses = () => {
-        const isNajem = dataSourceType === 'najem' || properties.data_source === 'np';
-        return {
-            headerBg: isNajem ? 'bg-emerald-400' : 'bg-blue-300',
-            headerText: 'text-gray-800',
-            badgeBg: isNajem ? 'bg-emerald-400' : 'bg-blue-300',
-            buttonBg: isNajem ? 'bg-emerald-400' : 'bg-blue-300',
-            buttonHover: isNajem ? 'hover:bg-emerald-500' : 'hover:bg-blue-400'
-        };
-    };
-
-    const colors = getColorClasses();
-
-    const getNaslovDodatek = () => {
-        const naslovDodatek = [];
-        if (properties.obcina) naslovDodatek.push(properties.obcina);
-        if(properties.naselje && properties.naselje !== properties.obcina) naslovDodatek.push(properties.naselje);
-        if (properties.stev_stanovanja) naslovDodatek.push(`št. stan: ${properties.stev_stanovanja}`);
-    
-        return naslovDodatek.length > 0 
-            ? `<p class="text-blue-100 text-sm">${naslovDodatek.join(', ')}</p>` 
-            : '';
-    };
 
     const getPovrsina = () => {
         const povrsina = {};
@@ -80,9 +56,11 @@ const IndividualPopup = ({ properties, dataSourceType = 'prodaja' }) => {
     };
     
     const priceInfo = getLatestPriceInfo();
-    const naslovDodatek = getNaslovDodatek();
+    const naslovDodatek = getNaslovDodatek(properties);
+    const naslov = getNaslov(properties);
+    const colors = getColorClasses(properties.data_source);
     const povrsina = getPovrsina();
-    
+
     return `
         <div class="font-sans rounded-lg overflow-hidden w-80">
             <!-- Dynamic color header -->
@@ -101,12 +79,12 @@ const IndividualPopup = ({ properties, dataSourceType = 'prodaja' }) => {
                         </span>
                         ` : ''}
                         ${hasMultipleContracts ? `
-                        <span class="${colors.badgeBg} px-2 py-1 rounded text-xs h-6 flex items-center">
+                        <span class="bg-gray-50 px-2 py-1 rounded text-xs h-6 flex items-center">
                             ${contractCount}x poslov
                         </span>
                         ` : ''}
                         ${properties.energijski_razred ? `
-                        <span class="${colors.badgeBg} px-2 py-1 rounded text-xs h-6 flex items-center">
+                        <span class="${getEnergyClassColor(properties.energijski_razred)} px-2 py-1 rounded text-xs h-6 flex items-center">
                             ${properties.energijski_razred}
                         </span>
                         ` : ''}

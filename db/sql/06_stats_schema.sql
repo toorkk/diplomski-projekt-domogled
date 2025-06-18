@@ -6,7 +6,7 @@ CREATE TABLE stats.statistike_cache (
     
     tip_regije VARCHAR(20) NOT NULL, -- 'obcina', 'katastrska_obcina', 'slovenija'
     ime_regije VARCHAR(100) NOT NULL, -- ime občine/KO ali 'slovenija'
-    tip_nepremicnine VARCHAR(20) NOT NULL, -- 'stanovanje', 'hisa'
+    vrsta_nepremicnine VARCHAR(20) NOT NULL, -- '2 = stanovanje', '1 = hisa'
     tip_posla VARCHAR(10) NOT NULL, -- 'prodaja', 'najem'
     tip_obdobja VARCHAR(15) NOT NULL, -- 'letno', 'zadnjih_12m'
     leto INTEGER, -- NULL za zadnjih_12m
@@ -32,10 +32,10 @@ CREATE TABLE stats.statistike_cache (
     
     delez_opremljenih_pct DECIMAL(5,2), -- samo za najem
         
-    CONSTRAINT uq_statistike_cache UNIQUE(tip_regije, ime_regije, tip_nepremicnine, tip_posla, tip_obdobja, leto)
+    CONSTRAINT uq_statistike_cache UNIQUE(tip_regije, ime_regije, vrsta_nepremicnine, tip_posla, tip_obdobja, leto)
 );
 
 -- Indeksi
-CREATE INDEX idx_statistike_cache_iskanje ON stats.statistike_cache(tip_regije, ime_regije, tip_nepremicnine, tip_posla, tip_obdobja);
+CREATE INDEX idx_statistike_cache_iskanje ON stats.statistike_cache(tip_regije, ime_regije, vrsta_nepremicnine, tip_posla, tip_obdobja);
 CREATE INDEX idx_statistike_cache_regija ON stats.statistike_cache(ime_regije);
 CREATE INDEX idx_statistike_cache_obdobje ON stats.statistike_cache(tip_obdobja, leto);

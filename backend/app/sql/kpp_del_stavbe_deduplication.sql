@@ -2,11 +2,11 @@
 -- DEDUPLICIRANJE KPP NEPREMIČNIN 
 -- =============================================================================
 -- Namen: Ustvari en zapis za vsako nepremičnino (kombinacija sifra_ko, stevilka_stavbe, stevilka_dela_stavbe)
--- ki ima vsaj en zapis tipa 'stanovanje' ali 'hiša'
+-- ki ima vsaj en zapis vrste 'stanovanje' ali 'hiša'
 -- =============================================================================
 
 INSERT INTO core.kpp_del_stavbe_deduplicated (
-    sifra_ko, stevilka_stavbe, stevilka_dela_stavbe, dejanska_raba, tip_nepremicnine,
+    sifra_ko, stevilka_stavbe, stevilka_dela_stavbe, dejanska_raba, vrsta_nepremicnine,
     obcina, naselje, ulica, hisna_stevilka, dodatek_hs, stev_stanovanja,
     povrsina_uradna, povrsina_pogodba, leto_izgradnje_stavbe,
     zadnja_cena, zadnje_vkljuceno_ddv, zadnja_stopnja_ddv, zadnje_leto,
@@ -22,7 +22,7 @@ validne_nepremicnine AS (
         stevilka_stavbe, 
         stevilka_dela_stavbe
     FROM core.kpp_del_stavbe
-    WHERE tip_nepremicnine IN ('stanovanje', 'hisa')
+    WHERE vrsta_nepremicnine IN (1, 2)
       AND coordinates IS NOT NULL
       AND sifra_ko IS NOT NULL
       AND stevilka_stavbe IS NOT NULL 
@@ -51,7 +51,7 @@ najnovejsi_zapisi AS (
         vn.stevilka_dela_stavbe,
         ds.del_stavbe_id as najnovejsi_del_stavbe_id,
         ds.dejanska_raba,
-        ds.tip_nepremicnine,
+        ds.vrsta_nepremicnine,
         ds.obcina,
         ds.naselje,
         ds.ulica,
@@ -65,10 +65,11 @@ najnovejsi_zapisi AS (
         ds.posel_id as najnovejsi_posel_id
     FROM validne_nepremicnine vn
     INNER JOIN core.kpp_del_stavbe ds USING (sifra_ko, stevilka_stavbe, stevilka_dela_stavbe)
+    WHERE ds.coordinates IS NOT NULL
     ORDER BY 
         vn.sifra_ko, vn.stevilka_stavbe, vn.stevilka_dela_stavbe,
         -- Prioriteta za izbiro "najnovejše" vrstice:
-        CASE WHEN ds.tip_nepremicnine IN ('stanovanje', 'hisa') THEN 0 ELSE 1 END,  -- 1. vzami samo domove
+        CASE WHEN ds.vrsta_nepremicnine IN (1, 2) THEN 0 ELSE 1 END,  -- 1. vzami samo domove
         ds.leto DESC,                                                                -- 2. najnovejše leto
         ds.del_stavbe_id DESC                                                       -- 3. najnovejši ID
 ),
@@ -124,18 +125,18 @@ SELECT
     
     -- Podatki iz najnovejše vrstice
     nz.dejanska_raba,
-    CASE 
-        WHEN pzp.najnovejsi_posel_id IS NOT NULL 
-        THEN nz.tip_nepremicnine || ' PODV.'
-        ELSE nz.tip_nepremicnine 
-    END as tip_nepremicnine,
+    nz.vrsta_nepremicnine,
     
     -- Lokacija
     nz.obcina,
     nz.naselje, 
     nz.ulica,
     nz.hisna_stevilka,
-    nz.dodatek_hs,
+    CASE 
+        WHEN pzp.najnovejsi_posel_id IS NOT NULL 
+        THEN nz.dodatek_hs || ' PODV.'
+        ELSE nz.dodatek_hs 
+    END as dodatek_hs,
     nz.stev_stanovanja,
     
     -- Tehnični podatki

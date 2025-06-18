@@ -6,10 +6,12 @@ from datetime import datetime
 from .logging_utils import setup_logger
 from sqlalchemy import create_engine, text
 from typing import Dict, Any
-
+import shutil
 from .sql_utils import execute_sql_file, execute_sql_count
 
+
 logger = setup_logger("ei_ingestion", "energetska_izkaznica_ingestion.log", "EI")
+
 
 class EnergetskaIzkaznicaIngestionService:
     def __init__(self, db_url: str):
@@ -21,12 +23,12 @@ class EnergetskaIzkaznicaIngestionService:
         """Generiraj URL za trenutni mesec in leto."""
         now = datetime.now()
         
-        meseci = [
+        months = [
             "jan", "feb", "mar", "apr", "maj", "jun",
             "jul", "avg", "sep", "okt", "nov", "dec"
         ]
         
-        current_month = meseci[now.month - 1]
+        current_month = months[now.month - 1]
         current_year = str(now.year)[2:]
         
         filename = f"ei_javni_register_{current_month}{current_year}.csv"
@@ -34,25 +36,24 @@ class EnergetskaIzkaznicaIngestionService:
         
         return url
 
+
     def download_csv(self, url: str = None) -> str:
         """Prenesi CSV datoteko iz URL-ja."""
         try:
+
             if url is None:
                 url = self.generate_current_url()
             
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                "Accept": "text/csv,*/*"
-            }
-            
+
             logger.info(f"Prenašanje CSV datoteke iz: {url}")
-            response = requests.get(url, headers=headers, stream=True)
+            response = requests.get(url, stream=True)
             
+
             if response.status_code != 200:
                 logger.error(f"Napaka pri prenosu: status {response.status_code}")
                 raise Exception(f"Napaka pri prenosu datoteke, status: {response.status_code}")
             
-            # Shrani v začasno datoteko
+
             temp_dir = tempfile.mkdtemp()
             csv_path = os.path.join(temp_dir, "energetska_izkaznica.csv")
             
@@ -60,6 +61,7 @@ class EnergetskaIzkaznicaIngestionService:
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
             
+
             file_size = os.path.getsize(csv_path)
             logger.info(f"CSV datoteka prenesena: {file_size} bajtov")
             
@@ -69,6 +71,7 @@ class EnergetskaIzkaznicaIngestionService:
             logger.error(f"Napaka pri prenosu CSV: {str(e)}")
             raise
 
+
     def clean_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """Počisti in pripravi podatke za uvoz."""
         try:
@@ -77,6 +80,9 @@ class EnergetskaIzkaznicaIngestionService:
             df.columns = df.columns.str.strip()
             
             df = df.replace('', None)
+
+            df = df[df['ID energetske izkaznice'].notna()]
+            
             
             numeric_columns = [
                 'Potrebna toplota za ogrevanje',
@@ -87,30 +93,21 @@ class EnergetskaIzkaznicaIngestionService:
                 'Emisije CO2',
                 'Kondicionirana površina stavbe'
             ]
-            
             for col in numeric_columns:
                 if col in df.columns:
+                    df[col] = df[col].astype(str).str.replace('.', '', regex=False)
                     df[col] = df[col].astype(str).str.replace(',', '.', regex=False)
                     df[col] = pd.to_numeric(df[col], errors='coerce')
             
+
             date_columns = ['Datum izdelave', 'Velja do']
             for col in date_columns:
                 if col in df.columns:
                     df[col] = pd.to_datetime(df[col], format='%d.%m.%Y', errors='coerce')
             
-            string_columns = ['Tip izkaznice', 'Energijski razred', 'EPBD']
-            for col in string_columns:
-                if col in df.columns:
-                    df[col] = df[col].astype(str).str.strip()
-                    df[col] = df[col].replace('nan', None)
-            
-            # Filtriraj veljavne zapise (mora imeti ID)
-            initial_count = len(df)
-            df = df[df['ID energetske izkaznice'].notna()]
-            df = df[df['ID energetske izkaznice'] != '']
-            
+
             filtered_count = len(df)
-            logger.info(f"Po filtriranju veljavnih ID-jev: {filtered_count} od {initial_count} vrstic")
+            logger.info(f"Po filtriranju veljavnih ID-jev: {filtered_count}")
             
             return df
             
@@ -148,16 +145,6 @@ class EnergetskaIzkaznicaIngestionService:
             table_columns = list(column_mapping.values())
             df_final = df_renamed[table_columns].copy()
             
-            if 'epbd_tip' in df_final.columns:
-                df_final['epbd_tip'] = df_final['epbd_tip'].str.strip()
-            
-            # Odstrani podvojene ei_id iz DataFrame-a pred uvozom
-            initial_count = len(df_final)
-            df_final = df_final.drop_duplicates(subset=['ei_id'], keep='last')
-            dedupe_count = len(df_final)
-            if initial_count != dedupe_count:
-                logger.warning(f"Odstranjenih {initial_count - dedupe_count} podvojenih ei_id iz CSV podatkov")
-            
             # Počisti staging tabelo in vstavi nove podatke
             with self.engine.connect() as conn:
                 trans = conn.begin()
@@ -193,9 +180,9 @@ class EnergetskaIzkaznicaIngestionService:
             raise
 
     def transform_to_core(self) -> int:
-        """Pretvori podatke iz staging v core tabelo z UPSERT strategijo."""
+        """Zamenja celotno core tabelo z novimi podatki iz staging tabele."""
         try:
-            logger.info("Izvajanje UPSERT transformacije iz staging v core tabelo")
+            logger.info("Zamenjava celotne core tabele z novimi podatki")
             
             staging_count = execute_sql_count(self.engine, 'staging', 'energetska_izkaznica')
             
@@ -203,15 +190,16 @@ class EnergetskaIzkaznicaIngestionService:
                 logger.warning("Staging tabela je prazna! Ne morem nadaljevati s transformacijo.")
                 return 0
             
-            logger.info(f"Transformiranje {staging_count} zapisov iz staging tabele")
+            logger.info(f"Zamenjavanje core tabele z {staging_count} zapisi iz staging tabele")
             
-            execute_sql_file(self.engine, 'ei_upsert.sql')
-            
+            # Izvedi SQL skripto za zamenjavo tabele
+            execute_sql_file(self.engine, 'ei_insert.sql')
+                    
             core_count = execute_sql_count(self.engine, 'core', 'energetska_izkaznica')
-            logger.info(f"Transformacija zaključena. Skupno zapisov v core tabeli: {core_count}")
+            logger.info(f"Uspešno zamenjanih {core_count} zapisov v core tabeli")
             
             return core_count
-            
+                    
         except Exception as e:
             logger.error(f"Napaka pri transformaciji v core tabelo: {str(e)}")
             raise
@@ -220,7 +208,6 @@ class EnergetskaIzkaznicaIngestionService:
         """Počisti začasne datoteke."""
         try:
             temp_dir = os.path.dirname(file_path)
-            import shutil
             shutil.rmtree(temp_dir)
             logger.info(f"Počiščen začasen direktorij: {temp_dir}")
         except Exception as e:

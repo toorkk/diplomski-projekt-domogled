@@ -2,7 +2,7 @@
 INSERT INTO stats.statistike_cache (
     tip_regije,
     ime_regije,
-    tip_nepremicnine,
+    vrsta_nepremicnine,
     tip_posla,
     tip_obdobja,
     leto,
@@ -17,7 +17,7 @@ INSERT INTO stats.statistike_cache (
 SELECT 
     'katastrska_obcina' as tip_regije,
     ime_ko as ime_regije,
-    tip_nepremicnine,
+    vrsta_nepremicnine,
     'najem' as tip_posla,
     'letno' as tip_obdobja,
     leto,
@@ -30,7 +30,7 @@ SELECT
     delez_opremljenih_pct
 FROM stats.mv_najemne_statistike
 WHERE obcina IS NULL AND ime_ko IS NOT NULL  -- KO statistike (kjer je obcina NULL)
-ON CONFLICT (tip_regije, ime_regije, tip_nepremicnine, tip_posla, tip_obdobja, leto) 
+ON CONFLICT (tip_regije, ime_regije, vrsta_nepremicnine, tip_posla, tip_obdobja, leto) 
 DO UPDATE SET
     povprecna_cena_m2 = EXCLUDED.povprecna_cena_m2,
     percentil_10_cena_m2 = EXCLUDED.percentil_10_cena_m2,
@@ -52,7 +52,7 @@ DO UPDATE SET
 INSERT INTO stats.statistike_cache (
     tip_regije,
     ime_regije,
-    tip_nepremicnine,
+    vrsta_nepremicnine,
     tip_posla,
     tip_obdobja,
     leto,
@@ -67,7 +67,7 @@ INSERT INTO stats.statistike_cache (
 SELECT 
     'obcina' as tip_regije,
     obcina as ime_regije,
-    tip_nepremicnine,
+    vrsta_nepremicnine,
     'najem' as tip_posla,
     'letno' as tip_obdobja,
     leto,
@@ -80,7 +80,7 @@ SELECT
     delez_opremljenih_pct
 FROM stats.mv_najemne_statistike
 WHERE ime_ko IS NULL  -- Občinske statistike (kjer je ime_ko NULL)
-ON CONFLICT (tip_regije, ime_regije, tip_nepremicnine, tip_posla, tip_obdobja, leto) 
+ON CONFLICT (tip_regije, ime_regije, vrsta_nepremicnine, tip_posla, tip_obdobja, leto) 
 DO UPDATE SET
     povprecna_cena_m2 = EXCLUDED.povprecna_cena_m2,
     percentil_10_cena_m2 = EXCLUDED.percentil_10_cena_m2,

@@ -4,7 +4,7 @@ WITH prodajni_podatki AS (
     SELECT 
         k.obcina,
         k.ime_ko,
-        k.tip_nepremicnine,
+        k.vrsta_nepremicnine,
         
         -- Use k.leto as the definitive year
         k.leto as leto_posla,
@@ -46,7 +46,7 @@ WITH prodajni_podatki AS (
 SELECT 
     NULL as obcina,  -- NULL ker je agregirano čez več občin
     ime_ko,
-    tip_nepremicnine,
+    vrsta_nepremicnine,
     leto_posla as leto,  -- This is now consistently the contract year
     
     -- Cenovni podatki m2
@@ -72,8 +72,8 @@ SELECT
     COUNT(*) as stevilo_poslov
     
 FROM prodajni_podatki
-WHERE tip_nepremicnine IN ('stanovanje', 'hisa')
-GROUP BY ime_ko, tip_nepremicnine, leto_posla
+WHERE vrsta_nepremicnine IN (1, 2)
+GROUP BY ime_ko, vrsta_nepremicnine, leto_posla
 
 UNION ALL
 
@@ -81,7 +81,7 @@ UNION ALL
 SELECT 
     obcina,
     NULL as ime_ko,  -- NULL ker gledamo samo občine
-    tip_nepremicnine,
+    vrsta_nepremicnine,
     leto_posla as leto,  -- Consistent year field
     
     AVG(cena_m2) as povprecna_cena_m2,
@@ -103,10 +103,10 @@ SELECT
     COUNT(*) as stevilo_poslov
     
 FROM prodajni_podatki
-WHERE tip_nepremicnine IN ('stanovanje', 'hisa')
-GROUP BY obcina, tip_nepremicnine, leto_posla;
+WHERE vrsta_nepremicnine IN (1, 2)
+GROUP BY obcina, vrsta_nepremicnine, leto_posla;
 
 -- Indeksi za materialized view
-CREATE INDEX idx_mv_prodajne_regija_leto ON stats.mv_prodajne_statistike(obcina, tip_nepremicnine, leto);
-CREATE INDEX idx_mv_prodajne_ko_leto ON stats.mv_prodajne_statistike(ime_ko, tip_nepremicnine, leto);
-CREATE INDEX idx_mv_prodajne_tip ON stats.mv_prodajne_statistike(tip_nepremicnine);
+CREATE INDEX idx_mv_prodajne_regija_leto ON stats.mv_prodajne_statistike(obcina, vrsta_nepremicnine, leto);
+CREATE INDEX idx_mv_prodajne_ko_leto ON stats.mv_prodajne_statistike(ime_ko, vrsta_nepremicnine, leto);
+CREATE INDEX idx_mv_prodajne_vrsta ON stats.mv_prodajne_statistike(vrsta_nepremicnine);

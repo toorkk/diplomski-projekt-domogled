@@ -18,13 +18,12 @@ CREATE TABLE core.np_del_stavbe (
   hisna_stevilka        INTEGER,
   dodatek_hs            VARCHAR(10),
   stev_stanovanja       INTEGER,
-  vrsta                 SMALLINT,
+  vrsta_nepremicnine    SMALLINT,
   opremljenost          SMALLINT,
 
   opombe                TEXT,
   leto_izgradnje_stavbe INTEGER,
   dejanska_raba         VARCHAR(100),
-  tip_nepremicnine      VARCHAR(19),
   lega_v_stavbi         VARCHAR(20),
   povrsina_uradna       NUMERIC(10,2),
   povrsina_pogodba      NUMERIC(10,2),
@@ -53,7 +52,7 @@ CREATE TABLE core.kpp_del_stavbe (
     hisna_stevilka                          INTEGER,
     dodatek_hs                              VARCHAR(10),
     stev_stanovanja                         INTEGER,
-    vrsta                                   SMALLINT,
+    vrsta_nepremicnine                      SMALLINT,
     leto_izgradnje_stavbe                   INTEGER,
     stavba_je_dokoncana                     INTEGER,
     gradbena_faza                           INTEGER,
@@ -62,7 +61,6 @@ CREATE TABLE core.kpp_del_stavbe (
     nadstropje                              INTEGER,        -- ta podatek se vec ne vpisuje
     opombe                                  TEXT,           -- ta podatek se vec ne vpisuje
     dejanska_raba                           VARCHAR(310),
-    tip_nepremicnine                        VARCHAR(19),
     lega_v_stavbi                           VARCHAR(50),
     stevilo_sob                             INTEGER,        -- ta podatek se vec ne vpisuje
     povrsina_uradna                         NUMERIC(10,2),
@@ -134,9 +132,9 @@ CREATE TABLE core.np_del_stavbe_deduplicated (
     sifra_ko                    SMALLINT        NOT NULL,
     stevilka_stavbe             INTEGER         NOT NULL,
     stevilka_dela_stavbe        INTEGER         NOT NULL,
-    dejanska_raba               VARCHAR(310)    NOT NULL,
+    dejanska_raba               VARCHAR(310),
     
-    tip_nepremicnine            VARCHAR(19),
+    vrsta_nepremicnine          SMALLINT,
 
     obcina                      VARCHAR(102),
     naselje                     VARCHAR(103),
@@ -178,9 +176,9 @@ CREATE TABLE core.kpp_del_stavbe_deduplicated (
     sifra_ko                    SMALLINT        NOT NULL,
     stevilka_stavbe             INTEGER         NOT NULL,
     stevilka_dela_stavbe        INTEGER         NOT NULL,
-    dejanska_raba               VARCHAR(310)    NOT NULL,
+    dejanska_raba               VARCHAR(310),
 
-    tip_nepremicnine            VARCHAR(19),
+    vrsta_nepremicnine          SMALLINT,
 
     obcina                      VARCHAR(102),
     naselje                     VARCHAR(103),
@@ -223,17 +221,15 @@ CREATE TABLE core.energetska_izkaznica (
     stevilka_stavbe INTEGER,
     stevilka_dela_stavbe INTEGER,
     tip_izkaznice VARCHAR(10),
-    potrebna_toplota_ogrevanje NUMERIC(10,2),
-    dovedena_energija_delovanje NUMERIC(10,2),
+    potrebna_toplota_ogrevanje NUMERIC(16,2),
+    dovedena_energija_delovanje NUMERIC(17,2),
     celotna_energija NUMERIC(15,2),
     dovedena_elektricna_energija NUMERIC(15,2),
     primarna_energija NUMERIC(15,2),
-    emisije_co2 NUMERIC(10,2),
-    kondicionirana_povrsina NUMERIC(10,2),
+    emisije_co2 NUMERIC(11,2),
+    kondicionirana_povrsina NUMERIC(12,2),
     energijski_razred VARCHAR(3),
-    epbd_tip VARCHAR(15),
-    
-    CONSTRAINT uq_ei_id UNIQUE(ei_id)
+    epbd_tip VARCHAR(15)
 );
 
 
@@ -282,7 +278,7 @@ CREATE INDEX idx_energetska_izkaznica_ko_stavba ON core.energetska_izkaznica(sif
 -- dodatni indeksi za deduplication
 CREATE INDEX IF NOT EXISTS idx_np_del_stavbe_nepremicnina_tip 
 ON core.np_del_stavbe (sifra_ko, stevilka_stavbe, stevilka_dela_stavbe) 
-WHERE tip_nepremicnine IN ('stanovanje', 'hisa') AND coordinates IS NOT NULL;
+WHERE vrsta_nepremicnine IN (1, 2) AND coordinates IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_np_del_stavbe_posel_leto 
 ON core.np_del_stavbe (posel_id, leto DESC, del_stavbe_id DESC);
@@ -293,7 +289,7 @@ WHERE datum_sklenitve IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_kpp_del_stavbe_nepremicnina_tip 
 ON core.kpp_del_stavbe (sifra_ko, stevilka_stavbe, stevilka_dela_stavbe) 
-WHERE tip_nepremicnine IN ('stanovanje', 'hisa') AND coordinates IS NOT NULL;
+WHERE vrsta_nepremicnine IN (1, 2) AND coordinates IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_kpp_del_stavbe_posel_leto 
 ON core.kpp_del_stavbe (posel_id, leto DESC, del_stavbe_id DESC);

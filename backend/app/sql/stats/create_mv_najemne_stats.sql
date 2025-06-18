@@ -4,7 +4,7 @@ WITH najemni_podatki AS (
     SELECT 
         n.obcina,
         n.ime_ko,
-        n.tip_nepremicnine,
+        n.vrsta_nepremicnine,
         
         -- Use n.leto as the definitive year
         n.leto as leto_posla,
@@ -61,7 +61,7 @@ WITH najemni_podatki AS (
 SELECT 
     NULL as obcina,  -- NULL ker je agregirano čez več občin
     ime_ko,
-    tip_nepremicnine,
+    vrsta_nepremicnine,
     leto_posla as leto,  -- This is now consistently n.leto
     
     -- Cenovni podatki m2
@@ -91,8 +91,8 @@ SELECT
     SUM(trenutno_aktivna) as trenutno_v_najemu
     
 FROM najemni_podatki
-WHERE tip_nepremicnine IN ('stanovanje', 'hisa')
-GROUP BY ime_ko, tip_nepremicnine, leto_posla
+WHERE vrsta_nepremicnine IN (1, 2)
+GROUP BY ime_ko, vrsta_nepremicnine, leto_posla
 
 UNION ALL
 
@@ -100,7 +100,7 @@ UNION ALL
 SELECT 
     obcina,
     NULL as ime_ko,  -- NULL ker gledamo samo občine
-    tip_nepremicnine,
+    vrsta_nepremicnine,
     leto_posla as leto,  -- Consistent year field
     
     AVG(najemnina_m2) as povprecna_najemnina_m2,
@@ -125,10 +125,10 @@ SELECT
     SUM(trenutno_aktivna) as trenutno_v_najemu
     
 FROM najemni_podatki
-WHERE tip_nepremicnine IN ('stanovanje', 'hisa')
-GROUP BY obcina, tip_nepremicnine, leto_posla;
+WHERE vrsta_nepremicnine IN (1, 2)
+GROUP BY obcina, vrsta_nepremicnine, leto_posla;
 
 -- Indeksi za materialized view
-CREATE INDEX idx_mv_najemne_regija_leto ON stats.mv_najemne_statistike(obcina, tip_nepremicnine, leto);
-CREATE INDEX idx_mv_najemne_ko_leto ON stats.mv_najemne_statistike(ime_ko, tip_nepremicnine, leto);
-CREATE INDEX idx_mv_najemne_tip ON stats.mv_najemne_statistike(tip_nepremicnine);
+CREATE INDEX idx_mv_najemne_regija_leto ON stats.mv_najemne_statistike(obcina, vrsta_nepremicnine, leto);
+CREATE INDEX idx_mv_najemne_ko_leto ON stats.mv_najemne_statistike(ime_ko, vrsta_nepremicnine, leto);
+CREATE INDEX idx_mv_najemne_vrsta ON stats.mv_najemne_statistike(vrsta_nepremicnine);

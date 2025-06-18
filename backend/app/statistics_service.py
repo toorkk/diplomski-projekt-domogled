@@ -112,7 +112,7 @@ class StatisticsService:
                 SELECT *
                 FROM stats.statistike_cache 
                 WHERE tip_regije = :tip_regije AND ime_regije = :regija
-                ORDER BY tip_posla, tip_nepremicnine, tip_obdobja, leto DESC
+                ORDER BY tip_posla, vrsta_nepremicnine, tip_obdobja, leto DESC
                 """
                 
                 result = conn.execute(text(query), {"tip_regije": tip_regije, "regija": regija})
@@ -162,13 +162,13 @@ class StatisticsService:
                     
                     # Razporedi v ustrezno kategorijo
                     tip_trans = row.tip_posla
-                    tip_nep = row.tip_nepremicnine
+                    vrsta_nep = row.vrsta_nepremicnine
                     tip_obd = row.tip_obdobja
                     
                     if tip_obd == "letno":
-                        statistike[tip_trans][tip_nep]["letno"].append(podatek)
+                        statistike[tip_trans][vrsta_nep]["letno"].append(podatek)
                     else:  # zadnjih_12m
-                        statistike[tip_trans][tip_nep]["zadnjih_12m"] = podatek
+                        statistike[tip_trans][vrsta_nep]["zadnjih_12m"] = podatek
                     
                 return {"status": "success", "statistike": statistike}
                 
@@ -185,7 +185,7 @@ class StatisticsService:
                 query = """
                 SELECT 
                     ime_regije,
-                    tip_nepremicnine,
+                    vrsta_nepremicnine,
                     tip_posla,
                     povprecna_cena_m2,
                     povprecna_skupna_cena,
@@ -197,7 +197,7 @@ class StatisticsService:
                 WHERE tip_regije = :tip_regije 
                   AND ime_regije = :regija
                   AND tip_obdobja = 'zadnjih_12m'
-                ORDER BY tip_posla, tip_nepremicnine
+                ORDER BY tip_posla, vrsta_nepremicnine
                 """
                 
                 result = conn.execute(text(query), {"tip_regije": tip_regije, "regija": regija})
@@ -214,10 +214,10 @@ class StatisticsService:
                 }
                 
                 for row in rows:
-                    key = f"{row.tip_posla}_{row.tip_nepremicnine}"
+                    key = f"{row.tip_posla}_{row.vrsta_nepremicnine}"
                     splosne["pregled"][key] = {
                         "tip_posla": row.tip_posla,
-                        "tip_nepremicnine": row.tip_nepremicnine,
+                        "vrsta_nepremicnine": row.vrsta_nepremicnine,
                         "povprecna_cena_m2": float(row.povprecna_cena_m2) if row.povprecna_cena_m2 else None,
                         "povprecna_skupna_cena": float(row.povprecna_skupna_cena) if row.povprecna_skupna_cena else None,
                         "stevilo_poslov": row.stevilo_poslov,
