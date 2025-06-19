@@ -65,6 +65,57 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
     return Math.round(price).toLocaleString('sl-SI');
   };
 
+  // Funkcije za berljive datume
+  const formatirajDatum = (dateString) => {
+    if (!dateString) return 'Neznano';
+
+    const date = new Date(dateString);
+
+    return date.toLocaleDateString('sl-SI', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const formatRentalPeriod = (startDate, endDate) => {
+    if (!startDate && !endDate) return 'Neznano obdobje';
+    if (!startDate) return `Do ${formatirajDatum(endDate)}`;
+    if (!endDate) return `Od ${formatirajDatum(startDate)}`;
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    return `${formatirajDatum(startDate)} – ${formatirajDatum(endDate)}`;
+  };
+
+  const getLatestPriceInfo = (posel) => {
+    if (dataSource === 'kpp') {
+      // KPP
+      const cena = posel.cena;
+      return {
+        hasPrice: !!cena,
+        priceText: cena ? `€${cena.toLocaleString('sl-SI')}` : null,
+        priceLabel: 'Prodajna cena:',
+        vatInfo: posel.vkljuceno_ddv ?
+          `z DDV${posel.stopnja_ddv ? ` (${posel.stopnja_ddv}%)` : ' (% neznan)'}` :
+          'brez DDV'
+      };
+    } else {
+      // NP
+      const najemnina = posel.najemnina;
+      return {
+        hasPrice: !!najemnina,
+        priceText: najemnina ? `€${najemnina.toLocaleString('sl-SI')}/mesec` : null,
+        priceLabel: 'Najemnina:',
+        vatInfo: posel.vkljuceno_ddv ?
+          `z DDV${posel.stopnja_ddv ? ` (${posel.stopnja_ddv}%)` : ''}` :
+          'brez DDV',
+        costsInfo: posel.vkljuceno_stroski ? 'stroški vključeni' : 'stroški niso vključeni'
+      };
+    }
+  };
+
   const getPriceLabel = () => {
     return dataSource === 'kpp' ? 'Cena' : 'Najemnina';
   };
@@ -221,7 +272,9 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
                                 </div>
                               </div>
                             )}
-
+                            <DetailRow label="Uradna površina dela stavbe:" value={representativeProperty.stevilo_sob} />
+                            <DetailRow label="Število sob" value={representativeProperty.stevilo_sob} />
+                            <DetailRow label="Število sob" value={representativeProperty.stevilo_sob} />
                             <DetailRow label="Število sob" value={representativeProperty.stevilo_sob} />
                             <DetailRow label="Nadstropje" value={representativeProperty.nadstropje} />
                             <DetailRow label="Lega v stavbi" value={representativeProperty.lega_v_stavbi} />
@@ -489,13 +542,23 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
                   <div className="p-2 space-y-3 flex-1">
                     {property.povezani_posli
                       .sort((a, b) => {
-                        if (!a.datum_sklenitve) return 1;
-                        if (!b.datum_sklenitve) return -1;
-                        return new Date(b.datum_sklenitve) - new Date(a.datum_sklenitve);
+                        if (dataSource === 'np') {
+                          // Za najemne posle razporedimo po datumu začetka najemanja
+                          if (!a.datum_zacetka_najemanja) return 1;
+                          if (!b.datum_zacetka_najemanja) return -1;
+                          return new Date(b.datum_zacetka_najemanja) - new Date(a.datum_zacetka_najemanja);
+                        } else if (dataSource === 'kpp') {
+                          // Za kupoprodajne posle razporedimo po datumu sklenitve
+                          if (!a.datum_sklenitve) return 1;
+                          if (!b.datum_sklenitve) return -1;
+                          return new Date(b.datum_sklenitve) - new Date(a.datum_sklenitve);
+                        }
+                        return 0;
                       })
                       .map((posel) => {
                         const connectedPartsCount = getConnectedBuildingParts(posel.posel_id).length;
                         const isSelected = selectedPoselId === posel.posel_id;
+                        const priceInfo = getLatestPriceInfo(posel);
 
                         return (
                           <div
@@ -503,75 +566,85 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
                             ref={el => poselRefs.current[posel.posel_id] = el}
                             onClick={() => selectPosel(posel.posel_id)}
                             className={`rounded-lg cursor-pointer transition-colors ${isSelected
-                              ? 'bg-gray-200 border-2 border-gray-600 p-3'
+                              ? 'bg-gray-100 border-2 border-gray-600 p-3'
                               : 'bg-white hover:bg-gray-100 border border-gray-300 p-3 m-px mb-3'
                               }`}
                           >
                             <div className="space-y-3">
-                              <div className="flex justify-between items-center">
-                                <span className="font-medium text-gray-800">
-                                  {posel.datum_sklenitve && new Date(posel.datum_sklenitve).toLocaleDateString('sl-SI') || 'Neznano leto'}
-                                </span>
-                                {isSelected && (
-                                  <span className="text-gray-800 text-sm font-medium">Izbrano</span>
-                                )}
+
+                              <div>
+                                <div className="flex justify-between items-center">
+                                  {dataSource === 'np' &&
+                                    <span className="text-gray-800 text-sm font-medium">
+                                      {getCasNajemanja(posel.cas_najemanja)}{posel.cas_najemanja === 1 && ` (${posel.trajanje_najemanja} mesecev)`}
+                                    </span>
+                                  }
+                                  {dataSource === 'kpp' &&
+                                    <span className="font-bold text-gray-800">
+                                      {posel.datum_sklenitve && formatirajDatum(posel.datum_sklenitve)}
+                                    </span>
+                                  }
+                                  {isSelected && (
+                                    <span className="text-gray-800 text-sm font-medium">Izbrano</span>
+                                  )}
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  {dataSource === 'np' &&
+                                    <div className="flex flex-col">
+                                      <span className="font-bold text-gray-800">
+                                        {formatRentalPeriod(posel.datum_zacetka_najemanja, posel.datum_prenehanja_najemanja)}
+                                      </span>
+                                      {!posel.datum_prenehanja_najemanja && !posel.datum_zakljucka_najema && (
+                                        <span className="text-green-600 text-sm  font-medium">Aktivno</span>
+                                      )}
+                                      {posel.datum_zakljucka_najema && posel.datum_prenehanja_najemanja != posel.datum_zakljucka_najema && (
+                                        <span className="text-sm text-gray-800  font-medium">Predčasen zaključek: {formatirajDatum(posel.datum_zakljucka_najema)}</span>
+                                      )}
+                                    </div>
+                                  }
+                                </div>
                               </div>
 
-                              <div className="bg-gray-50 p-2 rounded text-sm">
-                                <h5 className="font-semibold text-gray-800 mb-2">Finančni podatki</h5>
-                                <div className="space-y-1">
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">{getPriceLabel()}:</span>
-                                    <span className="font-medium text-gray-800">
-                                      {dataSource === 'kpp' ?
-                                        (posel.cena ? `${formatPrice(posel.cena)} €` : 'Ni podatka') :
-                                        (posel.najemnina ? `${formatPrice(posel.najemnina)} €` : 'Ni podatka')
-                                      }
-                                    </span>
+                              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
+                                <div className="text-center">
+                                  <div className="text-gray-600 text-sm mb-1">
+                                    {priceInfo.priceLabel}
                                   </div>
-
-                                  {posel.vkljuceno_ddv !== null && (
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600">Vključen DDV:</span>
-                                      <span className="font-medium text-gray-800">{getDaBoljNe(posel.vkljuceno_ddv)}</span>
-                                    </div>
-                                  )}
-
-                                  {dataSource === 'np' && posel.vkljuceno_stroski !== null && (
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600">Vključeni stroški:</span>
-                                      <span className="font-medium text-gray-800">{getDaBoljNe(posel.vkljuceno_stroski)}</span>
-                                    </div>
-                                  )}
-
-                                  {dataSource === 'np' && posel.stopnja_ddv && (
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600">Stopnja DDV:</span>
-                                      <span className="font-medium text-gray-800">{getStopnjaDDV(posel.stopnja_ddv)}</span>
-                                    </div>
-                                  )}
+                                  {priceInfo.hasPrice ?
+                                    <><div className="font-bold text-xl text-gray-800 mb-1">
+                                      {priceInfo.priceText}
+                                    </div><div className="text-sm text-gray-500">
+                                        {priceInfo.vatInfo}
+                                        {priceInfo.costsInfo ? ` • ${priceInfo.costsInfo}` : ''}
+                                      </div></>
+                                    :
+                                    <div className="font-bold text-lg text-gray-600">Podatek ni na voljo</div>
+                                  }
                                 </div>
                               </div>
 
                               <div className="bg-gray-50 p-2 rounded text-sm">
                                 <h5 className="font-semibold text-gray-800 mb-2">Podatki o poslu</h5>
                                 <div className="grid grid-cols-1 gap-x-2 gap-y-1 text-sm">
-                                  <DetailRow label="Datum sklenitve" value={posel.datum_sklenitve && new Date(posel.datum_sklenitve).toLocaleDateString('sl-SI')} />
-                                  <DetailRow label="Datum uveljavitve" value={posel.datum_uveljavitve && new Date(posel.datum_uveljavitve).toLocaleDateString('sl-SI')} />
-                                  <DetailRow label="Zadnja uveljavitev" value={posel.datum_zadnje_uveljavitve && new Date(posel.datum_zadnje_uveljavitve).toLocaleDateString('sl-SI')} />
-                                  <DetailRow label="Zadnja sprememba" value={posel.datum_zadnje_spremembe && new Date(posel.datum_zadnje_spremembe).toLocaleDateString('sl-SI')} />
-                                  {dataSource === 'np' && (
-                                    <>
-                                      <DetailRow label="Začetek najema" value={posel.datum_zacetka_najemanja && new Date(posel.datum_zacetka_najemanja).toLocaleDateString('sl-SI')} />
-                                      <DetailRow label="Prenehanje najema" value={posel.datum_prenehanja_najemanja && new Date(posel.datum_prenehanja_najemanja).toLocaleDateString('sl-SI')} />
-                                      <DetailRow label="Zaključek najema" value={posel.datum_zakljucka_najema && new Date(posel.datum_zakljucka_najema).toLocaleDateString('sl-SI')} />
-                                      <DetailRow label="Čas najemanja" value={getCasNajemanja(posel.cas_najemanja)} />
-                                      <DetailRow label="Trajanje najema" value={posel.trajanje_najemanja && `${posel.trajanje_najemanja} mesecev`} />
-                                    </>
-                                  )}
+                                  <DetailRow
+                                    label="Datum sklenitve"
+                                    value={posel.datum_sklenitve ? formatirajDatum(posel.datum_sklenitve) : null}
+                                  />
+                                  <DetailRow
+                                    label="Datum uveljavitve"
+                                    value={posel.datum_uveljavitve ? formatirajDatum(posel.datum_uveljavitve) : null}
+                                  />
+                                  <DetailRow
+                                    label="Zadnja uveljavitev"
+                                    value={posel.datum_zadnje_uveljavitve ? formatirajDatum(posel.datum_zadnje_uveljavitve) : null}
+                                  />
+                                  <DetailRow
+                                    label="Zadnja sprememba"
+                                    value={posel.datum_zadnje_spremembe ? formatirajDatum(posel.datum_zadnje_spremembe) : null}
+                                  />
                                   {dataSource === 'np' ? (
                                     <DetailRow label="Vrsta posla" value={getVrstaNajemnegaPosla(posel.vrsta_posla)} />
-                                  ) : ( // kpp
+                                  ) : (
                                     <DetailRow label="Vrsta posla" value={getVrstaProdajnegaPosla(posel.vrsta_posla)} />
                                   )}
                                   <DetailRow label="Vrsta akta" value={getVrstaAkta(posel.vrsta_akta)} />
