@@ -534,7 +534,7 @@ def vse_statistike(
 
 def splosne_statistike(
     tip_regije: str = Path(..., description="Tip regije: 'obcina', 'katastrska_obcina', 'slovenija'"),
-    regija: str = Path(..., description="Ime regije (občina/KO/slovenia)")
+    regija: str = Path(..., description="Ime regije")
 ):
     """
     Pridobi samo splosne/ključne statistike za regijo
