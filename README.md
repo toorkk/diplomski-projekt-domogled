@@ -61,3 +61,10 @@ GET /api/deduplication/status
 
 definicije vseh endpointov si lahko pogledas v http://localhost:8000/docs
 
+
+STATISTIKA:
+
+prodajna:
+- začne se v letu 2007
+
+najemna:

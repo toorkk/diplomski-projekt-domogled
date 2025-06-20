@@ -22,7 +22,7 @@ CREATE TABLE stats.statistike_cache (
     stevilo_poslov INTEGER DEFAULT 0,
     trenutno_v_najemu INTEGER DEFAULT 0, -- samo za najem
     
-    povprecna_velikost_m2 DECIMAL(10,2),
+    povprecna_velikost_m2 DECIMAL(10,2),  -- uporabna povrsina
     percentil_10_velikost_m2 DECIMAL(9,2),
     percentil_90_velikost_m2 DECIMAL(12,2),
     

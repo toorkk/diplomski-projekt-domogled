@@ -4,8 +4,8 @@
 -- Namen: Agregira najemne podatke po katastrskih občinah in občinah
 -- Logika: 
 -- 1. Pripravi osnovne najemne podatke z validacijo
--- 2. Izračuna statistike po katastrskih občinah
--- 3. Izračuna agregirane statistike po občinah
+-- 2. Izračuna statistike po katastrskih občinah (NIVO 1)
+-- 3. Izračuna agregirane statistike po občinah (NIVO 2)
 -- =============================================================================
 
 DROP MATERIALIZED VIEW IF EXISTS stats.mv_najemne_statistike;

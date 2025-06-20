@@ -28,6 +28,7 @@ class NpDelStavbe(Base):
     opombe = Column(Text)
     leto_izgradnje_stavbe = Column(Integer)
     dejanska_raba = Column(String(100))
+    tip_rabe = Column(String(50))
     lega_v_stavbi = Column(String(20))
 
     povrsina_uradna = Column(Numeric(10, 2))
@@ -54,7 +55,7 @@ class NpDelStavbeDeduplicated(Base):
     stevilka_stavbe = Column(Integer, nullable=False)
     stevilka_dela_stavbe = Column(Integer, nullable=False)
     dejanska_raba = Column(String(310), nullable=False)
-    
+    tip_rabe = Column(String(50))
     
     obcina = Column(String(102))
     naselje = Column(String(103))
@@ -141,11 +142,12 @@ class KppDelStavbe(Base):
     nadstropje = Column(Integer)
     opombe = Column(Text)
     dejanska_raba = Column(String(310))
+    tip_rabe = Column(String(50))
     lega_v_stavbi = Column(String(50))
     stevilo_sob = Column(Integer)
     
     povrsina_uradna = Column(Numeric(10, 2))
-    povrsina_pogodba = Column(Numeric(10, 2))
+    povrsina_uporabna = Column(Numeric(10, 2))
     
     prostori = Column(Text)
     pogodbena_cena = Column(Numeric(20, 2))
@@ -169,7 +171,7 @@ class KppDelStavbeDeduplicated(Base):
     stevilka_stavbe = Column(Integer, nullable=False)
     stevilka_dela_stavbe = Column(Integer, nullable=False)
     dejanska_raba = Column(String(310), nullable=False)
-    
+    tip_rabe = Column(String(50))
     
     obcina = Column(String(102))
     naselje = Column(String(103))
@@ -179,7 +181,7 @@ class KppDelStavbeDeduplicated(Base):
     stev_stanovanja = Column(Integer)
     
     povrsina_uradna = Column(Numeric(10, 2)) 
-    povrsina_pogodba = Column(Numeric(10, 2))
+    povrsina_uporabna = Column(Numeric(10, 2))
     leto_izgradnje_stavbe = Column(Integer)
     stevilo_sob = Column(Integer)
     

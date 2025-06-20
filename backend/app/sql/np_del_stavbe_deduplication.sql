@@ -23,8 +23,9 @@ validne_nepremicnine AS (
         stevilka_stavbe, 
         stevilka_dela_stavbe
     FROM core.np_del_stavbe
-    WHERE vrsta_nepremicnine IN (1, 2)
-      AND coordinates IS NOT NULL
+    WHERE vrsta_nepremicnine IN (1, 2) -- stanovanja in hise
+      AND tip_rabe = 'bivalno' -- vzami samo bivalne (ker so stanovanja in hise ki so steti kot npr vrteci)
+      -- AND coordinates IS NOT NULL
       AND sifra_ko IS NOT NULL
       AND stevilka_stavbe IS NOT NULL 
       AND stevilka_dela_stavbe IS NOT NULL
@@ -74,6 +75,7 @@ najnovejsi_zapisi AS (
         vn.sifra_ko, vn.stevilka_stavbe, vn.stevilka_dela_stavbe,
         -- Prioriteta za izbiro "najnovejše" vrstice:
         CASE WHEN ds.vrsta_nepremicnine IN (1, 2) THEN 0 ELSE 1 END,  -- 1. vzami samo domove
+        CASE WHEN ds.tip_rabe = 'bivalno' THEN 0 ELSE 1 END,  -- 1.2 vzami samo bivalne prostore
         ds.leto DESC,                                                                -- 2. najnovejše leto
         ds.del_stavbe_id DESC                                                       -- 3. najnovejši ID
 ),

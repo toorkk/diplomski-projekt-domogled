@@ -80,4 +80,103 @@ WHERE d.vrsta_oddanih_prostorov IS NOT NULL
 AND sifra_ko IS NOT NULL 
 AND stevilka_stavbe IS NOT NULL 
 AND stevilka_dela_stavbe IS NOT NULL 
-AND id_posla IS NOT NULL 
+AND id_posla IS NOT NULL;
+
+
+UPDATE core.np_del_stavbe 
+SET tip_rabe = CASE 
+
+    -- PODRTIJA
+    WHEN dejanska_raba LIKE '%ruševina%'
+        OR dejanska_raba LIKE '%neprimer%'
+        OR dejanska_raba LIKE '%nedokončan%'
+        THEN 'podrtija'
+
+    WHEN dejanska_raba LIKE '%bivalna enota%'
+        OR dejanska_raba LIKE '%oskrbo%'
+        THEN 'drugo'
+
+    
+    -- BIVALNO
+    WHEN dejanska_raba LIKE '%stanovanje%' 
+        THEN 'bivalno'
+        
+    -- SHRAMBENO
+    WHEN dejanska_raba LIKE '%klet%'
+        OR dejanska_raba LIKE '%garaž%'
+        OR dejanska_raba LIKE '%shramba%'
+        OR dejanska_raba LIKE '%skladišče%'
+        OR dejanska_raba LIKE '%1252002 - skladišča%'
+        OR dejanska_raba LIKE '%parkir%'
+        OR dejanska_raba LIKE '%kolesarnica%'
+        OR dejanska_raba LIKE '%čolnarna%'
+        OR dejanska_raba LIKE '%drvarnica%'
+        OR dejanska_raba LIKE '%sušilnica%'
+        OR dejanska_raba LIKE '%pralnica%'
+        OR dejanska_raba LIKE '%senčnica%'
+        OR dejanska_raba LIKE '%rezervoar%'
+        OR dejanska_raba LIKE '%silos%'
+        THEN 'shrambeno'
+        
+    -- POSLOVNO
+    WHEN dejanska_raba LIKE '%poslovn%'
+        OR dejanska_raba LIKE '%pisarn%'
+        OR dejanska_raba LIKE '%kmetijski%'
+        OR dejanska_raba LIKE '%trgov%'
+        OR dejanska_raba LIKE '%prodajalna%'
+        OR dejanska_raba LIKE '%industri%'
+        OR dejanska_raba LIKE '%skladišč%'
+        OR dejanska_raba LIKE '%restavracija%'
+        OR dejanska_raba LIKE '%gostilna%'
+        OR dejanska_raba LIKE '%spravilo pridelka%'
+        OR dejanska_raba LIKE '%hotel%'
+        OR dejanska_raba LIKE '%banka%'
+        OR dejanska_raba LIKE '%pošta%'
+        OR dejanska_raba LIKE '%zavarovalnica%'
+        OR dejanska_raba LIKE '%proizvodnja%'
+        OR dejanska_raba LIKE '%delavnica%'
+        OR dejanska_raba LIKE '%hlev%'
+        OR dejanska_raba LIKE '%farma%'
+        OR dejanska_raba LIKE '%rastlinjak%'
+        OR dejanska_raba LIKE '%zidanica%'
+        OR dejanska_raba LIKE '%vinska klet%'
+        OR dejanska_raba LIKE '%šola%'
+        OR dejanska_raba LIKE '%vrtec%'
+        OR dejanska_raba LIKE '%bolnica%'
+        OR dejanska_raba LIKE '%ambulanta%'
+        OR dejanska_raba LIKE '%zdravstvo%'
+        OR dejanska_raba LIKE '%muzej%'
+        OR dejanska_raba LIKE '%knjižnica%'
+        OR dejanska_raba LIKE '%cerkev%'
+        OR dejanska_raba LIKE '%športna dvorana%'
+        OR dejanska_raba LIKE '%frizerski salon%'
+        OR dejanska_raba LIKE '%avtosalon%'
+        OR dejanska_raba LIKE '%bencinski servis%'
+        OR dejanska_raba LIKE '%čebelnjak%'
+        OR dejanska_raba LIKE '%apartma%'
+        OR dejanska_raba LIKE '%motel%'
+        OR dejanska_raba LIKE '%penzion%'
+        OR dejanska_raba LIKE '%gostišče%'
+        OR dejanska_raba LIKE '%koča%'
+        OR dejanska_raba LIKE '%dom%'
+        OR dejanska_raba LIKE '%bife%'
+        OR dejanska_raba LIKE '%butik%'
+        OR dejanska_raba LIKE '%lekarna%'
+        OR dejanska_raba LIKE '%optika%'
+        OR dejanska_raba LIKE '%klinika%'
+        OR dejanska_raba LIKE '%dispanzer%'
+        OR dejanska_raba LIKE '%sanatorij%'
+        OR dejanska_raba LIKE '%veterinarska%'
+        OR dejanska_raba LIKE '%nakupovalni center%'
+        OR dejanska_raba LIKE '%sejemska dvorana%'
+        OR dejanska_raba LIKE '%kiosk%'
+        OR dejanska_raba LIKE '%avtopralnica%'
+        OR dejanska_raba LIKE '%storitvene dejavnosti%'
+        OR dejanska_raba LIKE '%igralnica%'
+        OR dejanska_raba LIKE '%diskoteka%'
+        OR dejanska_raba LIKE '%atelje%'
+        THEN 'poslovno'
+        
+   ELSE 'drugo'
+END
+WHERE tip_rabe IS NULL OR tip_rabe = '';
