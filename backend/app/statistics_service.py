@@ -196,7 +196,7 @@ class StatisticsService:
                 FROM stats.statistike_cache 
                 WHERE tip_regije = :tip_regije 
                   AND ime_regije = :regija
-                  AND tip_obdobja = 'zadnjih_12m'
+                  AND tip_obdobja = 'zadnjih12m'
                 ORDER BY tip_posla, vrsta_nepremicnine
                 """
                 
