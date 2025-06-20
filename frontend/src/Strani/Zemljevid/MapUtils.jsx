@@ -115,6 +115,47 @@ export const buildClusterDetailsUrl = (clusterId, dataSource, zoom, filters = {}
     return `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CLUSTER_DETAILS}/${clusterId}/properties?${params.toString()}`;
 };
 
+// NOVO: API funkcija za pridobivanje statistik
+export const fetchStatistics = async (tipRegije, regija) => {
+    try {
+        const url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.STATISTICS}/${tipRegije}/${encodeURIComponent(regija)}`;
+        console.log(`Fetching statistics from: ${url}`);
+        
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error(`Error fetching statistics for ${tipRegije} ${regija}:`, error);
+        return null;
+    }
+};
+
+// NOVO: Utility funkcija za formatiranje statistik
+export const formatStatistics = (statistics, dataSourceType) => {
+    if (!statistics) return 'Ni podatkov';
+    
+    const parts = [];
+    
+    if (statistics.skupaj_nepremicnin) {
+        parts.push(`Nepremičnin: ${statistics.skupaj_nepremicnin}`);
+    }
+    
+    if (statistics.povprecna_cena) {
+        const currency = dataSourceType === 'prodaja' ? '€' : '€/m';
+        parts.push(`Povp. cena: ${Math.round(statistics.povprecna_cena)}${currency}`);
+    }
+    
+    if (statistics.povprecna_povrsina) {
+        parts.push(`Povp. površina: ${Math.round(statistics.povprecna_povrsina)} m²`);
+    }
+    
+    return parts.join(' | ');
+};
+
 // Validira filter vrednosti
 export const validateFilters = (filters, dataSourceType) => {
     const validated = {};

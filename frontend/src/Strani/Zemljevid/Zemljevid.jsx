@@ -29,7 +29,9 @@ import {
     calculateBoundsFromGeometry,
     handleApiError,
     validateFilters,
-    formatFilterSummary
+    formatFilterSummary,
+    fetchStatistics,
+    formatStatistics
 } from './MapUtils.jsx';
 
 // Stili in JSON podatki (katastri, občine)
@@ -57,6 +59,11 @@ export default function Zemljevid() {
     const [showPropertyDetails, setShowPropertyDetails] = useState(false);
     const [dataSourceType, setDataSourceType] = useState('prodaja');
     const [activeFilters, setActiveFilters] = useState({});
+    
+    // NOVO: State za statistike
+    const [municipalityStatistics, setMunicipalityStatistics] = useState(null);
+    const [obcinaStatistics, setObcinaStatistics] = useState(null);
+    const [statisticsLoading, setStatisticsLoading] = useState(false);
 
     const activeFiltersRef = useRef({});
     const selectedMunicipalityRef = useRef(null);
@@ -82,6 +89,24 @@ export default function Zemljevid() {
         console.log('Property selected:', propertyData);
         setSelectedProperty({ ...propertyData });
         setShowPropertyDetails(true);
+    }, []);
+
+    // NOVO: Funkcija za pridobivanje statistik
+    const fetchAndSetStatistics = useCallback(async (tipRegije, regija, dataSourceType) => {
+        setStatisticsLoading(true);
+        try {
+            const statistics = await fetchStatistics(tipRegije, regija);
+            
+            if (tipRegije === 'kataster') {
+                setMunicipalityStatistics(statistics);
+            } else if (tipRegije === 'obcina') {
+                setObcinaStatistics(statistics);
+            }
+        } catch (error) {
+            console.error('Error fetching statistics:', error);
+        } finally {
+            setStatisticsLoading(false);
+        }
     }, []);
 
     const fetchPropertiesForMunicipality = useCallback(async (sifko, filters = {}) => {
@@ -271,6 +296,12 @@ export default function Zemljevid() {
             bounds: bounds
         });
 
+        // NOVO: Pridobi statistike za kataster
+        const katastrName = municipalityFeature.properties.NAZIV || municipalityFeature.properties.IMEKO;
+        if (katastrName) {
+            fetchAndSetStatistics('kataster', katastrName, dataSourceTypeRef.current);
+        }
+
         // Zoom na kataster
         map.current.fitBounds(bounds, {
             padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
@@ -278,7 +309,7 @@ export default function Zemljevid() {
             essential: true
         });
 
-    }, []);
+    }, [fetchAndSetStatistics]);
 
     const handleObcinaClick = useCallback((obcinaFeature) => {
         if (!map.current || !obcinaFeature) return;
@@ -300,6 +331,7 @@ export default function Zemljevid() {
         }
 
         setSelectedMunicipality(null);
+        setMunicipalityStatistics(null); // NOVO: Reset municipality statistics
 
         const bounds = calculateBoundsFromGeometry(obcinaFeature.geometry);
         
@@ -309,12 +341,15 @@ export default function Zemljevid() {
             bounds: bounds
         });
 
+        // NOVO: Pridobi statistike za občino
+        fetchAndSetStatistics('obcina', obcinaName, dataSourceTypeRef.current);
+
         map.current.fitBounds(bounds, {
             padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
             duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION,
             essential: true
         });
-    }, [selectedObcina]);
+    }, [selectedObcina, fetchAndSetStatistics]);
 
     const handleSearch = useCallback((searchResult) => {
         if (!map.current) return;
@@ -343,6 +378,8 @@ export default function Zemljevid() {
         setSelectedObcina(null);
         setHoveredRegion(null);
         setHoveredMunicipality(null);
+        setMunicipalityStatistics(null); // NOVO: Reset statistics
+        setObcinaStatistics(null); // NOVO: Reset statistics
 
         // Pocisti vse hover efekte
         if (layerManager.current) {
@@ -640,6 +677,19 @@ export default function Zemljevid() {
         }
     }, [selectedObcina]);
 
+    // NOVO: Effect za posodabljanje statistik ob spremembi data source
+    useEffect(() => {
+        // Ko se spremeni data source, ponovno pridobi statistike
+        if (selectedMunicipality) {
+            const katastrName = selectedMunicipality.name.split(' (')[0]; // Odstrani SIFKO iz imena
+            fetchAndSetStatistics('kataster', katastrName, dataSourceType);
+        }
+        
+        if (selectedObcina) {
+            fetchAndSetStatistics('obcina', selectedObcina.name, dataSourceType);
+        }
+    }, [dataSourceType, selectedMunicipality, selectedObcina, fetchAndSetStatistics]);
+
     // Inicializacija mape
     useEffect(() => {
         if (!map.current && mapContainer.current) {
@@ -727,7 +777,7 @@ export default function Zemljevid() {
                 </div>
             )}
 
-            {/* Indikator za izbrano občino ali kataster */}
+            {/* POSODOBLJENO: Indikator za izbrano občino ali kataster z statistikami */}
             {(selectedMunicipality || selectedObcina) && (
                 <div className="absolute bottom-4 right-4 z-20 bg-white rounded-lg shadow-lg border border-gray-200 px-4 py-2 max-w-sm">
                     <div className="flex items-center justify-between space-x-2">
@@ -743,9 +793,33 @@ export default function Zemljevid() {
                                     <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
                                 )}
                             </div>
+                            
+                            {/* NOVO: Prikaz statistik */}
+                            <div className="text-xs text-gray-500 mt-1">
+                                {statisticsLoading ? (
+                                    <span className="italic">Nalagam statistike...</span>
+                                ) : (
+                                    <>
+                                        {selectedMunicipality && municipalityStatistics && (
+                                            <div className="truncate">
+                                                {formatStatistics(municipalityStatistics, dataSourceType)}
+                                            </div>
+                                        )}
+                                        {selectedObcina && obcinaStatistics && (
+                                            <div className="truncate">
+                                                {formatStatistics(obcinaStatistics, dataSourceType)}
+                                            </div>
+                                        )}
+                                        {!municipalityStatistics && !obcinaStatistics && !statisticsLoading && (
+                                            <span className="italic">Ni statističnih podatkov</span>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                            
                             {hasActiveFilters && (
                                 <div className="text-xs text-gray-500 mt-1 truncate">
-                                    {formatFilterSummary(activeFilters, dataSourceType)}
+                                    Filtri: {formatFilterSummary(activeFilters, dataSourceType)}
                                 </div>
                             )}
                         </div>

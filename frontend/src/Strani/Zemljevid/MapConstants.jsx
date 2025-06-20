@@ -5,7 +5,8 @@ export const API_CONFIG = {
     BASE_URL: 'http://localhost:8000',
     ENDPOINTS: {
         PROPERTIES: '/properties/geojson',
-        CLUSTER_DETAILS: '/cluster'
+        CLUSTER_DETAILS: '/cluster',
+        STATISTICS: '/api/statistike/splosne' // NOVO: dodano za statistike
     }
 };
 
