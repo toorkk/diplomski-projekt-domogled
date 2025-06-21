@@ -65,7 +65,7 @@ SELECT
     LOWER(TRIM(lega_dela_stavbe_v_stavbi)) as lega_dela_stavbe_v_stavbi,
     stevilo_sob,
     povrsina_dela_stavbe as povrsina_uradna,
-    uporabna_povrsina,
+    uporabna_povrsina as povrsina_uporabna,
     prostori_dela_stavbe,
     pogodbena_cena_dela_stavbe,
     stopnja_ddv_dela_stavbe,

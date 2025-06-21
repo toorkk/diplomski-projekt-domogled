@@ -20,9 +20,7 @@ dejanska_raba,
 lega_v_stavbi,
 
 povrsina_uradna,
-povrsina_pogodba,
-povrsina_uporabna_uradna,
-povrsina_uporabna_pogodba, 
+povrsina_uporabna,
 prostori,
 
 coordinates, 
@@ -62,15 +60,7 @@ LOWER(TRIM(d.dejanska_raba_dela_stavbe)) as dejanska_raba,
 LOWER(TRIM(d.lega_dela_stavbe_v_stavbi)) as lega_v_stavbi,
 
 d.povrsina_dela_stavbe as povrsina_uradna,
-COALESCE(
-    d.povrsina_oddanih_prostorov,
-    d.povrsina_dela_stavbe  -- če je oddan cel del stavbe
-) as povrsina_pogodba,
-d.uporabna_povrsina_dela_stavbe as povrsina_uporabna_uradna,
-COALESCE(
-    d.uporabna_povrsina_oddanih_prostorov,
-    d.uporabna_povrsina_dela_stavbe  -- če je oddan cel del stavbe
-) as povrsina_uporabna_pogodba,
+d.uporabna_povrsina_dela_stavbe as povrsina_uporabna,
 d.prostori_dela_stavbe,
 
 ST_Transform(ST_SetSRID(ST_MakePoint(d.e_centroid, d.n_centroid), 3794), 4326),

@@ -32,9 +32,7 @@ class NpDelStavbe(Base):
     lega_v_stavbi = Column(String(20))
 
     povrsina_uradna = Column(Numeric(10, 2))
-    povrsina_pogodba = Column(Numeric(10, 2))
-    povrsina_uporabna_uradna = Column(Numeric(10, 2))
-    povrsina_uporabna_pogodba = Column(Numeric(10, 2))
+    povrsina_uporabna = Column(Numeric(10, 2))
     prostori = Column(Text)
     
     coordinates = Column(Geometry('Point', 4326))
@@ -65,9 +63,7 @@ class NpDelStavbeDeduplicated(Base):
     stev_stanovanja = Column(Integer)
     
     povrsina_uradna = Column(Numeric(10, 2))
-    povrsina_pogodba = Column(Numeric(10, 2))
-    povrsina_uporabna_uradna = Column(Numeric(10, 2))
-    povrsina_uporabna_pogodba = Column(Numeric(10, 2))
+    povrsina_uporabna = Column(Numeric(10, 2))
     leto_izgradnje_stavbe = Column(Integer)
     opremljenost = Column(SmallInteger)
     

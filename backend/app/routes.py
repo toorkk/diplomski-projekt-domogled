@@ -500,7 +500,7 @@ def vse_statistike(
     - prodaja/najem
     - stanovanja/hiše  
     - letni podatki + zadnjih 12 mesecev
-    - vsi percentili in lastnosti
+    - vse lastnosti
     
     Primer uporabe:
     - GET /api/statistike/vse/LJUBLJANA

@@ -7,17 +7,12 @@ const IndividualPopup = ({ properties, dataSourceType = 'prodaja' }) => {
 
         if (properties.povrsina_uradna)
             povrsina.celotna = `${properties.povrsina_uradna} m² (uradna)`;
-        else if (properties.povrsina_pogodba)
-            povrsina.celotna = `${properties.povrsina_pogodba} m² (pogodba)`;
         else
             povrsina.celotna = 'neznano';
 
-        if( properties.data_source == 'kpp') return povrsina;
         
-        if (properties.povrsina_uporabna_uradna)
-            povrsina.uporabna = `${properties.povrsina_uporabna_uradna} m² (uradna)`;
-        else if (properties.povrsina_uporabna_pogodba)
-            povrsina.uporabna = `${properties.povrsina_uporabna_pogodba} m² (pogodba)`;
+        if (properties.povrsina_uporabna)
+            povrsina.uporabna = `${properties.povrsina_uporabna} m² (uporabna)`;
         else
             povrsina.uporabna = 'neznano';
 

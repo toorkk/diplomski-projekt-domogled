@@ -319,8 +319,6 @@ class PropertyService:
         del_stavbe_np_dodatno = {}
         if data_source.lower() == "np":
             del_stavbe_np_dodatno = {
-                "povrsina_uporabna_uradna": float(dedup_property[0].povrsina_uporabna_uradna) if dedup_property[0].povrsina_uporabna_uradna else None,
-                "povrsina_uporabna_pogodba": float(dedup_property[0].povrsina_uporabna_pogodba) if dedup_property[0].povrsina_uporabna_pogodba else None,
             }
 
             zadnji_posel_info = {

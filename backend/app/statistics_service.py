@@ -139,11 +139,7 @@ class StatisticsService:
                         "leto": row.leto,
                         "cene": {
                             "povprecna_cena_m2": float(row.povprecna_cena_m2) if row.povprecna_cena_m2 else None,
-                            "percentil_10_cena_m2": float(row.percentil_10_cena_m2) if row.percentil_10_cena_m2 else None,
-                            "percentil_90_cena_m2": float(row.percentil_90_cena_m2) if row.percentil_90_cena_m2 else None,
                             "povprecna_skupna_cena": float(row.povprecna_skupna_cena) if row.povprecna_skupna_cena else None,
-                            "percentil_10_skupna_cena": float(row.percentil_10_skupna_cena) if row.percentil_10_skupna_cena else None,
-                            "percentil_90_skupna_cena": float(row.percentil_90_skupna_cena) if row.percentil_90_skupna_cena else None,
                         },
                         "aktivnost": {
                             "stevilo_poslov": row.stevilo_poslov,
@@ -151,12 +147,7 @@ class StatisticsService:
                         },
                         "lastnosti": {
                             "povprecna_velikost_m2": float(row.povprecna_velikost_m2) if row.povprecna_velikost_m2 else None,
-                            "percentil_10_velikost_m2": float(row.percentil_10_velikost_m2) if row.percentil_10_velikost_m2 else None,
-                            "percentil_90_velikost_m2": float(row.percentil_90_velikost_m2) if row.percentil_90_velikost_m2 else None,
                             "povprecna_starost_stavbe": row.povprecna_starost_stavbe,
-                            "percentil_10_starost_stavbe": row.percentil_10_starost_stavbe,
-                            "percentil_90_starost_stavbe": row.percentil_90_starost_stavbe,
-                            "delez_opremljenih_pct": float(row.delez_opremljenih_pct) if row.delez_opremljenih_pct else None,
                         }
                     }
                     
@@ -280,15 +271,7 @@ class StatisticsService:
                 
                 sales_sql = get_sql_query('stats/populate_prodajne_statistike_cache.sql')
                 result = conn.execute(text(sales_sql))
-                logger.info(f"Vstavljena prodajna statistika: {result.rowcount} zapisov")
-                
-                rental_sql = get_sql_query('stats/populate_najemne_statistike_cache.sql')
-                result = conn.execute(text(rental_sql))
-                logger.info(f"Vstavljena najemna statistika: {result.rowcount} zapisov")
-                
-                last_12m_sql = get_sql_query('stats/populate_zadnjih_12m_stats.sql')
-                conn.execute(text(last_12m_sql))
-                logger.info("Dodane statistike za zadnjih 12 mesecev")
+                logger.info(f"Vstavljena statistika: {result.rowcount} zapisov")
                 
                 trans.commit()
                 logger.info("Vsi cache podatki uspešno naloženi")

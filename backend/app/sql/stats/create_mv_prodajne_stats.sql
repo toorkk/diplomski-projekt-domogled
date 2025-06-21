@@ -1,11 +1,10 @@
 -- =============================================================================
 -- MATERIALIZED VIEW ZA PRODAJNE STATISTIKE
 -- =============================================================================
--- Namen: Agregira prodajne podatke po katastrskih občinah in občinah
+-- Namen: Agregira prodajne podatke po katastrskih občinah, občinah in za celo Slovenijo
 -- Logika: 
 -- 1. Pripravi osnovne prodajne podatke z validacijo
--- 2. Izračuna statistike po katastrskih občinah (NIVO 1)
--- 3. Izračuna agregirane statistike po občinah (NIVO 2)
+-- 2. Izračuna statistike z GROUPING SETS na vseh nivojih hkrati
 -- =============================================================================
 
 DROP MATERIALIZED VIEW IF EXISTS stats.mv_prodajne_statistike;
@@ -26,7 +25,6 @@ WITH prodajni_podatki AS (
             ELSE 'drugo'
         END as vrsta_nepremicnine,
 
-        
         -- CENOVNI PODATKI
         -- ==============
         CASE 
@@ -34,7 +32,7 @@ WITH prodajni_podatki AS (
             AND k.povrsina_uporabna > 5
             AND kp.cena IS NOT NULL 
             AND kp.cena > 5000
-            AND kp.cena < 10000000
+            AND kp.cena < 5400000
             THEN kp.cena / k.povrsina_uporabna
             ELSE NULL 
         END as cena_m2_osnovna,
@@ -42,11 +40,10 @@ WITH prodajni_podatki AS (
         CASE 
             WHEN kp.cena IS NOT NULL 
             AND kp.cena > 5000
-            AND kp.cena < 10000000
+            AND kp.cena < 5400000
             THEN kp.cena
             ELSE NULL 
         END as cena_osnovna,
-
 
         -- VELIKOSTNI PODATKI
         -- ==================
@@ -57,31 +54,22 @@ WITH prodajni_podatki AS (
             ELSE NULL 
         END as povrsina_uporabna,
         
-
         -- STAROST STAVBE
         -- ==============
         CASE 
             WHEN k.leto_izgradnje_stavbe IS NOT NULL 
             THEN date_part('year', kp.datum_sklenitve) - k.leto_izgradnje_stavbe
             ELSE NULL
-        END as starost_stavbe,  -- takratna starost stavbe ko se je sklenil posel
-        
-        CASE 
-            WHEN k.leto_izgradnje_stavbe IS NOT NULL 
-            THEN k.leto_izgradnje_stavbe
-            ELSE NULL
-        END as leto_izgradnje_stavbe,
+        END as starost_stavbe,
 
         -- DATUMI
         -- ======
-        kp.datum_sklenitve,
         date_part('year', kp.datum_sklenitve) as leto_sklenitve
         
     FROM core.kpp_del_stavbe k
     JOIN core.kpp_posel kp ON k.posel_id = kp.posel_id
     WHERE 
         -- FILTRIRANJE PODATKOV
-        -- tukaj so samo splošni filtri, vsak stolpec ima tudi svoje specifične filtre - z namenom da ima aggregacija cim vec podatkov
         -- ===================
         kp.vrsta_posla IN (1,2)
         AND k.ime_ko IS NOT NULL
@@ -89,13 +77,13 @@ WITH prodajni_podatki AS (
         AND kp.datum_sklenitve IS NOT NULL
         AND date_part('year', kp.datum_sklenitve) BETWEEN 2007 AND EXTRACT(YEAR FROM CURRENT_DATE)
         AND k.vrsta_nepremicnine IN (1, 2)
-        and k.tip_rabe = 'bivalno'
-        AND k.prodani_delez = '1/1' 
+        AND k.tip_rabe = 'bivalno'
+        AND k.prodani_delez = '1/1'
 ),
 
-
--- KORAK 2: IZRAČUN KOLIKO VALIDNIH NEPREMIČNIN JE V POSLU IN DELITEV CENE S TEM ŠTEVILOM (ker je v enem poslu lahko več validnih nepremičnin in to bloata statistike)
+-- KORAK 2: IZRAČUN KOLIKO VALIDNIH NEPREMIČNIN JE V POSLU IN DELITEV CENE S TEM ŠTEVILOM
 -- =============================================
+
 posel_stats AS (
     SELECT 
         posel_id,
@@ -140,104 +128,62 @@ prodajni_podatki_z_razdeljeno_ceno AS (
     FROM prodajni_podatki pp
     JOIN posel_stats ps ON pp.posel_id = ps.posel_id
     JOIN vsi_deli_posla vdp ON pp.posel_id = vdp.posel_id
-    WHERE ps.stevilo_delov_stavb <= 15  -- Izloči posle z več kot 15 deli stavb
-    AND vdp.skupno_stevilo_delov_stavb <= 25  -- Izloči posle z več kot 10 skupnimi deli stavb
+    WHERE ps.stevilo_delov_stavb <= 15
+    AND vdp.skupno_stevilo_delov_stavb <= 25
 )
 
-
--- NIVO 1: STATISTIKE PO KATASTRSKIH OBČINAH
--- ==========================================
--- Agregirano samo po ime_ko (obcina = NULL)
+-- ZDRUŽENE STATISTIKE Z GROUPING SETS
+-- ===================================
 SELECT 
-    NULL as obcina,  -- NULL ker je agregirano čez več občin
-    ime_ko,
+    -- DIMENZIJE REGIJE
+    -- ================
+    CASE 
+        WHEN GROUPING(obcina, ime_ko) = 3 THEN 'slovenija'  -- Oba NULL
+        WHEN GROUPING(obcina) = 1 THEN 'katastrska_obcina'  -- obcina=NULL, ime_ko!=NULL  
+        ELSE 'obcina'  -- obcina!=NULL, ime_ko=NULL
+    END as tip_regije,
+    
+    CASE 
+        WHEN GROUPING(obcina, ime_ko) = 3 THEN 'Slovenija'
+        WHEN GROUPING(obcina) = 1 THEN ime_ko
+        ELSE obcina
+    END as ime_regije,
+    
+    -- OSTALE DIMENZIJE
+    -- ================
     vrsta_nepremicnine,
+    'prodaja' as tip_posla,
     leto_sklenitve as leto,
-    
-    -- CENOVNI PODATKI NA M²
-    -- ====================
+
+    -- AGREGIRANE MERIKE (poenotena imena z najemom)
+    -- ============================================
     AVG(cena_m2) as povprecna_cena_m2,
-    PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY cena_m2) as p10_cena_m2,
-    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY cena_m2) as p90_cena_m2,
-    
-    -- SKUPNE PRODAJNE CENE
-    -- ====================
     AVG(skupna_cena) as povprecna_skupna_cena,
-    PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY skupna_cena) as p10_skupna_cena,
-    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY skupna_cena) as p90_skupna_cena,
-    
-    -- VELIKOSTI NEPREMIČNIN
-    -- =====================
     AVG(povrsina_uporabna) as povprecna_velikost_m2,
-    PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY povrsina_uporabna) as p10_velikost_m2,
-    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY povrsina_uporabna) as p90_velikost_m2,
-    
-    -- STAROST STAVB
-    -- =============
     AVG(starost_stavbe) as povprecna_starost_stavbe,
-    PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY starost_stavbe) as p10_starost_stavbe,
-    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY starost_stavbe) as p90_starost_stavbe,
+    COUNT(*) as stevilo_poslov,
     
-    -- AKTIVNOST PRODAJNEGA TRGA
-    -- =========================
-    COUNT(*) as stevilo_poslov
+    -- COUNT STATISTIKE
+    -- ================
+    COUNT(CASE WHEN cena_m2 IS NOT NULL THEN 1 END) as cena_m2_count,
+    COUNT(CASE WHEN skupna_cena IS NOT NULL THEN 1 END) as skupna_cena_count,
+    COUNT(CASE WHEN povrsina_uporabna IS NOT NULL THEN 1 END) as velikost_m2_count,
+    COUNT(CASE WHEN starost_stavbe IS NOT NULL THEN 1 END) as starost_stavbe_count
     
 FROM prodajni_podatki_z_razdeljeno_ceno
-GROUP BY ime_ko, vrsta_nepremicnine, leto_sklenitve
-
-UNION ALL
-
--- NIVO 2: STATISTIKE PO OBČINAH
--- ==============================
--- Agregirano po občinah (ime_ko = NULL)
-SELECT 
-    obcina,
-    NULL as ime_ko,  -- NULL ker gledamo samo občine
-    vrsta_nepremicnine,
-    leto_sklenitve as leto,
-    
-    -- CENOVNI PODATKI NA M²
-    -- ====================
-    AVG(cena_m2) as povprecna_cena_m2,
-    PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY cena_m2) as p10_cena_m2,
-    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY cena_m2) as p90_cena_m2,
-    
-    -- SKUPNE PRODAJNE CENE
-    -- ====================
-    AVG(skupna_cena) as povprecna_skupna_cena,
-    PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY skupna_cena) as p10_skupna_cena,
-    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY skupna_cena) as p90_skupna_cena,
-    
-    -- VELIKOSTI NEPREMIČNIN
-    -- =====================
-    AVG(povrsina_uporabna) as povprecna_velikost_m2,
-    PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY povrsina_uporabna) as p10_velikost_m2,
-    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY povrsina_uporabna) as p90_velikost_m2,
-    
-    -- STAROST STAVB
-    -- =============
-    AVG(starost_stavbe) as povprecna_starost_stavbe,
-    PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY starost_stavbe) as p10_starost_stavbe,
-    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY starost_stavbe) as p90_starost_stavbe,
-    
-    -- AKTIVNOST PRODAJNEGA TRGA
-    -- =========================
-    COUNT(*) as stevilo_poslov
-    
-FROM prodajni_podatki_z_razdeljeno_ceno
-GROUP BY obcina, vrsta_nepremicnine, leto_sklenitve);
+GROUP BY GROUPING SETS (
+    (ime_ko, vrsta_nepremicnine, leto_sklenitve),     -- Katastrske občine
+    (obcina, vrsta_nepremicnine, leto_sklenitve),     -- Občine  
+    (vrsta_nepremicnine, leto_sklenitve)              -- Slovenija
+));
 
 -- =============================================================================
 -- KREIRANJE INDEKSOV ZA OPTIMALNO PERFORMANCO
 -- =============================================================================
 
--- Indeks za poizvedbe po občinah in letih
-CREATE INDEX idx_mv_prodajne_regija_leto 
-ON stats.mv_prodajne_statistike(obcina, vrsta_nepremicnine, leto);
-
--- Indeks za poizvedbe po katastrskih občinah in letih
-CREATE INDEX idx_mv_prodajne_ko_leto 
-ON stats.mv_prodajne_statistike(ime_ko, vrsta_nepremicnine, leto);
+-- Univerzalni indeks za vse tipe regij
+CREATE INDEX idx_mv_prodajne_universal 
+ON stats.mv_prodajne_statistike(tip_regije, ime_regije, vrsta_nepremicnine, leto);
 
 -- Indeks za poizvedbe po vrsti nepremičnine
 CREATE INDEX idx_mv_prodajne_vrsta 

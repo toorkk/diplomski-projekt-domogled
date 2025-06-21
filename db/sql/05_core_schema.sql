@@ -27,9 +27,7 @@ CREATE TABLE core.np_del_stavbe (
   tip_rabe                    VARCHAR(50),     -- bivalno, shrambeno, poslovno, podrtija, drugo
   lega_v_stavbi         VARCHAR(20),
   povrsina_uradna       NUMERIC(10,2),
-  povrsina_pogodba      NUMERIC(10,2),
-  povrsina_uporabna_uradna NUMERIC(10,2), -- samo za najemnes
-  povrsina_uporabna_pogodba NUMERIC(10,2), -- samo za najemne
+  povrsina_uporabna     NUMERIC(10,2),
   prostori              TEXT,
 
   -- podatki so pretvorjeni iz slovenskega sistema (SRID 3794) v WGS84
@@ -147,9 +145,7 @@ CREATE TABLE core.np_del_stavbe_deduplicated (
     stev_stanovanja             INTEGER,
 
     povrsina_uradna             NUMERIC(10,2),
-    povrsina_pogodba            NUMERIC(10,2),
-    povrsina_uporabna_uradna    NUMERIC(10,2), -- samo za najemnes
-    povrsina_uporabna_pogodba   NUMERIC(10,2), -- samo za najemne
+    povrsina_uporabna           NUMERIC(10,2),
     leto_izgradnje_stavbe       INTEGER,
     opremljenost                SMALLINT,
 
@@ -193,7 +189,7 @@ CREATE TABLE core.kpp_del_stavbe_deduplicated (
     
 
     povrsina_uradna             NUMERIC(10,2),
-    povrsina_pogodba            NUMERIC(10,2),
+    povrsina_uporabna           NUMERIC(10,2),
     leto_izgradnje_stavbe       INTEGER,
     stevilo_sob                 INTEGER,       -- ta podatek se vec ne vpisuje
 

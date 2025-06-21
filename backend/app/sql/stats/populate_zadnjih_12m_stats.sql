@@ -1,11 +1,9 @@
 -- PRODAJA - KATASTRSKE OBČINE (zadnjih 12 mesecev)
 INSERT INTO stats.statistike_cache (
     tip_regije, ime_regije, vrsta_nepremicnine, tip_posla, 
-    tip_obdobja, leto, povprecna_cena_m2, percentil_10_cena_m2, 
-    percentil_90_cena_m2, povprecna_skupna_cena, percentil_10_skupna_cena,
-    percentil_90_skupna_cena, stevilo_poslov, povprecna_velikost_m2,
-    percentil_10_velikost_m2, percentil_90_velikost_m2, povprecna_starost_stavbe,
-    percentil_10_starost_stavbe, percentil_90_starost_stavbe
+    tip_obdobja, leto, povprecna_cena_m2, povprecna_skupna_cena,
+    stevilo_poslov, povprecna_velikost_m2, povprecna_starost_stavbe,
+    cena_m2_count, skupna_cena_count, velikost_m2_count, starost_stavbe_count
 )
 SELECT 
     'katastrska_obcina' as tip_regije,
@@ -15,18 +13,14 @@ SELECT
     'zadnjih12m' as tip_obdobja,
     NULL as leto,
     AVG(povprecna_cena_m2) as povprecna_cena_m2,
-    AVG(p10_cena_m2) as percentil_10_cena_m2,
-    AVG(p90_cena_m2) as percentil_90_cena_m2,
     AVG(povprecna_skupna_cena) as povprecna_skupna_cena,
-    AVG(p10_skupna_cena) as percentil_10_skupna_cena,
-    AVG(p90_skupna_cena) as percentil_90_skupna_cena,
     SUM(stevilo_poslov) as stevilo_poslov,
     AVG(povprecna_velikost_m2) as povprecna_velikost_m2,
-    AVG(p10_velikost_m2) as percentil_10_velikost_m2,
-    AVG(p90_velikost_m2) as percentil_90_velikost_m2,
     AVG(povprecna_starost_stavbe) as povprecna_starost_stavbe,
-    AVG(p10_starost_stavbe) as percentil_10_starost_stavbe,
-    AVG(p90_starost_stavbe) as percentil_90_starost_stavbe
+    SUM(cena_m2_count) as cena_m2_count,
+    SUM(skupna_cena_count) as skupna_cena_count,
+    SUM(velikost_m2_count) as velikost_m2_count,
+    SUM(starost_stavbe_count) as starost_stavbe_count
 FROM stats.mv_prodajne_statistike
 WHERE leto >= EXTRACT(YEAR FROM CURRENT_DATE) - 1
   AND obcina IS NULL  -- KO statistike
@@ -34,18 +28,14 @@ GROUP BY ime_ko, vrsta_nepremicnine
 ON CONFLICT (tip_regije, ime_regije, vrsta_nepremicnine, tip_posla, tip_obdobja, leto) 
 DO UPDATE SET
     povprecna_cena_m2 = EXCLUDED.povprecna_cena_m2,
-    percentil_10_cena_m2 = EXCLUDED.percentil_10_cena_m2,
-    percentil_90_cena_m2 = EXCLUDED.percentil_90_cena_m2,
     povprecna_skupna_cena = EXCLUDED.povprecna_skupna_cena,
-    percentil_10_skupna_cena = EXCLUDED.percentil_10_skupna_cena,
-    percentil_90_skupna_cena = EXCLUDED.percentil_90_skupna_cena,
     stevilo_poslov = EXCLUDED.stevilo_poslov,
     povprecna_velikost_m2 = EXCLUDED.povprecna_velikost_m2,
-    percentil_10_velikost_m2 = EXCLUDED.percentil_10_velikost_m2,
-    percentil_90_velikost_m2 = EXCLUDED.percentil_90_velikost_m2,
     povprecna_starost_stavbe = EXCLUDED.povprecna_starost_stavbe,
-    percentil_10_starost_stavbe = EXCLUDED.percentil_10_starost_stavbe,
-    percentil_90_starost_stavbe = EXCLUDED.percentil_90_starost_stavbe;
+    cena_m2_count = EXCLUDED.cena_m2_count,
+    skupna_cena_count = EXCLUDED.skupna_cena_count,
+    velikost_m2_count = EXCLUDED.velikost_m2_count,
+    starost_stavbe_count = EXCLUDED.starost_stavbe_count;
 
 -- PRODAJA - OBČINE (zadnjih 12 mesecev)
 INSERT INTO stats.statistike_cache (
@@ -55,11 +45,15 @@ INSERT INTO stats.statistike_cache (
     tip_posla,
     tip_obdobja,
     leto,
-    povprecna_cena_m2, percentil_10_cena_m2, percentil_90_cena_m2,
-    povprecna_skupna_cena, percentil_10_skupna_cena, percentil_90_skupna_cena,
+    povprecna_cena_m2,
+    povprecna_skupna_cena,
     stevilo_poslov,
-    povprecna_velikost_m2, percentil_10_velikost_m2, percentil_90_velikost_m2,
-    povprecna_starost_stavbe, percentil_10_starost_stavbe, percentil_90_starost_stavbe
+    povprecna_velikost_m2,
+    povprecna_starost_stavbe,
+    cena_m2_count,
+    skupna_cena_count,
+    velikost_m2_count,
+    starost_stavbe_count
 )
 SELECT 
     'obcina' as tip_regije,
@@ -69,18 +63,14 @@ SELECT
     'zadnjih12m' as tip_obdobja,
     NULL as leto,
     AVG(povprecna_cena_m2) as povprecna_cena_m2,
-    AVG(p10_cena_m2) as percentil_10_cena_m2,
-    AVG(p90_cena_m2) as percentil_90_cena_m2,
     AVG(povprecna_skupna_cena) as povprecna_skupna_cena,
-    AVG(p10_skupna_cena) as percentil_10_skupna_cena,
-    AVG(p90_skupna_cena) as percentil_90_skupna_cena,
     SUM(stevilo_poslov) as stevilo_poslov,
     AVG(povprecna_velikost_m2) as povprecna_velikost_m2,
-    AVG(p10_velikost_m2) as percentil_10_velikost_m2,
-    AVG(p90_velikost_m2) as percentil_90_velikost_m2,
     AVG(povprecna_starost_stavbe) as povprecna_starost_stavbe,
-    AVG(p10_starost_stavbe) as percentil_10_starost_stavbe,
-    AVG(p90_starost_stavbe) as percentil_90_starost_stavbe
+    SUM(cena_m2_count) as cena_m2_count,
+    SUM(skupna_cena_count) as skupna_cena_count,
+    SUM(velikost_m2_count) as velikost_m2_count,
+    SUM(starost_stavbe_count) as starost_stavbe_count
 FROM stats.mv_prodajne_statistike
 WHERE leto >= EXTRACT(YEAR FROM CURRENT_DATE) - 1
   AND ime_ko IS NULL  -- Občinske statistike
@@ -88,18 +78,14 @@ GROUP BY obcina, vrsta_nepremicnine
 ON CONFLICT (tip_regije, ime_regije, vrsta_nepremicnine, tip_posla, tip_obdobja, leto) 
 DO UPDATE SET
     povprecna_cena_m2 = EXCLUDED.povprecna_cena_m2,
-    percentil_10_cena_m2 = EXCLUDED.percentil_10_cena_m2,
-    percentil_90_cena_m2 = EXCLUDED.percentil_90_cena_m2,
     povprecna_skupna_cena = EXCLUDED.povprecna_skupna_cena,
-    percentil_10_skupna_cena = EXCLUDED.percentil_10_skupna_cena,
-    percentil_90_skupna_cena = EXCLUDED.percentil_90_skupna_cena,
     stevilo_poslov = EXCLUDED.stevilo_poslov,
     povprecna_velikost_m2 = EXCLUDED.povprecna_velikost_m2,
-    percentil_10_velikost_m2 = EXCLUDED.percentil_10_velikost_m2,
-    percentil_90_velikost_m2 = EXCLUDED.percentil_90_velikost_m2,
     povprecna_starost_stavbe = EXCLUDED.povprecna_starost_stavbe,
-    percentil_10_starost_stavbe = EXCLUDED.percentil_10_starost_stavbe,
-    percentil_90_starost_stavbe = EXCLUDED.percentil_90_starost_stavbe;
+    cena_m2_count = EXCLUDED.cena_m2_count,
+    skupna_cena_count = EXCLUDED.skupna_cena_count,
+    velikost_m2_count = EXCLUDED.velikost_m2_count,
+    starost_stavbe_count = EXCLUDED.starost_stavbe_count;
 
 -- NAJEM - KATASTRSKE OBČINE (zadnjih 12 mesecev)
 INSERT INTO stats.statistike_cache (
@@ -109,13 +95,15 @@ INSERT INTO stats.statistike_cache (
     tip_posla,
     tip_obdobja,
     leto,
-    povprecna_cena_m2, percentil_10_cena_m2, percentil_90_cena_m2,
-    povprecna_skupna_cena, percentil_10_skupna_cena, percentil_90_skupna_cena,
+    povprecna_cena_m2,
+    povprecna_skupna_cena,
     stevilo_poslov,
-    trenutno_v_najemu,
-    povprecna_velikost_m2, percentil_10_velikost_m2, percentil_90_velikost_m2,
-    povprecna_starost_stavbe, percentil_10_starost_stavbe, percentil_90_starost_stavbe,
-    delez_opremljenih_pct
+    povprecna_velikost_m2,
+    povprecna_starost_stavbe,
+    cena_m2_count,
+    skupna_cena_count,
+    velikost_m2_count,
+    starost_stavbe_count
 )
 SELECT 
     'katastrska_obcina' as tip_regije,
@@ -124,21 +112,15 @@ SELECT
     'najem' as tip_posla,
     'zadnjih12m' as tip_obdobja,
     NULL as leto,
-    AVG(povprecna_najemnina_m2) as povprecna_cena_m2,
-    AVG(p10_najemnina_m2) as percentil_10_cena_m2,
-    AVG(p90_najemnina_m2) as percentil_90_cena_m2,
-    AVG(povprecna_skupna_najemnina) as povprecna_skupna_cena,
-    AVG(p10_skupna_najemnina) as percentil_10_skupna_cena,
-    AVG(p90_skupna_najemnina) as percentil_90_skupna_cena,
+    AVG(povprecna_cena_m2) as povprecna_cena_m2,
+    AVG(povprecna_skupna_cena) as povprecna_skupna_cena,
     SUM(stevilo_poslov) as stevilo_poslov,
-    SUM(trenutno_v_najemu) as trenutno_v_najemu,
     AVG(povprecna_velikost_m2) as povprecna_velikost_m2,
-    AVG(p10_velikost_m2) as percentil_10_velikost_m2,
-    AVG(p90_velikost_m2) as percentil_90_velikost_m2,
     AVG(povprecna_starost_stavbe) as povprecna_starost_stavbe,
-    AVG(p10_starost_stavbe) as percentil_10_starost_stavbe,
-    AVG(p90_starost_stavbe) as percentil_90_starost_stavbe,
-    AVG(delez_opremljenih_pct) as delez_opremljenih_pct
+    SUM(cena_m2_count) as cena_m2_count,
+    SUM(skupna_cena_count) as skupna_cena_count,
+    SUM(velikost_m2_count) as velikost_m2_count,
+    SUM(starost_stavbe_count) as starost_stavbe_count
 FROM stats.mv_najemne_statistike
 WHERE leto >= EXTRACT(YEAR FROM CURRENT_DATE) - 1
   AND obcina IS NULL  -- KO statistike
@@ -146,20 +128,14 @@ GROUP BY ime_ko, vrsta_nepremicnine
 ON CONFLICT (tip_regije, ime_regije, vrsta_nepremicnine, tip_posla, tip_obdobja, leto) 
 DO UPDATE SET
     povprecna_cena_m2 = EXCLUDED.povprecna_cena_m2,
-    percentil_10_cena_m2 = EXCLUDED.percentil_10_cena_m2,
-    percentil_90_cena_m2 = EXCLUDED.percentil_90_cena_m2,
     povprecna_skupna_cena = EXCLUDED.povprecna_skupna_cena,
-    percentil_10_skupna_cena = EXCLUDED.percentil_10_skupna_cena,
-    percentil_90_skupna_cena = EXCLUDED.percentil_90_skupna_cena,
     stevilo_poslov = EXCLUDED.stevilo_poslov,
-    trenutno_v_najemu = EXCLUDED.trenutno_v_najemu,
     povprecna_velikost_m2 = EXCLUDED.povprecna_velikost_m2,
-    percentil_10_velikost_m2 = EXCLUDED.percentil_10_velikost_m2,
-    percentil_90_velikost_m2 = EXCLUDED.percentil_90_velikost_m2,
     povprecna_starost_stavbe = EXCLUDED.povprecna_starost_stavbe,
-    percentil_10_starost_stavbe = EXCLUDED.percentil_10_starost_stavbe,
-    percentil_90_starost_stavbe = EXCLUDED.percentil_90_starost_stavbe,
-    delez_opremljenih_pct = EXCLUDED.delez_opremljenih_pct;
+    cena_m2_count = EXCLUDED.cena_m2_count,
+    skupna_cena_count = EXCLUDED.skupna_cena_count,
+    velikost_m2_count = EXCLUDED.velikost_m2_count,
+    starost_stavbe_count = EXCLUDED.starost_stavbe_count;
 
 -- NAJEM - OBČINE (zadnjih 12 mesecev)
 INSERT INTO stats.statistike_cache (
@@ -169,13 +145,15 @@ INSERT INTO stats.statistike_cache (
     tip_posla,
     tip_obdobja,
     leto,
-    povprecna_cena_m2, percentil_10_cena_m2, percentil_90_cena_m2,
-    povprecna_skupna_cena, percentil_10_skupna_cena, percentil_90_skupna_cena,
+    povprecna_cena_m2,
+    povprecna_skupna_cena,
     stevilo_poslov,
-    trenutno_v_najemu,
-    povprecna_velikost_m2, percentil_10_velikost_m2, percentil_90_velikost_m2,
-    povprecna_starost_stavbe, percentil_10_starost_stavbe, percentil_90_starost_stavbe,
-    delez_opremljenih_pct
+    povprecna_velikost_m2,
+    povprecna_starost_stavbe,
+    cena_m2_count,
+    skupna_cena_count,
+    velikost_m2_count,
+    starost_stavbe_count
 )
 SELECT 
     'obcina' as tip_regije,
@@ -184,21 +162,15 @@ SELECT
     'najem' as tip_posla,
     'zadnjih12m' as tip_obdobja,
     NULL as leto,
-    AVG(povprecna_najemnina_m2) as povprecna_cena_m2,
-    AVG(p10_najemnina_m2) as percentil_10_cena_m2,
-    AVG(p90_najemnina_m2) as percentil_90_cena_m2,
-    AVG(povprecna_skupna_najemnina) as povprecna_skupna_cena,
-    AVG(p10_skupna_najemnina) as percentil_10_skupna_cena,
-    AVG(p90_skupna_najemnina) as percentil_90_skupna_cena,
+    AVG(povprecna_cena_m2) as povprecna_cena_m2,
+    AVG(povprecna_skupna_cena) as povprecna_skupna_cena,
     SUM(stevilo_poslov) as stevilo_poslov,
-    SUM(trenutno_v_najemu) as trenutno_v_najemu,
     AVG(povprecna_velikost_m2) as povprecna_velikost_m2,
-    AVG(p10_velikost_m2) as percentil_10_velikost_m2,
-    AVG(p90_velikost_m2) as percentil_90_velikost_m2,
     AVG(povprecna_starost_stavbe) as povprecna_starost_stavbe,
-    AVG(p10_starost_stavbe) as percentil_10_starost_stavbe,
-    AVG(p90_starost_stavbe) as percentil_90_starost_stavbe,
-    AVG(delez_opremljenih_pct) as delez_opremljenih_pct
+    SUM(cena_m2_count) as cena_m2_count,
+    SUM(skupna_cena_count) as skupna_cena_count,
+    SUM(velikost_m2_count) as velikost_m2_count,
+    SUM(starost_stavbe_count) as starost_stavbe_count
 FROM stats.mv_najemne_statistike
 WHERE leto >= EXTRACT(YEAR FROM CURRENT_DATE) - 1
   AND ime_ko IS NULL  -- Občinske statistike
@@ -206,17 +178,11 @@ GROUP BY obcina, vrsta_nepremicnine
 ON CONFLICT (tip_regije, ime_regije, vrsta_nepremicnine, tip_posla, tip_obdobja, leto) 
 DO UPDATE SET
     povprecna_cena_m2 = EXCLUDED.povprecna_cena_m2,
-    percentil_10_cena_m2 = EXCLUDED.percentil_10_cena_m2,
-    percentil_90_cena_m2 = EXCLUDED.percentil_90_cena_m2,
     povprecna_skupna_cena = EXCLUDED.povprecna_skupna_cena,
-    percentil_10_skupna_cena = EXCLUDED.percentil_10_skupna_cena,
-    percentil_90_skupna_cena = EXCLUDED.percentil_90_skupna_cena,
     stevilo_poslov = EXCLUDED.stevilo_poslov,
-    trenutno_v_najemu = EXCLUDED.trenutno_v_najemu,
     povprecna_velikost_m2 = EXCLUDED.povprecna_velikost_m2,
-    percentil_10_velikost_m2 = EXCLUDED.percentil_10_velikost_m2,
-    percentil_90_velikost_m2 = EXCLUDED.percentil_90_velikost_m2,
     povprecna_starost_stavbe = EXCLUDED.povprecna_starost_stavbe,
-    percentil_10_starost_stavbe = EXCLUDED.percentil_10_starost_stavbe,
-    percentil_90_starost_stavbe = EXCLUDED.percentil_90_starost_stavbe,
-    delez_opremljenih_pct = EXCLUDED.delez_opremljenih_pct;
+    cena_m2_count = EXCLUDED.cena_m2_count,
+    skupna_cena_count = EXCLUDED.skupna_cena_count,
+    velikost_m2_count = EXCLUDED.velikost_m2_count,
+    starost_stavbe_count = EXCLUDED.starost_stavbe_count;
