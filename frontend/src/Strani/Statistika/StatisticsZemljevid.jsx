@@ -29,7 +29,8 @@ export default function StatisticsZemljevid({
     onMunicipalitySelect, 
     onObcinaSelect, 
     selectedMunicipality, 
-    selectedObcina 
+    selectedObcina,
+    selectedRegionFromNavigation
 }) {
     // Refs
     const mapContainer = useRef(null);
@@ -41,6 +42,108 @@ export default function StatisticsZemljevid({
     const [obcineLoaded, setObcineLoaded] = useState(false);
     const [hoveredRegion, setHoveredRegion] = useState(null);
     const [hoveredMunicipality, setHoveredMunicipality] = useState(null);
+
+    // ===========================================
+    // NOVI EFFECTS ZA AVTOMATSKI ZOOM
+    // ===========================================
+
+    // NOVO: Effect za avtomatski zoom ko je kataster izbran preko navigacije
+    useEffect(() => {
+        if (selectedMunicipality && municipalitiesLoaded && layerManager.current && 
+            selectedRegionFromNavigation?.autoZoomToRegion && 
+            selectedRegionFromNavigation.type === 'katastrska_obcina') {
+            
+            // Poišči feature za trenutno izbrani kataster
+            const municipalityFeature = municipalitiesData.features.find(
+                feature => feature.properties.SIFKO === selectedMunicipality.sifko
+            );
+            
+            if (municipalityFeature) {
+                console.log('Auto-zooming to municipality:', selectedMunicipality.name);
+                
+                // Simuliraj click da se sproži zoom in gray out
+                const bounds = calculateBoundsFromGeometry(municipalityFeature.geometry);
+                
+                // Če je občina že izbrana, potem naredi zoom na kataster znotraj občine
+                if (selectedObcina) {
+                    // Zoom na kataster znotraj občine
+                    map.current.fitBounds(bounds, {
+                        padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
+                        duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION,
+                        essential: true
+                    });
+                }
+            }
+        }
+    }, [selectedMunicipality, municipalitiesLoaded, selectedRegionFromNavigation, selectedObcina]);
+
+    // NOVO: Effect za avtomatski zoom ko je občina izbrana preko navigacije
+    useEffect(() => {
+        if (selectedObcina && obcineLoaded && layerManager.current && 
+            selectedRegionFromNavigation?.autoZoomToRegion && 
+            selectedRegionFromNavigation.type === 'obcina') {
+            
+            // Poišči feature za trenutno izbrano občino
+            const obcinaFeature = obcineData.features.find(
+                feature => getObcinaId(feature) === selectedObcina.obcinaId
+            );
+            
+            if (obcinaFeature) {
+                console.log('Auto-zooming to obcina:', selectedObcina.name);
+                
+                // Simuliraj click da se sproži zoom in gray out
+                const bounds = calculateBoundsFromGeometry(obcinaFeature.geometry);
+                
+                // 🚀 TAKOJ prikaži katastri - PRED zoom animacijo!
+                layerManager.current.updateLayerVisibilityByZoom(map.current.getZoom(), true);
+
+                // Zoom to občina
+                map.current.fitBounds(bounds, {
+                    padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
+                    duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION,
+                    essential: true
+                });
+
+                // 🔒 Lock view to the selected občina
+                map.current.setMaxBounds(bounds);
+
+                // 🎭 Add or update dark overlay mask outside of selected občina
+                const overlayLayerId = 'obcina-mask';
+                const sourceId = SOURCE_IDS.OBCINE;
+
+                if (!map.current.getLayer(overlayLayerId)) {
+                    map.current.addLayer({
+                        id: overlayLayerId,
+                        type: 'fill',
+                        source: sourceId,
+                        paint: {
+                            'fill-color': 'rgba(0, 0, 0, 0.6)',
+                            'fill-opacity': [
+                                'case',
+                                ['==', ['get', 'OB_ID'], selectedObcina.obcinaId],
+                                0,
+                                1
+                            ]
+                        }
+                    }, LAYER_IDS.OBCINE.OUTLINE);
+                } else {
+                    // Update opacity condition
+                    map.current.setPaintProperty(overlayLayerId, 'fill-opacity', [
+                        'case',
+                        ['==', ['get', 'OB_ID'], selectedObcina.obcinaId],
+                        0,
+                        1
+                    ]);
+                }
+                
+                // Posodobi selection
+                layerManager.current.updateObcinaSelection(
+                    selectedObcina.obcinaId, 
+                    selectedObcina.name
+                );
+            }
+        }
+    }, [selectedObcina, obcineLoaded, selectedRegionFromNavigation]);
 
     // ===========================================
     // KATASTER IN REGION HANDLERJI

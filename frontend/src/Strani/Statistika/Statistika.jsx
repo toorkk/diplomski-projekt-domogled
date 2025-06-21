@@ -1,18 +1,55 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import StatisticsZemljevid from "./StatisticsZemljevid.jsx";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
-export default function Statistika() {
+export default function Statistika({ selectedRegionFromNavigation }) {
+    
     // States za izbrane regije
     const [selectedMunicipality, setSelectedMunicipality] = useState(null);
     const [selectedObcina, setSelectedObcina] = useState(null);
-    const [activeTab, setActiveTab] = useState('prodaja'); // nov state za tab switcher
-    const [chartType, setChartType] = useState('stanovanje'); // nov state za graf switcher
-    const [chartType2, setChartType2] = useState('stanovanje'); // nov state za drugi graf switcher
-    const [chartType3, setChartType3] = useState('stanovanje'); // nov state za četrti graf switcher
+    const [activeTab, setActiveTab] = useState('prodaja');
+    const [chartType, setChartType] = useState('stanovanje');
+    const [chartType2, setChartType2] = useState('stanovanje');
+    const [chartType3, setChartType3] = useState('stanovanje');
     const [statisticsData, setStatisticsData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+
+    // POSODOBLJEN: Effect za avtomatsko nalaganje regije iz navigacije
+    useEffect(() => {
+        if (selectedRegionFromNavigation) {
+            const region = selectedRegionFromNavigation;
+            console.log('Received region from navigation:', region);
+            
+            if (region.type === 'katastrska_obcina') {
+                // Avtomatsko nastavi kataster
+                const municipalityData = {
+                    name: `${region.name} (${region.sifko})`,
+                    sifko: region.sifko,
+                    // Dodaj flag za avtomatski zoom
+                    autoZoom: region.autoZoomToRegion
+                };
+                setSelectedMunicipality(municipalityData);
+                setSelectedObcina(null);
+                
+                // Takoj pridobi statistike
+                fetchStatistics(region.name, 'katastrska_obcina');
+            } else if (region.type === 'obcina') {
+                // Avtomatsko nastavi občino
+                const obcinaData = {
+                    name: region.name,
+                    obcinaId: region.obcinaId,
+                    // Dodaj flag za avtomatski zoom
+                    autoZoom: region.autoZoomToRegion
+                };
+                setSelectedObcina(obcinaData);
+                setSelectedMunicipality(null);
+                
+                // Takoj pridobi statistike
+                fetchStatistics(region.name, 'obcina');
+            }
+        }
+    }, [selectedRegionFromNavigation]);
 
     // ===========================================
     // DATA PROCESSING FUNCTIONS
@@ -239,10 +276,10 @@ export default function Statistika() {
     };
 
     // ===========================================
-    // CALLBACK HANDLERI
+    // POSODOBLJENI CALLBACK HANDLERI
     // ===========================================
 
-    const handleMunicipalitySelect = (municipalityData) => {
+    const handleMunicipalitySelect = useCallback((municipalityData) => {
         setSelectedMunicipality(municipalityData);
         // Clear občina selection when municipality is selected
         if (municipalityData) {
@@ -265,9 +302,9 @@ export default function Statistika() {
         } else {
             setStatisticsData(null);
         }
-    };
+    }, []);
 
-    const handleObcinaSelect = (obcinaData) => {
+    const handleObcinaSelect = useCallback((obcinaData) => {
         setSelectedObcina(obcinaData);
         // Clear municipality selection when občina is selected
         if (obcinaData) {
@@ -277,7 +314,7 @@ export default function Statistika() {
         } else {
             setStatisticsData(null);
         }
-    };
+    }, []);
 
     // ===========================================
     // RENDER
@@ -298,6 +335,7 @@ export default function Statistika() {
                             onObcinaSelect={handleObcinaSelect}
                             selectedMunicipality={selectedMunicipality}
                             selectedObcina={selectedObcina}
+                            selectedRegionFromNavigation={selectedRegionFromNavigation}
                         />
                     </div>
 

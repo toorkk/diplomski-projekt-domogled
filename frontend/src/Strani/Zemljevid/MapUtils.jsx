@@ -118,7 +118,9 @@ export const buildClusterDetailsUrl = (clusterId, dataSource, zoom, filters = {}
 // NOVO: API funkcija za pridobivanje statistik
 export const fetchStatistics = async (tipRegije, regija) => {
     try {
-        const url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.STATISTICS}/${tipRegije}/${encodeURIComponent(regija)}`;
+        // Spremeni ime regije v uppercase pred pošiljanjem
+        const regijaUppercase = regija.toUpperCase();
+        const url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.STATISTICS}/${tipRegije}/${encodeURIComponent(regijaUppercase)}`;
         console.log(`Fetching statistics from: ${url}`);
         
         const response = await fetch(url);
@@ -136,24 +138,42 @@ export const fetchStatistics = async (tipRegije, regija) => {
 
 // NOVO: Utility funkcija za formatiranje statistik
 export const formatStatistics = (statistics, dataSourceType) => {
-    if (!statistics) return 'Ni podatkov';
-    
-    const parts = [];
-    
-    if (statistics.skupaj_nepremicnin) {
-        parts.push(`Nepremičnin: ${statistics.skupaj_nepremicnin}`);
+    if (!statistics || !statistics.splosne_statistike || !statistics.splosne_statistike.pregled) {
+        return null;
     }
     
-    if (statistics.povprecna_cena) {
-        const currency = dataSourceType === 'prodaja' ? '€' : '€/m';
-        parts.push(`Povp. cena: ${Math.round(statistics.povprecna_cena)}${currency}`);
-    }
+    const pregled = statistics.splosne_statistike.pregled;
     
-    if (statistics.povprecna_povrsina) {
-        parts.push(`Povp. površina: ${Math.round(statistics.povprecna_povrsina)} m²`);
-    }
+    // Določi kateri tip posla nas zanima (prodaja ali najem)
+    const tipPosla = dataSourceType === 'prodaja' ? 'prodaja' : 'najem';
     
-    return parts.join(' | ');
+    // Poišči podatke za stanovanja in hiše
+    const stanovanjaKey = `${tipPosla}_stanovanje`;
+    const hiseKey = `${tipPosla}_hisa`;
+    
+    const stanovanjaData = pregled[stanovanjaKey];
+    const hiseData = pregled[hiseKey];
+    
+    return {
+        stanovanja: stanovanjaData ? {
+            stevilo_poslov: stanovanjaData.stevilo_poslov || 0,
+            povprecna_cena_m2: stanovanjaData.povprecna_cena_m2,
+            povprecna_skupna_cena: stanovanjaData.povprecna_skupna_cena,
+            povprecna_velikost_m2: stanovanjaData.povprecna_velikost_m2,
+            povprecna_starost_stavbe: stanovanjaData.povprecna_starost_stavbe,
+            trenutno_v_najemu: stanovanjaData.trenutno_v_najemu
+        } : null,
+        hise: hiseData ? {
+            stevilo_poslov: hiseData.stevilo_poslov || 0,
+            povprecna_cena_m2: hiseData.povprecna_cena_m2,
+            povprecna_skupna_cena: hiseData.povprecna_skupna_cena,
+            povprecna_velikost_m2: hiseData.povprecna_velikost_m2,
+            povprecna_starost_stavbe: hiseData.povprecna_starost_stavbe,
+            trenutno_v_najemu: hiseData.trenutno_v_najemu
+        } : null,
+        tipPosla,
+        hasData: (stanovanjaData && stanovanjaData.stevilo_poslov > 0) || (hiseData && hiseData.stevilo_poslov > 0)
+    };
 };
 
 // Validira filter vrednosti

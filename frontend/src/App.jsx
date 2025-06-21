@@ -7,28 +7,53 @@ import Izracun from "./Strani/Izračun";
 
 export default function App() {
   const [activePage, setActivePage] = useState('zemljevid');
+  const [selectedRegionForStatistics, setSelectedRegionForStatistics] = useState(null);
+
+  // Handler za navigacijo na statistike iz zemljevida
+  const handleNavigateToStatistics = (regionData) => {
+    setSelectedRegionForStatistics(regionData);
+    setActivePage('statistika');
+  };
+
+  // Ko se spremeni aktivna stran, resetiraj regijo če ni statistika
+  const handlePageChange = (page) => {
+    if (page !== 'statistika') {
+      setSelectedRegionForStatistics(null);
+    }
+    setActivePage(page);
+  };
 
   const renderPage = () => {
     switch(activePage) {
       case 'zemljevid':
-        return <Zemljevid />;
+        return (
+          <Zemljevid 
+            onNavigateToStatistics={handleNavigateToStatistics}
+          />
+        );
       case 'primerjevalnik':
         return <Primerjevalnik />;
       case 'statistika':
-        return <Statistika />;
+        return (
+          <Statistika 
+            selectedRegionFromNavigation={selectedRegionForStatistics}
+          />
+        );
       case 'izracun':
         return <Izracun />;
       default:
-        return <Zemljevid />;
+        return (
+          <Zemljevid 
+            onNavigateToStatistics={handleNavigateToStatistics}
+          />
+        );
     }
   };
 
   return (
     <div className="relative w-screen h-screen">
-      <Navbar activePage={activePage} onPageChange={setActivePage} />
+      <Navbar activePage={activePage} onPageChange={handlePageChange} />
       {renderPage()}
-      
-      
     </div>
   );
 }
