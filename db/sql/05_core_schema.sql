@@ -24,11 +24,10 @@ CREATE TABLE core.np_del_stavbe (
   opombe                TEXT,
   leto_izgradnje_stavbe INTEGER,
   dejanska_raba         VARCHAR(100),
+  tip_rabe                    VARCHAR(50),     -- bivalno, shrambeno, poslovno, podrtija, drugo
   lega_v_stavbi         VARCHAR(20),
   povrsina_uradna       NUMERIC(10,2),
-  povrsina_pogodba      NUMERIC(10,2),
-  povrsina_uporabna_uradna NUMERIC(10,2), -- samo za najemnes
-  povrsina_uporabna_pogodba NUMERIC(10,2), -- samo za najemne
+  povrsina_uporabna     NUMERIC(10,2),
   prostori              TEXT,
 
   -- podatki so pretvorjeni iz slovenskega sistema (SRID 3794) v WGS84
@@ -61,10 +60,11 @@ CREATE TABLE core.kpp_del_stavbe (
     nadstropje                              INTEGER,        -- ta podatek se vec ne vpisuje
     opombe                                  TEXT,           -- ta podatek se vec ne vpisuje
     dejanska_raba                           VARCHAR(310),
+    tip_rabe                    VARCHAR(50),     -- bivalno, shrambeno, poslovno, podrtija, drugo
     lega_v_stavbi                           VARCHAR(50),
     stevilo_sob                             INTEGER,        -- ta podatek se vec ne vpisuje
     povrsina_uradna                         NUMERIC(10,2),
-    povrsina_pogodba                        NUMERIC(10,2),
+    povrsina_uporabna                       NUMERIC(10,2),
     prostori                                TEXT,
     pogodbena_cena                          NUMERIC(20,2),
     stopnja_ddv                             NUMERIC(5,2),
@@ -133,6 +133,7 @@ CREATE TABLE core.np_del_stavbe_deduplicated (
     stevilka_stavbe             INTEGER         NOT NULL,
     stevilka_dela_stavbe        INTEGER         NOT NULL,
     dejanska_raba               VARCHAR(310),
+    tip_rabe                    VARCHAR(50),     -- bivalno, shrambeno, poslovno, podrtija, drugo
     
     vrsta_nepremicnine          SMALLINT,
 
@@ -144,9 +145,7 @@ CREATE TABLE core.np_del_stavbe_deduplicated (
     stev_stanovanja             INTEGER,
 
     povrsina_uradna             NUMERIC(10,2),
-    povrsina_pogodba            NUMERIC(10,2),
-    povrsina_uporabna_uradna    NUMERIC(10,2), -- samo za najemnes
-    povrsina_uporabna_pogodba   NUMERIC(10,2), -- samo za najemne
+    povrsina_uporabna           NUMERIC(10,2),
     leto_izgradnje_stavbe       INTEGER,
     opremljenost                SMALLINT,
 
@@ -177,6 +176,7 @@ CREATE TABLE core.kpp_del_stavbe_deduplicated (
     stevilka_stavbe             INTEGER         NOT NULL,
     stevilka_dela_stavbe        INTEGER         NOT NULL,
     dejanska_raba               VARCHAR(310),
+    tip_rabe                    VARCHAR(50),     -- bivalno, shrambeno, poslovno, podrtija, drugo
 
     vrsta_nepremicnine          SMALLINT,
 
@@ -189,7 +189,7 @@ CREATE TABLE core.kpp_del_stavbe_deduplicated (
     
 
     povrsina_uradna             NUMERIC(10,2),
-    povrsina_pogodba            NUMERIC(10,2),
+    povrsina_uporabna           NUMERIC(10,2),
     leto_izgradnje_stavbe       INTEGER,
     stevilo_sob                 INTEGER,       -- ta podatek se vec ne vpisuje
 
