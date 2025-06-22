@@ -178,13 +178,11 @@ GROUP BY GROUPING SETS (
 ));
 
 -- =============================================================================
--- KREIRANJE INDEKSOV ZA OPTIMALNO PERFORMANCO
+-- KREIRANJE INDEKSOV
 -- =============================================================================
 
--- Univerzalni indeks za vse tipe regij
 CREATE INDEX idx_mv_prodajne_universal 
 ON stats.mv_prodajne_statistike(tip_regije, ime_regije, vrsta_nepremicnine, leto);
 
--- Indeks za poizvedbe po vrsti nepremičnine
 CREATE INDEX idx_mv_prodajne_vrsta 
 ON stats.mv_prodajne_statistike(vrsta_nepremicnine);

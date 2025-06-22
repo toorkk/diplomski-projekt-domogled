@@ -4,7 +4,8 @@
 -- Namen: Agregira najemne podatke po katastrskih občinah, občinah in za celo Slovenijo
 -- Logika: 
 -- 1. Pripravi osnovne najemne podatke z validacijo
--- 2. Izračuna statistike z GROUPING SETS na vseh nivojih hkrati
+-- 2. Razširi vsako nepremičnino na vsa leta najema
+-- 3. Izračuna statistike z GROUPING SETS na vseh nivojih hkrati
 -- =============================================================================
 
 DROP MATERIALIZED VIEW IF EXISTS stats.mv_najemne_statistike;
@@ -63,19 +64,22 @@ WITH najemni_podatki AS (
             ELSE NULL
         END as starost_stavbe,
         
-        -- DATUMI
-        -- ======
+        -- DATUMI NAJEMA
+        -- =============
         np.datum_uveljavitve,
-        date_part('year', np.datum_uveljavitve) as leto_uveljavitve,
+        np.datum_zacetka_najemanja,
+        np.datum_zakljucka_najema,
+        np.datum_sklenitve,
         
-        -- STATUS AKTIVNOSTI
-        -- =================
+        -- IZRAČUN LETA NAJEMA
+        -- ===================
+        EXTRACT(YEAR FROM np.datum_zacetka_najemanja) as leto_zacetka,
         CASE 
-            WHEN (np.datum_prenehanja_najemanja IS NULL OR np.datum_prenehanja_najemanja > CURRENT_DATE)
-                AND (np.datum_zakljucka_najema IS NULL OR np.datum_zakljucka_najema > CURRENT_DATE)
-            THEN 1 ELSE 0 
-        END as trenutno_aktivna
-        
+            WHEN np.datum_zakljucka_najema IS NOT NULL 
+            THEN EXTRACT(YEAR FROM np.datum_zakljucka_najema)
+            ELSE EXTRACT(YEAR FROM CURRENT_DATE)  -- Za aktivne najeme
+        END as leto_konca
+
     FROM core.np_del_stavbe n
     JOIN core.np_posel np ON n.posel_id = np.posel_id
     WHERE 
@@ -85,22 +89,44 @@ WITH najemni_podatki AS (
         AND n.ime_ko IS NOT NULL
         AND n.obcina IS NOT NULL
         AND np.datum_uveljavitve IS NOT NULL
-        AND date_part('year', np.datum_uveljavitve) BETWEEN 2007 AND EXTRACT(YEAR FROM CURRENT_DATE)
         AND n.vrsta_nepremicnine IN (1, 2)
         AND np.datum_zacetka_najemanja > DATE '2008-01-01'
-        AND np.datum_zakljucka_najema > DATE '2008-01-01'  
+        AND np.datum_zacetka_najemanja IS NOT NULL
+        AND (np.datum_zakljucka_najema IS NULL OR np.datum_zakljucka_najema > DATE '2008-01-01')
         AND np.datum_uveljavitve > DATE '2008-01-01'
         AND np.datum_sklenitve > DATE '2008-01-01'
 ),
 
--- KORAK 2: IZRAČUN KOLIKO VALIDNIH NEPREMIČNIN JE V POSLU IN DELITEV NAJEMNINE S TEM ŠTEVILOM
--- =============================================
+-- KORAK 2: RAZŠIRITEV NA VSA LETA NAJEMA
+-- ======================================
+najemni_podatki_po_letih AS (
+    SELECT 
+        np.*,
+        gs.year_num as leto_najema,
+        -- Array vseh let najema za debug
+        ARRAY(
+            SELECT generate_series(
+                CAST(np.leto_zacetka AS INTEGER), 
+                CAST(np.leto_konca AS INTEGER)
+            )
+        ) as leta_najema
+    FROM najemni_podatki np
+    CROSS JOIN LATERAL (
+        SELECT generate_series(
+            CAST(np.leto_zacetka AS INTEGER), 
+            CAST(np.leto_konca AS INTEGER)
+        ) as year_num
+    ) gs
+    WHERE gs.year_num BETWEEN 2008 AND EXTRACT(YEAR FROM CURRENT_DATE)
+),
 
+-- KORAK 3: IZRAČUN KOLIKO VALIDNIH NEPREMIČNIN JE V POSLU IN DELITEV NAJEMNINE S TEM ŠTEVILOM
+-- ==========================================================================================
 posel_stats AS (
     SELECT 
         posel_id,
-        COUNT(*) as stevilo_delov_stavb
-    FROM najemni_podatki
+        COUNT(DISTINCT (obcina, ime_ko, vrsta_nepremicnine)) as stevilo_delov_stavb
+    FROM najemni_podatki_po_letih
     GROUP BY posel_id
 ),
 
@@ -135,9 +161,27 @@ najemni_podatki_z_razdeljeno_najemnino AS (
             AND np.povrsina_uporabna > 5
             THEN (np.najemnina_osnovna / ps.stevilo_delov_stavb) / np.povrsina_uporabna
             ELSE NULL 
-        END as najemnina_m2
+        END as najemnina_m2,
         
-    FROM najemni_podatki np
+        -- PREVERJANJE ALI JE NAJEM AKTIVNEN V DOLOČENEM LETU
+        -- ==================================================
+        CASE 
+            WHEN np.leto_najema <= EXTRACT(YEAR FROM CURRENT_DATE)
+                AND (np.datum_zakljucka_najema IS NULL 
+                     OR np.leto_najema <= EXTRACT(YEAR FROM np.datum_zakljucka_najema))
+            THEN 1 
+            ELSE 0 
+        END as aktivna_v_letu,
+
+        -- PREVERJANJE ALI SE POSEL SKLENE V DOLOČENEM LETU
+        -- ===============================================
+        CASE 
+            WHEN EXTRACT(YEAR FROM np.datum_sklenitve) = np.leto_najema
+            THEN 1 
+            ELSE 0 
+        END as sklenjen_v_letu
+        
+    FROM najemni_podatki_po_letih np
     JOIN posel_stats ps ON np.posel_id = ps.posel_id
     JOIN vsi_deli_posla vdp ON np.posel_id = vdp.posel_id
     WHERE ps.stevilo_delov_stavb <= 15
@@ -165,7 +209,7 @@ SELECT
     -- ================
     vrsta_nepremicnine,
     'najem' as tip_posla,
-    leto_uveljavitve as leto,
+    leto_najema as leto, -- Zdaj uporabljamo leto_najema namesto leto_uveljavitve
 
     -- AGREGIRANE MERIKE (poenotena imena s prodajo)
     -- ===========================================
@@ -173,11 +217,14 @@ SELECT
     AVG(skupna_najemnina) as povprecna_skupna_cena,
     AVG(povrsina_uporabna) as povprecna_velikost_m2,
     AVG(starost_stavbe) as povprecna_starost_stavbe,
-    COUNT(*) as stevilo_poslov,
+    
+    -- ŠTEVILO POSLOV SKLENJENIH V DOLOČENEM LETU
+    -- ==========================================
+    SUM(sklenjen_v_letu) as stevilo_poslov,
     
     -- NAJEMNI SPECIFIČNI PODATKI
     -- ==========================
-    SUM(trenutno_aktivna) as trenutno_v_najemu,
+    SUM(aktivna_v_letu) as aktivna_v_letu, -- Aktivni najemi v določenem letu
     
     -- COUNT STATISTIKE
     -- ================
@@ -188,19 +235,17 @@ SELECT
     
 FROM najemni_podatki_z_razdeljeno_najemnino
 GROUP BY GROUPING SETS (
-    (ime_ko, vrsta_nepremicnine, leto_uveljavitve),     -- Katastrske občine
-    (obcina, vrsta_nepremicnine, leto_uveljavitve),     -- Občine  
-    (vrsta_nepremicnine, leto_uveljavitve)              -- Slovenija
+    (ime_ko, vrsta_nepremicnine, leto_najema),     -- Katastrske občine
+    (obcina, vrsta_nepremicnine, leto_najema),     -- Občine  
+    (vrsta_nepremicnine, leto_najema)              -- Slovenija
 ));
 
 -- =============================================================================
--- KREIRANJE INDEKSOV ZA OPTIMALNO PERFORMANCO
+-- KREIRANJE INDEKSOV
 -- =============================================================================
 
--- Univerzalni indeks za vse tipe regij
 CREATE INDEX idx_mv_najemne_universal 
 ON stats.mv_najemne_statistike(tip_regije, ime_regije, vrsta_nepremicnine, leto);
 
--- Indeks za poizvedbe po vrsti nepremičnine
 CREATE INDEX idx_mv_najemne_vrsta 
 ON stats.mv_najemne_statistike(vrsta_nepremicnine);

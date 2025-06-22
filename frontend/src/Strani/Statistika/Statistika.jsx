@@ -65,7 +65,11 @@ export default function Statistika() {
             if (!letaMap.has(d.leto)) {
                 letaMap.set(d.leto, { leto: d.leto, stanovanja: 0, hise: 0 });
             }
-            letaMap.get(d.leto).stanovanja = d.aktivnost?.stevilo_poslov || 0;
+
+            if(activeTab === 'najem')
+                letaMap.get(d.leto).stanovanja = d.aktivnost?.aktivna_v_letu || 0;
+            else
+                letaMap.get(d.leto).stanovanja = d.aktivnost?.stevilo_poslov || 0;
         });
 
         // Dodaj podatke za hiše
@@ -73,7 +77,11 @@ export default function Statistika() {
             if (!letaMap.has(d.leto)) {
                 letaMap.set(d.leto, { leto: d.leto, stanovanja: 0, hise: 0 });
             }
-            letaMap.get(d.leto).hise = d.aktivnost?.stevilo_poslov || 0;
+
+            if(activeTab === 'najem')
+                letaMap.get(d.leto).hise = d.aktivnost?.aktivna_v_letu || 0;
+            else
+                letaMap.get(d.leto).hise = d.aktivnost?.stevilo_poslov || 0;
         });
 
         // Pretvori v array in sortiraj
@@ -430,7 +438,7 @@ export default function Statistika() {
                                                                 </div>
                                                                 <div className="text-xl font-bold text-gray-800">
                                                                     {activeTab === 'najem' ?
-                                                                        (statisticsData[activeTab].stanovanje.zadnjih_12m.aktivnost.trenutno_v_najemu || 0) :
+                                                                        (statisticsData[activeTab].stanovanje.zadnjih_12m.aktivnost.aktivna_v_letu || 0) :
                                                                         (statisticsData[activeTab].stanovanje.zadnjih_12m.aktivnost.stevilo_poslov || 0)
                                                                     }
                                                                 </div>
@@ -503,7 +511,7 @@ export default function Statistika() {
                                                                 </div>
                                                                 <div className="text-xl font-bold text-gray-800">
                                                                     {activeTab === 'najem' ?
-                                                                        (statisticsData[activeTab].hisa.zadnjih_12m.aktivnost.trenutno_v_najemu || 0) :
+                                                                        (statisticsData[activeTab].hisa.zadnjih_12m.aktivnost.aktivna_v_letu || 0) :
                                                                         (statisticsData[activeTab].hisa.zadnjih_12m.aktivnost.stevilo_poslov || 0)
                                                                     }
                                                                 </div>

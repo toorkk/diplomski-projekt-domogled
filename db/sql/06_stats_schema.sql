@@ -17,7 +17,7 @@ CREATE TABLE stats.statistike_cache (
     
     -- OSNOVNE STATISTIKE
     stevilo_poslov INTEGER DEFAULT 0,
-    trenutno_v_najemu INTEGER DEFAULT 0, -- samo za najem
+    aktivna_v_letu INTEGER DEFAULT 0, -- samo za najem
     povprecna_velikost_m2 FLOAT,  -- uporabna povrsina
     povprecna_starost_stavbe FLOAT,
     
@@ -37,12 +37,3 @@ CREATE INDEX idx_statistike_cache_iskanje ON stats.statistike_cache(tip_regije, 
 CREATE INDEX idx_statistike_cache_regija ON stats.statistike_cache(ime_regije);
 CREATE INDEX idx_statistike_cache_obdobje ON stats.statistike_cache(tip_obdobja, leto);
 CREATE INDEX idx_statistike_cache_tip_posla ON stats.statistike_cache(tip_posla);
-
--- Komentarji za dokumentacijo
-COMMENT ON TABLE stats.statistike_cache IS 'Cache tabela za nepremičninske statistike - pokriva občine, katastrske občine in celo Slovenijo';
-COMMENT ON COLUMN stats.statistike_cache.tip_regije IS 'Tip regije: obcina, katastrska_obcina, slovenija';
-COMMENT ON COLUMN stats.statistike_cache.ime_regije IS 'Ime občine, katastrske občine ali "Slovenija"';
-COMMENT ON COLUMN stats.statistike_cache.tip_obdobja IS 'Tip obdobja: letno, zadnjih12m';
-COMMENT ON COLUMN stats.statistike_cache.cena_m2_count IS 'Število validnih podatkov za ceno/m² (samo prodaja)';
-COMMENT ON COLUMN stats.statistike_cache.najemnina_m2_count IS 'Število validnih podatkov za najemnino/m² (samo najem)';
-COMMENT ON COLUMN stats.statistike_cache.trenutno_v_najemu IS 'Število nepremičnin trenutno v najemu (samo najem)';

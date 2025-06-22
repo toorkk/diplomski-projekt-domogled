@@ -143,7 +143,7 @@ class StatisticsService:
                         },
                         "aktivnost": {
                             "stevilo_poslov": row.stevilo_poslov,
-                            "trenutno_v_najemu": row.trenutno_v_najemu
+                            "aktivna_v_letu": row.aktivna_v_letu
                         },
                         "lastnosti": {
                             "povprecna_velikost_m2": float(row.povprecna_velikost_m2) if row.povprecna_velikost_m2 else None,
@@ -181,7 +181,7 @@ class StatisticsService:
                     povprecna_cena_m2,
                     povprecna_skupna_cena,
                     stevilo_poslov,
-                    trenutno_v_najemu,
+                    aktivna_v_letu,
                     povprecna_velikost_m2,
                     povprecna_starost_stavbe
                 FROM stats.statistike_cache 
@@ -212,7 +212,7 @@ class StatisticsService:
                         "povprecna_cena_m2": float(row.povprecna_cena_m2) if row.povprecna_cena_m2 else None,
                         "povprecna_skupna_cena": float(row.povprecna_skupna_cena) if row.povprecna_skupna_cena else None,
                         "stevilo_poslov": row.stevilo_poslov,
-                        "trenutno_v_najemu": row.trenutno_v_najemu,
+                        "aktivna_v_letu": row.aktivna_v_letu,
                         "povprecna_velikost_m2": float(row.povprecna_velikost_m2) if row.povprecna_velikost_m2 else None,
                         "povprecna_starost_stavbe": row.povprecna_starost_stavbe
                     }
@@ -269,7 +269,7 @@ class StatisticsService:
             try:
                 logger.info("Polnim cache z vsemi statistikami...")
                 
-                sales_sql = get_sql_query('stats/populate_prodajne_statistike_cache.sql')
+                sales_sql = get_sql_query('stats/populate_statistike_cache.sql')
                 result = conn.execute(text(sales_sql))
                 logger.info(f"Vstavljena statistika: {result.rowcount} zapisov")
                 
