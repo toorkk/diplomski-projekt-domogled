@@ -1,5 +1,8 @@
 CREATE SCHEMA IF NOT EXISTS stats;
 
+DROP MATERIALIZED VIEW IF EXISTS stats.mv_najemne_statistike CASCADE;
+DROP MATERIALIZED VIEW IF EXISTS stats.mv_prodajne_statistike CASCADE;
+
 DROP TABLE IF EXISTS stats.statistike_cache CASCADE;
 CREATE TABLE stats.statistike_cache (
     id SERIAL PRIMARY KEY,
@@ -22,10 +25,8 @@ CREATE TABLE stats.statistike_cache (
     povprecna_starost_stavbe FLOAT,
     
     -- COUNT STATISTIKE (koliko validnih podatkov za vsako metriko)
-    cena_m2_count INTEGER DEFAULT 0,              -- za prodajo
-    najemnina_m2_count INTEGER DEFAULT 0,         -- za najem
-    skupna_cena_count INTEGER DEFAULT 0,          -- za prodajo
-    skupna_najemnina_count INTEGER DEFAULT 0,     -- za najem
+    cena_m2_count INTEGER DEFAULT 0,
+    skupna_cena_count INTEGER DEFAULT 0,
     velikost_m2_count INTEGER DEFAULT 0,
     starost_stavbe_count INTEGER DEFAULT 0,
         

@@ -1,8 +1,5 @@
 CREATE SCHEMA IF NOT EXISTS core;
 
-DROP MATERIALIZED VIEW IF EXISTS stats.mv_najemne_statistike CASCADE;
-DROP MATERIALIZED VIEW IF EXISTS stats.mv_prodajne_statistike CASCADE;
-
 DROP TABLE IF EXISTS core.np_del_stavbe CASCADE;
 CREATE TABLE core.np_del_stavbe (
   del_stavbe_id         SERIAL          PRIMARY KEY,
