@@ -5,6 +5,10 @@
 -- ki ima vsaj en zapis vrste 'stanovanje' ali 'hiša'
 -- =============================================================================
 
+SET work_mem = '512MB';
+SET maintenance_work_mem = '1GB';
+SET temp_buffers = '128MB';
+
 INSERT INTO core.kpp_del_stavbe_deduplicated (
     sifra_ko, stevilka_stavbe, stevilka_dela_stavbe, dejanska_raba, vrsta_nepremicnine,
     obcina, naselje, ulica, hisna_stevilka, dodatek_hs, stev_stanovanja,

@@ -22,8 +22,8 @@ class DeduplicationService:
             pool_pre_ping=True,
             pool_recycle=300,  # 5 minut
             connect_args={
-                "connect_timeout": 60,
-                "options": "-c statement_timeout=300000"  # 5 minut za SQL
+                "connect_timeout": 120,
+                "options": "-c statement_timeout=3600000 -c work_mem=512MB -c maintenance_work_mem=1GB"  # 1 ura
             }
         )   
     
