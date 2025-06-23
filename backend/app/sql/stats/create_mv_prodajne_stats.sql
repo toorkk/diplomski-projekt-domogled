@@ -144,7 +144,7 @@ SELECT
     END as tip_regije,
     
     CASE 
-        WHEN GROUPING(obcina, ime_ko) = 3 THEN 'Slovenija'
+        WHEN GROUPING(obcina, ime_ko) = 3 THEN 'SLOVENIJA'
         WHEN GROUPING(obcina) = 1 THEN ime_ko
         ELSE obcina
     END as ime_regije,

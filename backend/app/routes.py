@@ -503,9 +503,9 @@ def vse_statistike(
     - vse lastnosti
     
     Primer uporabe:
-    - GET /api/statistike/vse/LJUBLJANA
-    - GET /api/statistike/vse/LJUBLJANA?tip_regije=obcina
-    - GET /api/statistike/vse/slovenia?tip_regije=slovenija
+    - GET /api/statistike/vse/tip_regije/IME REGIJE
+    - GET /api/statistike/vse/obcina/LJUBLJANA
+    - GET /api/statistike/vse/slovenia/SLOVENIJA
     """
     try:
         # Validiraj tip regije

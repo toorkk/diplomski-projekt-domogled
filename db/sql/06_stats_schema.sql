@@ -8,7 +8,7 @@ CREATE TABLE stats.statistike_cache (
     id SERIAL PRIMARY KEY,
     
     tip_regije VARCHAR(20) NOT NULL, -- 'obcina', 'katastrska_obcina', 'slovenija'
-    ime_regije VARCHAR(100) NOT NULL, -- ime občine/KO ali 'Slovenija'
+    ime_regije VARCHAR(100) NOT NULL, -- ime občine/KO ali 'SLOVENIJA'
     vrsta_nepremicnine VARCHAR(20) NOT NULL, -- 'stanovanje', 'hisa'
     tip_posla VARCHAR(10) NOT NULL, -- 'prodaja', 'najem'
     tip_obdobja VARCHAR(15) NOT NULL, -- 'letno', 'zadnjih12m'

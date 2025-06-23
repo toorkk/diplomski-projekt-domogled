@@ -59,6 +59,8 @@ GET  /api/energetske-izkaznice/status
 POST /api/deduplication/ingest
 GET /api/deduplication/status
 
+POST /api/statistike/posodobi
+
 definicije vseh endpointov si lahko pogledas v http://localhost:8000/docs
 
 

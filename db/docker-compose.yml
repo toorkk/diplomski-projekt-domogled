@@ -3,7 +3,7 @@ services:
     build: .
     container_name: domogled-db
     environment:
-      POSTGRES_USER: postgres
+      POSTGRES_USER: domogledec # novo ime za bazo
       POSTGRES_PASSWORD: 7?7UZHuS7$F?ugM # novo geslo za bazo
       POSTGRES_DB: domogled
     volumes:
