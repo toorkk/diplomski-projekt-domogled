@@ -1,10 +1,9 @@
 // constants/mapConstants.js
 
 // API konfiguracija
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "https://domogled.up.railway.app";
+const API_BASE_URL = "https://domogled.up.railway.app";
 
 console.log("Environment check:", {
-    REACT_APP_API_BASE_URL: process.env.REACT_APP_API_BASE_URL,
     resolved_url: API_BASE_URL
 });
 

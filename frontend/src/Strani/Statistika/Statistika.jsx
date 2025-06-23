@@ -248,7 +248,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                 encodedName: encodeURIComponent(regionNameUpper)
             });
 
-            const response = await fetch(`http://localhost:8000/api/statistike/vse/${regionType}/${encodeURIComponent(regionNameUpper)}`);
+            const response = await fetch(`https://domogled.up.railway.app/api/statistike/vse/${regionType}/${encodeURIComponent(regionNameUpper)}`);
 
             console.log('API Response status:', response.status);
 

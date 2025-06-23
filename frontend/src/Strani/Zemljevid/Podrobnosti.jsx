@@ -16,7 +16,7 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
     const fetchPropertyDetails = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`http://localhost:8000/property-details/${propertyId}?data_source=${dataSource}`);
+        const response = await fetch(`https://domogled.up.railway.app/property-details/${propertyId}?data_source=${dataSource}`);
 
         if (!response.ok) {
           throw new Error(`HTTP error: ${response.status}`);
