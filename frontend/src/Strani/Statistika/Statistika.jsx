@@ -15,11 +15,10 @@ export default function Statistika({ selectedRegionFromNavigation }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    // POSODOBLJEN: Effect za avtomatsko nalaganje regije iz navigacije
+    // Effect za avtomatsko nalaganje regije iz navigacije
     useEffect(() => {
         if (selectedRegionFromNavigation) {
             const region = selectedRegionFromNavigation;
-            console.log('Received region from navigation:', region);
             
             if (region.type === 'katastrska_obcina') {
                 // Avtomatsko nastavi kataster
@@ -52,7 +51,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
     }, [selectedRegionFromNavigation]);
 
     // ===========================================
-    // DATA PROCESSING FUNCTIONS
+    // DATA PROCESSING FUNKCIJE
     // ===========================================
 
     const prepareChartData = () => {
@@ -241,16 +240,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
             // Pretvorimo ime regije v velike črke
             const regionNameUpper = regionName.toUpperCase();
 
-            console.log('Calling API with:', {
-                regionName: regionName,
-                regionNameUpper: regionNameUpper,
-                regionType: regionType,
-                encodedName: encodeURIComponent(regionNameUpper)
-            });
-
             const response = await fetch(`http://localhost:8000/api/statistike/vse/${regionType}/${encodeURIComponent(regionNameUpper)}`);
-
-            console.log('API Response status:', response.status);
 
             if (!response.ok) {
                 // Poskusi pridobiti error message iz response
@@ -302,8 +292,6 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                 municipalityName = municipalityName.split('(')[0].trim();
             }
 
-            console.log('Original municipality name:', municipalityData.name);
-            console.log('Cleaned municipality name:', municipalityName);
 
             // Fetch statistics for kataster (katastrska_obcina)
             fetchStatistics(municipalityName, 'katastrska_obcina');
@@ -344,6 +332,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                             selectedMunicipality={selectedMunicipality}
                             selectedObcina={selectedObcina}
                             selectedRegionFromNavigation={selectedRegionFromNavigation}
+                            activeTab={activeTab} // 🆕 Posreduj aktivni tab zemljevidu
                         />
                     </div>
 
@@ -384,6 +373,9 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                     <h3 className="text-lg font-medium mb-2">Izberi občino ali kataster</h3>
                                     <p className="text-sm">
                                         Klikni na zemljevid za prikaz statistik za {activeTab === 'najem' ? 'najem' : 'prodajo'}
+                                    </p>
+                                    <p className="text-xs text-gray-400 mt-2">
+                                        Občine so pobarvane glede na število {activeTab === 'najem' ? 'najemov' : 'prodaj'}
                                     </p>
                                 </div>
                             </div>

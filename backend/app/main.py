@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes import deduplication_status, energetske_izkaznice_status, fill_deduplicated_tables, get_property_details, ingest_data, ingest_energetske_izkaznice, ingestion_status, get_properties_geojson, get_cluster_properties, posodobi_statistike, splosne_statistike, statistike_status, vse_statistike
+from .routes import deduplication_status, energetske_izkaznice_status, fill_deduplicated_tables, get_property_details, ingest_data, ingest_energetske_izkaznice, ingestion_status, get_properties_geojson, get_cluster_properties, posodobi_statistike, splosne_statistike, statistike_status, vse_obcine_posli_2025, vse_statistike
 
 app = FastAPI(
     title="Domogled API",
@@ -34,6 +34,7 @@ app.post("/api/statistike/posodobi")(posodobi_statistike)
 app.get("/api/statistike/status")(statistike_status)
 app.get("/api/statistike/vse/{tip_regije}/{regija}")(vse_statistike)
 app.get("/api/statistike/splosne/{tip_regije}/{regija}")(splosne_statistike)
+app.get("/api/statistike/vse-obcine-posli-2025")(vse_obcine_posli_2025)  
 
 app.get("/properties/geojson")(get_properties_geojson)
 app.get("/property-details/{deduplicated_id}")(get_property_details)

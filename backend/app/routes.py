@@ -573,3 +573,28 @@ def splosne_statistike(
         raise  # Re-raise HTTP exceptions
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DB napaka: {str(e)}")
+    
+def vse_obcine_posli_2025():
+    """
+    Pridobi število poslov za leto 2025 za VSE občine
+    
+    Uporaba za pobarvanje zemljevida glede na aktivnost poslov
+    
+    Primer uporabe:
+    - GET /api/statistike/vse-obcine-posli-2025
+    """
+    try:
+        rezultat = stats_service.get_all_obcine_posli_2025()
+        
+        if rezultat["status"] == "error":
+            raise HTTPException(status_code=404, detail=rezultat["message"])
+        
+        return JSONResponse(
+            status_code=200,
+            content=rezultat
+        )
+        
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"DB napaka: {str(e)}")

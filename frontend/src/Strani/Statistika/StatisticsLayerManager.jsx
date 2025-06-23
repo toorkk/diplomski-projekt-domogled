@@ -13,14 +13,14 @@ class StatisticsLayerManager {
         this.map = map;
         this.selectedObcinaName = null; // Dodamo tracking za izbrano občino
         
-        // 🆕 Lista občin ki imajo katastre
+        // Lista občin ki imajo katastre
         this.OBCINE_Z_KATASTRI = ['LJUBLJANA', 'MARIBOR'];
         
-        // 🆕 Flag za force show katastrov
+        // Flag za prisilni prikaz katastrov
         this.forceShowMunicipalities = false;
     }
 
-    // Občine layers (for lower zoom levels)
+    // Dodaj sloje občin za nizke zoom nivoje
     addObcineLayers(obcineData) {
         if (this.map.getSource(SOURCE_IDS.OBCINE)) {
             console.log('Občine already loaded');
@@ -28,27 +28,27 @@ class StatisticsLayerManager {
         }
 
         try {
-            // Add source
+            // Dodaj podatkovni vir
             this.map.addSource(SOURCE_IDS.OBCINE, {
                 type: 'geojson',
                 data: obcineData
             });
 
-            // Add fill layer (invisible, for clicks)
+            // Dodaj fill sloj - nevidljiv, za klike
             this.map.addLayer({
                 id: LAYER_IDS.OBCINE.FILL,
                 type: 'fill',
                 source: SOURCE_IDS.OBCINE,
                 paint: {
-                    'fill-color': 'transparent',
-                    'fill-opacity': 0
+                    'fill-color': 'rgba(220, 220, 220, 0.3)',
+                    'fill-opacity': 1
                 },
                 layout: {
                     'visibility': 'visible'
                 }
             });
 
-            // Add outline layer with improved default styles
+            // Dodaj obrobe sloj z izboljšanimi privzetimi stili
             this.map.addLayer({
                 id: LAYER_IDS.OBCINE.OUTLINE,
                 type: 'line',
@@ -70,7 +70,7 @@ class StatisticsLayerManager {
         }
     }
 
-    // 🆕 Preverimo ali občina ima katastre
+    // Preveri ali občina ima katastre
     obcinaHasKatastre(obcinaName) {
         if (!obcinaName) return false;
         return this.OBCINE_Z_KATASTRI.includes(obcinaName.toUpperCase());
@@ -79,13 +79,13 @@ class StatisticsLayerManager {
     updateObcinaSelection(selectedObcinaId = null, selectedObcinaName = null) {
         if (!this.map.getLayer(LAYER_IDS.OBCINE.OUTLINE)) return;
 
-        // Shranimo ime izbrane občine za filtriranje katastrov
+        // Shrani ime izbrane občine za filtriranje katastrov
         this.selectedObcinaName = selectedObcinaName;
 
-        // 🆕 Nastavi force show flag če je izbrana občina z katastri
+        // Nastavi prisilni prikaz flag če je izbrana občina z katastri
         this.forceShowMunicipalities = this.obcinaHasKatastre(selectedObcinaName);
 
-        // Update outline style for selected občina
+        // Posodobi obrobni stil za izbrano občino
         this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-color', [
             'case',
             ['==', ['get', 'OB_ID'], selectedObcinaId || -1],
@@ -100,7 +100,7 @@ class StatisticsLayerManager {
             ZOOM_STYLES.OBCINE.DEFAULT_LINE_WIDTH
         ]);
 
-        // Update opacity for better visibility of selected
+        // Posodobi prosojnost za boljšo vidnost izbrane občine
         this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-opacity', [
             'case',
             ['==', ['get', 'OB_ID'], selectedObcinaId || -1],
@@ -108,7 +108,7 @@ class StatisticsLayerManager {
             ZOOM_STYLES.OBCINE.DEFAULT_OPACITY
         ]);
 
-        // Update click filter - disable clicks on selected občina
+        // Posodobi filter klikov - onemogoči klike na izbrano občino
         if (selectedObcinaId) {
             this.map.setFilter(LAYER_IDS.OBCINE.FILL, [
                 '!=', ['get', 'OB_ID'], selectedObcinaId
@@ -117,7 +117,7 @@ class StatisticsLayerManager {
             this.map.setFilter(LAYER_IDS.OBCINE.FILL, null);
         }
 
-        // 🆕 Filtriraj katastre samo če občina ima katastre
+        // Filtriraj katastre samo če občina ima katastre
         if (this.obcinaHasKatastre(selectedObcinaName)) {
             this.filterMunicipalitiesByObcina(selectedObcinaName);
         } else {
@@ -127,7 +127,7 @@ class StatisticsLayerManager {
         }
     }
 
-    // 🆕 Nova metoda za skrivanje katastrov
+    // Skrij katastre
     hideMunicipalities() {
         if (!this.map.getLayer(LAYER_IDS.MUNICIPALITIES.FILL)) return;
 
@@ -142,7 +142,7 @@ class StatisticsLayerManager {
         console.log('Municipalities hidden - občina nima katastrov');
     }
 
-    // Nova metoda za filtriranje katastrov glede na občino
+    // Filtriraj katastre glede na občino
     filterMunicipalitiesByObcina(obcinaName = null) {
         if (!this.map.getLayer(LAYER_IDS.MUNICIPALITIES.FILL)) return;
 
@@ -176,11 +176,11 @@ class StatisticsLayerManager {
         }
     }
 
-    // Update občina hover state
+    // Posodobi hover stanje občine
     updateObcinaHover(hoveredObcinaId = null) {
         if (!this.map.getLayer(LAYER_IDS.OBCINE.OUTLINE)) return;
 
-        // Update outline style for hovered občina
+        // Posodobi obrobni stil za hover občino
         this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-color', [
             'case',
             ['==', ['get', 'OB_ID'], hoveredObcinaId || -1],
@@ -203,12 +203,13 @@ class StatisticsLayerManager {
         ]);
     }
 
-    // 🔧 POPRAVLJENA metoda za kontrolo visibility
+    // Kontrola vidnosti slojev glede na zoom - odstranjena coloringLoaded referenca
     updateLayerVisibilityByZoom(currentZoom, forceShowMunicipalitiesParam = null, selectedObcinaName = null) {
         const showObcineLabels = currentZoom < ZOOM_LEVELS.OBCINE_THRESHOLD;
+        // Odstranjena nedefinirana coloringLoaded spremenljivka
         const showObcineFill = currentZoom < ZOOM_LEVELS.OBCINE_THRESHOLD;
         
-        // 🔧 Če je forceShowMunicipalitiesParam eksplicitno poslan, uporabi to
+        // Če je forceShowMunicipalitiesParam eksplicitno poslan, uporabi to
         // Sicer uporabi internal flag ali zoom logiko
         let shouldShowMunicipalities;
         
@@ -223,17 +224,17 @@ class StatisticsLayerManager {
                                      this.obcinaHasKatastre(selectedObcinaName || this.selectedObcinaName);
         }
 
-        // Control občine layers visibility
+        // Kontrola vidnosti slojev občin
         if (this.hasLayer(LAYER_IDS.OBCINE.FILL)) {
             this.map.setLayoutProperty(LAYER_IDS.OBCINE.FILL, 'visibility', showObcineFill ? 'visible' : 'none');
-            this.map.setLayoutProperty(LAYER_IDS.OBCINE.OUTLINE, 'visibility', 'visible'); // Always visible for context
+            this.map.setLayoutProperty(LAYER_IDS.OBCINE.OUTLINE, 'visibility', 'visible'); // Vedno vidne za kontekst
             
             if (this.hasLayer(LAYER_IDS.OBCINE.LABELS)) {
                 this.map.setLayoutProperty(LAYER_IDS.OBCINE.LABELS, 'visibility', showObcineLabels ? 'visible' : 'none');
             }
         }
 
-        // Control municipalities layers visibility
+        // Kontrola vidnosti slojev katastrov
         if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.FILL)) {
             this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'visibility', shouldShowMunicipalities ? 'visible' : 'none');
             this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'visibility', shouldShowMunicipalities ? 'visible' : 'none');
@@ -253,13 +254,13 @@ class StatisticsLayerManager {
         }
 
         try {
-            // Add source
+            // Dodaj podatkovni vir
             this.map.addSource(SOURCE_IDS.MUNICIPALITIES, {
                 type: 'geojson',
                 data: municipalitiesData
             });
 
-            // Add fill layer (invisible, for clicks)
+            // Dodaj fill sloj - nevidljiv, za klike
             this.map.addLayer({
                 id: LAYER_IDS.MUNICIPALITIES.FILL,
                 type: 'fill',
@@ -270,7 +271,7 @@ class StatisticsLayerManager {
                 }
             });
 
-            // Add outline layer with improved default styles
+            // Dodaj obrobe sloj z izboljšanimi privzetimi stili
             this.map.addLayer({
                 id: LAYER_IDS.MUNICIPALITIES.OUTLINE,
                 type: 'line',
@@ -292,7 +293,7 @@ class StatisticsLayerManager {
     updateMunicipalitySelection(selectedSifko = null) {
         if (!this.map.getLayer(LAYER_IDS.MUNICIPALITIES.OUTLINE)) return;
 
-        // Update outline style for selected municipality
+        // Posodobi obrobni stil za izbrani kataster
         this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-color', [
             'case',
             ['==', ['get', 'SIFKO'], selectedSifko || -1],
@@ -307,7 +308,7 @@ class StatisticsLayerManager {
             ZOOM_STYLES.MUNICIPALITIES.LINE_WIDTH
         ]);
 
-        // Update opacity for selected municipality
+        // Posodobi prosojnost za izbrani kataster
         this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-opacity', [
             'case',
             ['==', ['get', 'SIFKO'], selectedSifko || -1],
@@ -315,7 +316,7 @@ class StatisticsLayerManager {
             ZOOM_STYLES.MUNICIPALITIES.LINE_OPACITY
         ]);
 
-        // Update click filter za katastre - samo če ni izbrane občine
+        // Posodobi filter klikov za katastre - samo če ni izbrane občine
         if (selectedSifko && !this.selectedObcinaName) {
             this.map.setFilter(LAYER_IDS.MUNICIPALITIES.FILL, [
                 '!=', ['get', 'SIFKO'], selectedSifko
@@ -323,14 +324,14 @@ class StatisticsLayerManager {
         } else if (!this.selectedObcinaName) {
             this.map.setFilter(LAYER_IDS.MUNICIPALITIES.FILL, null);
         }
-        // Če je izbrana občina, pusti filter kot je (samo katastri te občine)
+        // Če je izbrana občina, pusti filter kot je - samo katastri te občine
     }
 
-    // Update municipality hover state
+    // Posodobi hover stanje katastra
     updateMunicipalityHover(hoveredSifko = null) {
         if (!this.map.getLayer(LAYER_IDS.MUNICIPALITIES.OUTLINE)) return;
 
-        // Update outline style for hovered municipality
+        // Posodobi obrobni stil za hover kataster
         this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-color', [
             'case',
             ['==', ['get', 'SIFKO'], hoveredSifko || -1],
@@ -353,14 +354,14 @@ class StatisticsLayerManager {
         ]);
     }
 
-    // Nova metoda za resetiranje filtrov
+    // Resetiraj filtre
     resetFilters() {
         this.selectedObcinaName = null;
-        this.forceShowMunicipalities = false; // 🆕 Resetiraj tudi force flag
+        this.forceShowMunicipalities = false; // Resetiraj tudi prisilni flag
         this.filterMunicipalitiesByObcina(null);
     }
 
-    // Utility method for removing layers and sources
+    // Pomožna metoda za odstranjevanje slojev in virov
     removeLayerAndSource(layerIds, sourceId) {
         const layersArray = Array.isArray(layerIds) ? layerIds : [layerIds];
         
@@ -375,31 +376,29 @@ class StatisticsLayerManager {
         }
     }
 
-    // Check if layer exists
     hasLayer(layerId) {
         return !!this.map.getLayer(layerId);
     }
 
-    // Check if source exists
     hasSource(sourceId) {
         return !!this.map.getSource(sourceId);
     }
 
-    // Cleanup all layers
+    // Počisti vse sloje
     cleanup() {
         console.log('StatisticsLayerManager: Starting cleanup...');
 
-        // Reset internal state
+        // Resetiraj stanje
         this.selectedObcinaName = null;
-        this.forceShowMunicipalities = false; // 🆕 Resetiraj tudi force flag
+        this.forceShowMunicipalities = false; // Resetiraj tudi prisilni flag
 
-        // Remove občine layers
+        // Odstrani sloje občin
         this.removeLayerAndSource(
             [LAYER_IDS.OBCINE.LABELS, LAYER_IDS.OBCINE.OUTLINE, LAYER_IDS.OBCINE.FILL],
             SOURCE_IDS.OBCINE
         );
 
-        // Remove municipalities layers
+        // Odstrani sloje katastrov
         this.removeLayerAndSource(
             [LAYER_IDS.MUNICIPALITIES.LABELS, LAYER_IDS.MUNICIPALITIES.OUTLINE, LAYER_IDS.MUNICIPALITIES.FILL],
             SOURCE_IDS.MUNICIPALITIES

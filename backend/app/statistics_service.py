@@ -12,7 +12,6 @@ class StatisticsService:
         self.db_url = db_url
         self.engine = create_engine(db_url)
 
-
     def refresh_all_statistics(self) -> Dict[str, Any]:
         """
         Napolni/posodobi vse statistike za vse regije
@@ -223,7 +222,116 @@ class StatisticsService:
             logger.error(f"Napaka pri pridobivanju splošnih statistik za regijo {regija}: {str(e)}")
             return {"status": "error", "message": str(e)}
 
-
+    # PREMAKNA ZNOTRAJ RAZREDA
+    def get_all_obcine_posli_2025(self) -> Dict[str, Any]:
+        """
+        Pridobi število poslov za leto 2025 za VSE občine
+        
+        Returns:
+            Dict s podatki za vse občine organizirane po imenih občin
+        """
+        try:
+            with self.engine.connect() as conn:
+                # QUERY z boljšim error handling-om
+                query = """
+                SELECT 
+                    ime_regije,
+                    tip_posla,
+                    vrsta_nepremicnine,
+                    SUM(stevilo_poslov) as skupaj_poslov
+                FROM stats.statistike_cache 
+                WHERE leto = :leto
+                    AND tip_regije = :tip_regije
+                GROUP BY ime_regije, tip_posla, vrsta_nepremicnine
+                ORDER BY ime_regije, tip_posla, vrsta_nepremicnine
+                """
+                
+                # Uporabi parametre namesto hardcoded vrednosti
+                result = conn.execute(
+                    text(query), 
+                    {
+                        "leto": 2025,
+                        "tip_regije": "obcina"
+                    }
+                )
+                rows = result.fetchall()
+                
+                logger.info(f"Found {len(rows)} rows for občine posli 2025")
+                
+                if not rows:
+                    # Preverimo ali obstaja tabela in podatki sploh
+                    test_query = "SELECT COUNT(*) as count FROM stats.statistike_cache LIMIT 1"
+                    test_result = conn.execute(text(test_query))
+                    table_exists = test_result.fetchone()
+                    
+                    if not table_exists:
+                        return {
+                            "status": "error",
+                            "message": "Tabela stats.statistike_cache ne obstaja"
+                        }
+                    
+                    # Preverimo katera leta imamo na voljo
+                    years_query = "SELECT DISTINCT leto FROM stats.statistike_cache ORDER BY leto"
+                    years_result = conn.execute(text(years_query))
+                    available_years = [row[0] for row in years_result.fetchall()]
+                    
+                    return {
+                        "status": "error", 
+                        "message": f"Podatki za leto 2025 niso najdeni za nobeno občino. Dostopna leta: {available_years}"
+                    }
+                
+                # Organizacija podatkov po občinah
+                obcine_data = {}
+                
+                for row in rows:
+                    obcina_name = row.ime_regije
+                    tip_posla = row.tip_posla
+                    vrsta_nep = row.vrsta_nepremicnine
+                    stevilo = row.skupaj_poslov or 0
+                    
+                    # Inicializiraj občino če še ne obstaja
+                    if obcina_name not in obcine_data:
+                        obcine_data[obcina_name] = {
+                            "name": obcina_name,
+                            "prodaja": {
+                                "stanovanje": 0,
+                                "hisa": 0,
+                                "skupaj": 0
+                            },
+                            "najem": {
+                                "stanovanje": 0,
+                                "hisa": 0,
+                                "skupaj": 0
+                            },
+                            "skupaj_vsi_posli": 0
+                        }
+                    
+                    # Preveri ali so ključi veljavni
+                    if tip_posla in obcine_data[obcina_name] and vrsta_nep in obcine_data[obcina_name][tip_posla]:
+                        # Dodaj podatke
+                        obcine_data[obcina_name][tip_posla][vrsta_nep] = stevilo
+                        obcine_data[obcina_name][tip_posla]["skupaj"] += stevilo
+                        obcine_data[obcina_name]["skupaj_vsi_posli"] += stevilo
+                    else:
+                        logger.warning(f"Neočakovan tip_posla: {tip_posla} ali vrsta_nepremicnine: {vrsta_nep}")
+                
+                logger.info(f"Successfully processed data for {len(obcine_data)} občin")
+                
+                return {
+                    "status": "success",
+                    "leto": 2025,
+                    "obcine_posli": obcine_data
+                }
+        
+        except Exception as e:
+            logger.error(f"Napaka pri pridobivanju poslov za vse občine 2025: {str(e)}")
+            logger.error(f"Error type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return {
+                "status": "error", 
+                "message": f"Database error: {str(e)} (Type: {type(e).__name__})"
+            }
 
 
     # POMOŽNE METODE

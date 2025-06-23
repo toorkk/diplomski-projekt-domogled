@@ -16,7 +16,7 @@ export const calculateBoundsFromGeometry = (geometry) => {
     return bounds;
 };
 
-// Municipality utilities
+// Kataster utilities
 export const getMunicipalityName = (municipalityFeature) => {
   const name = municipalityFeature.properties.NAZIV || municipalityFeature.properties.IMEKO;
   const code = municipalityFeature.properties.SIFKO;
