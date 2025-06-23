@@ -10,6 +10,8 @@ export const API_CONFIG = {
     }
 };
 
+console.log('API Base URL:', API_CONFIG.BASE_URL);
+
 // Maptiler konfiguracija
 export const MAP_CONFIG = {
     STYLE_URL: "https://api.maptiler.com/maps/0196d56b-a9a2-7fd7-90c8-96455f98e5e4/style.json?key=VxVsHKinUjiHiI3FPcfq",
