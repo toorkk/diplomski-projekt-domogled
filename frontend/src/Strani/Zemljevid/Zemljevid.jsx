@@ -67,6 +67,8 @@ export default function Zemljevid({ onNavigateToStatistics }) {
     const activeFiltersRef = useRef({});
     const selectedMunicipalityRef = useRef(null);
 
+    const isMobile = window.innerWidth <= 768;
+
     // Updejtanje ref ko se spremeni state
     useEffect(() => {
         dataSourceTypeRef.current = dataSourceType;
@@ -727,8 +729,9 @@ export default function Zemljevid({ onNavigateToStatistics }) {
                 attributionControl: false
             });
 
-            map.current.addControl(new maplibregl.NavigationControl(), UI_CONFIG.CONTROLS.POSITION);
-
+            if (!isMobile) {
+                map.current.addControl(new maplibregl.NavigationControl(), UI_CONFIG.CONTROLS.POSITION);
+            }
             map.current.on('load', () => {
                 styleMapControls();
                 layerManager.current = new LayerManager(map.current);
@@ -757,7 +760,7 @@ export default function Zemljevid({ onNavigateToStatistics }) {
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    zIndex: 0
+                    zIndex: 3
                 }}
             />
 

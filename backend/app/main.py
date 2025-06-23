@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes import deduplication_status, energetske_izkaznice_status, fill_deduplicated_tables, get_property_details, ingest_data, ingest_energetske_izkaznice, ingestion_status, get_properties_geojson, get_cluster_properties, posodobi_statistike, splosne_statistike, statistike_status, vse_obcine_posli_2025, vse_statistike
+from .routes import fill_deduplicated_tables, ingest_data, ingest_energetske_izkaznice, posodobi_statistike, splosne_statistike, vse_obcine_posli_2025, vse_statistike
 
 app = FastAPI(
     title="Domogled API",
@@ -12,7 +12,11 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173",                    # Lokalno
+        "https://domogled.vercel.app",      # Production
+        "https://*.vercel.app"                     # Vercel previews
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -22,24 +26,20 @@ app.add_middleware(
 ############
 
 app.post("/api/deli-stavb/ingest")(ingest_data)
-app.get("/api/deli-stavb/status")(ingestion_status)
 
 app.post("/api/deduplication/ingest")(fill_deduplicated_tables)
-app.get("/api/deduplication/status")(deduplication_status)
 
 app.post("/api/energetske-izkaznice/ingest")(ingest_energetske_izkaznice)
-app.get("/api/energetske-izkaznice/status")(energetske_izkaznice_status)
 
 app.post("/api/statistike/posodobi")(posodobi_statistike)
-app.get("/api/statistike/status")(statistike_status)
+
 app.get("/api/statistike/vse/{tip_regije}/{regija}")(vse_statistike)
 app.get("/api/statistike/splosne/{tip_regije}/{regija}")(splosne_statistike)
 app.get("/api/statistike/vse-obcine-posli-2025")(vse_obcine_posli_2025)  
 
-app.get("/properties/geojson")(get_properties_geojson)
-app.get("/property-details/{deduplicated_id}")(get_property_details)
-
-app.get("/cluster/{cluster_id}/properties")(get_cluster_properties)
+app.get("/properties/geojson")(get_del_stavbe_geojson)
+app.get("/property-details/{deduplicated_id}")(get_del_stavbe_details)
+app.get("/cluster/{cluster_id}/properties")(get_cluster_del_stavbe)
 
 
 ###############

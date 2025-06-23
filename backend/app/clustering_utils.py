@@ -30,7 +30,7 @@ def get_posel_model(data_source: str):
         return NpPosel
 
 
-def get_deduplicated_property_model(data_source: str):
+def get_deduplicated_del_stavbe_model(data_source: str):
     if data_source.lower() == "kpp":
         return KppDelStavbeDeduplicated
     else:
@@ -85,7 +85,7 @@ def serialize_list_to_json(objects):
         return []
     
 
-def apply_property_filters(query, DeduplicatedModel, filters: dict, data_source: str):
+def apply_del_stavbe_filters(query, DeduplicatedModel, filters: dict, data_source: str):
     """
     Dodaj filtre queryju
     """

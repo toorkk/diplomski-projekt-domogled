@@ -6,9 +6,7 @@ export default function Navbar({ activePage, onPageChange }) {
 
   const navItems = [
     { name: 'Zemljevid', key: 'zemljevid' },
-    { name: 'Primerjevalnik', key: 'primerjevalnik' },
     { name: 'Statistika', key: 'statistika' },
-    { name: 'Izračun', key: 'izracun' }
   ];
 
   // Detecta screen size
@@ -73,7 +71,7 @@ export default function Navbar({ activePage, onPageChange }) {
         {isMobile && (
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="p-2 text-gray-600 hover:text-gray-800 transition-colors"
+            className="p-2 text-gray-600 hover:text-gray-800 transition-colors ml-auto"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />

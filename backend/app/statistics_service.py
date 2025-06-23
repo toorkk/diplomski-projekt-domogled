@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 from sqlalchemy import create_engine, text
 from .logging_utils import setup_logger
 from .sql_utils import get_sql_query
@@ -186,7 +186,8 @@ class StatisticsService:
                 FROM stats.statistike_cache 
                 WHERE tip_regije = :tip_regije 
                   AND ime_regije = :regija
-                  AND tip_obdobja = 'zadnjih12m'
+                  AND tip_obdobja = 'letno'
+                  AND leto = 2025
                 ORDER BY tip_posla, vrsta_nepremicnine
                 """
                 

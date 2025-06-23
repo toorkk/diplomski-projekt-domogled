@@ -5,7 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .database import get_db, DATABASE_URL
-from .property_service import PropertyService
+from .zemljevid_service import DelStavbeService
 from .data_ingestion import DataIngestionService
 from .deduplication import DeduplicationService
 from .energetska_izkaznica_ingestion import EnergetskaIzkaznicaIngestionService
@@ -83,57 +83,32 @@ async def ingest_data(
         )
 
 
-
-async def ingestion_status():
-    """Preveri status vnosa podatkov"""
-    try:
-        if os.path.exists("data_ingestion.log"):
-            with open("data_ingestion.log", "r") as f:
-                last_lines = f.readlines()[-20:]
-        else:
-            last_lines = ["Vnos podatkov še ni bil zagnan."]
-        
-        return JSONResponse(
-            status_code=200,
-            content={
-                "status": "success",
-                "last_logs": last_lines
-            }
-        )
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"status": "error", "message": str(e)}
-        )
-
-
-
 async def fill_deduplicated_tables(
     background_tasks: BackgroundTasks,
-    data_type: str = Query(None, description="Tip podatkov (np, kpp, ali all za oba)")
+    data_type: str = Query(None, description="Tip podatkov (np, kpp, ali vsi za np + kpp)")
 ):
     """
     API endpoint za ustvarjanje deduplicirane tabele po končanem vnosu podatkov.
     Zaženi to ENKRAT po tem, ko so vsi podatki za vsa leta vnešeni.
     """
     try:
-        if data_type and data_type.lower() not in ["np", "kpp", "all"]:
+        if data_type and data_type.lower() not in ["np", "kpp", "vsi"]:
             return JSONResponse(
                 status_code=400,
-                content={"status": "error", "message": "Data type mora biti 'np', 'kpp' ali 'all'"}
+                content={"status": "error", "message": "Data type mora biti 'np', 'kpp' ali 'vsi' za np + kpp"}
             )
 
-        if data_type is None or data_type.lower() == "all":
+        if data_type is None or data_type.lower() == "vsi":
             # Obdelaj oba tipa podatkov
             background_tasks.add_task(
-                deduplication_service.create_all_deduplicated_properties,
+                deduplication_service.create_all_deduplicated_del_stavbe,
                 ["np", "kpp"]
             )
             message = "Dedupliciranje se je začelo za podatke NP in KPP"
         else:
             # Obdelaj en tip podatkov
             background_tasks.add_task(
-                deduplication_service.create_deduplicated_properties,
+                deduplication_service.create_deduplicated_del_stavbe,
                 data_type.lower()
             )
             message = f"Dedupliciranje se je začelo za podatke {data_type.upper()}"
@@ -143,41 +118,6 @@ async def fill_deduplicated_tables(
             content={
                 "status": "accepted",
                 "message": message,
-                "note": "Ta proces bo analiziral VSE letne podatke in ustvaril deduplicirane lastnosti za hiter prikaz na zemljevidu"
-            }
-        )
-
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"status": "error", "message": str(e)}
-        )
-
-
-
-async def deduplication_status(
-    data_type: str = Query(None, description="Tip podatkov (np, kpp, ali all)")
-):
-    """
-    API endpoint za pridobitev statistike deduplikacije.
-    """
-    try:
-        if data_type and data_type.lower() not in ["np", "kpp", "all"]:
-            return JSONResponse(
-                status_code=400,
-                content={"status": "error", "message": "Data type mora biti 'np', 'kpp' ali 'all'"}
-            )
-
-        if data_type and data_type.lower() != "all":
-            stats = deduplication_service.get_deduplication_stats(data_type.lower())
-        else:
-            stats = deduplication_service.get_deduplication_stats()
-
-        return JSONResponse(
-            status_code=200,
-            content={
-                "status": "success",
-                "deduplication_stats": stats
             }
         )
 
@@ -217,46 +157,12 @@ async def ingest_energetske_izkaznice(
             content={"status": "error", "message": str(e)}
         )
 
-async def energetske_izkaznice_status():
-    """Preveri status uvoza energetskih izkaznic"""
-    try:
-        # Preberi zadnje vrstice iz log datoteke
-        if os.path.exists("energetska_izkaznica_ingestion.log"):
-            with open("energetska_izkaznica_ingestion.log", "r", encoding='utf-8') as f:
-                last_lines = f.readlines()[-20:]
-        else:
-            last_lines = ["Uvoz energetskih izkaznic še ni bil zagnan."]
-        
-        # Preveri tudi število zapisov v bazi
-        try:
-            with ei_ingestion_service.engine.connect() as conn:
-                count = conn.execute(text("SELECT COUNT(*) FROM core.energetska_izkaznica")).scalar()
-        except:
-            count = 0
-        
-        return JSONResponse(
-            status_code=200,
-            content={
-                "status": "success",
-                "database_stats": {
-                    "total_records": count,
-                },
-                "last_logs": last_lines
-            }
-        )
-        
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"status": "error", "message": str(e)}
-        )
-    
 
 # =============================================================================
-# PROPERTY ENDPOINTI
+# DEL STAVBE ENDPOINTI
 # =============================================================================
 
-def get_properties_geojson(
+def get_del_stavbe_geojson(
     bbox: str = Query(..., description="Bounding box 'west,south,east,north'"),
     zoom: float = Query(default=10, description="Zoom level za clustering"),
     data_source: str = Query(default="np", description="Data source: 'np' za najemne 'kpp' za kupoprodajne"),
@@ -273,8 +179,8 @@ def get_properties_geojson(
 ):
     """
     Pridobi dele stavb trenutno vidne na ekranu:
-    - Če je podan sifko/municipality: Vrni VSE nepremičnine v tej občini (ignore bbox, samo building clustering)
-    - Sicer: Uporabi bbox z distance/building clustering
+    - DEPRECATED: Če je podan sifko/municipality: Vrni VSE nepremičnine v tej občini (ignore bbox, samo building clustering)
+    - VEDNO: Uporabi bbox z distance/building clustering
     
     Parameter data_source omogoča preklapljanje med različnimi viri podatkov:
     - 'np': najemni podatki (np_del_stavbe)
@@ -305,17 +211,13 @@ def get_properties_geojson(
         else:
             print("No filters applied")
         
-        # Če je podan sifko ali municipality, vrni VSE nepremičnine v tej občini
-        if sifko or municipality:
-            return PropertyService.get_municipality_all_properties(sifko, municipality, db, data_source, filters)
         
-        # Sicer uporabi stari sistem z bbox clustering
         cluster_threshold = 14.5
         
         if zoom >= cluster_threshold:
-            return PropertyService.get_building_clustered_properties(west, south, east, north, db, data_source, filters)
+            return DelStavbeService.get_building_clustered_del_stavbe(west, south, east, north, db, data_source, filters)
         else:
-            return PropertyService.get_distance_clustered_properties(west, south, east, north, zoom, db, data_source, filters)
+            return DelStavbeService.get_distance_clustered_del_stavbe(west, south, east, north, zoom, db, data_source, filters)
             
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"neveljavni parametri: {str(e)}")
@@ -323,7 +225,7 @@ def get_properties_geojson(
         raise HTTPException(status_code=500, detail=f"db error: {str(e)}")
     
 
-def get_property_details(
+def get_del_stavbe_details(
     deduplicated_id: int,
     data_source: str = Query(default="np", description="Data source: 'np' za najemne 'kpp' za kupoprodajne"),
     db: Session = Depends(get_db)
@@ -336,12 +238,12 @@ def get_property_details(
         if data_source.lower() not in ["np", "kpp"]:
             raise ValueError("data_source mora bit 'np' ali 'kpp'")
         
-        property_details = PropertyService.get_property_details(deduplicated_id, data_source, db)
+        del_stavbe_details = DelStavbeService.get_del_stavbe_details(deduplicated_id, data_source, db)
         
-        if not property_details:
-            raise HTTPException(status_code=404, detail="Property not found")
+        if not del_stavbe_details:
+            raise HTTPException(status_code=404, detail="Del stavbe ni bil najden")
         
-        return property_details
+        return del_stavbe_details
         
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"neveljavni parametri: {str(e)}")
@@ -355,7 +257,7 @@ def get_property_details(
 # CLUSTER ENDPOINTI  
 # =============================================================================
 
-def get_cluster_properties(
+def get_cluster_del_stavbe(
     cluster_id: str,
     data_source: str = Query(default="np", description="Data source: 'np' za najemne 'kpp' za kupoprodajne"),
     filter_leto: int = Query(None, description="Filter po letu posla (opcijsko)"),
@@ -366,10 +268,9 @@ def get_cluster_properties(
     db: Session = Depends(get_db)
 ):
     """
-    Pridobi vse nepremičnine ki spadajo pod določen building cluster z možnostjo filtriranja
+    Pridobi vse nepremičnine ki spadajo pod določen building cluster
     """
     try:
-        print(f"Received cluster_id: {cluster_id}")  # Debug
         
         if data_source.lower() not in ["np", "kpp"]:
             raise ValueError("data_source mora bit 'np' ali 'kpp'")
@@ -385,30 +286,21 @@ def get_cluster_properties(
             filters['min_povrsina'] = float(min_povrsina)
         if max_povrsina is not None:
             filters['max_povrsina'] = float(max_povrsina)
-
-        if filters:
-            print(f"Cluster {cluster_id} - filtri: {filters}")
-
-        # Debug logging
-        if filters:
-            print(f"Cluster {cluster_id} - filters: {filters}")
         
-        # Podporni samo building clustri
+
+        # Podporni samo Building cluster: b_obcina_sifra_ko_stevilka_stavbe
         if cluster_id.startswith('b_'):
-            # Building cluster: b_obcina_sifra_ko_stevilka_stavbe
+
             parts = cluster_id[2:].split('_')
-            print(f"Building cluster parts: {parts}")  # Debug
             
             if len(parts) >= 3:  # Spremenil iz 2 na 3 (obcina + sifra_ko + stevilka_stavbe)
-                obcina = parts[0]  # Nova
-                sifra_ko = int(parts[1])  # Spremenjeno iz parts[0]
-                stevilka_stavbe = int(parts[2])  # Spremenjeno iz parts[1]
+                obcina = parts[0]
+                sifra_ko = int(parts[1])
+                stevilka_stavbe = int(parts[2])                
+
+                return DelStavbeService.get_stavba_multicluster(obcina, sifra_ko, stevilka_stavbe, db, data_source, filters)
                 
-                print(f"Looking for obcina: {obcina}, sifra_ko: {sifra_ko}, stevilka_stavbe: {stevilka_stavbe}")  # Debug
-                
-                # Posreduj občino v PropertyService
-                return PropertyService.get_building_cluster_properties(obcina, sifra_ko, stevilka_stavbe, db, data_source, filters)
-                
+
         elif cluster_id.startswith('d_'):
             # Distance clustri niso podprti za expansion
             raise ValueError("Distance clustri ne podpirajo expansion funkcionalnosti")
@@ -419,7 +311,7 @@ def get_cluster_properties(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"neveljavni parametri: {str(e)}")
     except Exception as e:
-        print(f"Error in get_cluster_properties: {str(e)}")  # Debug
+        print(f"Error v get_cluster_del_stavbe: {str(e)}")
         raise HTTPException(status_code=500, detail=f"db error: {str(e)}")
     
 
@@ -446,39 +338,6 @@ async def posodobi_statistike(background_tasks: BackgroundTasks):
                 "sporocilo": "Posodabljanje vseh statistik se je začelo",
                 "regije": "vse",
                 "opomba": "Preveri status z GET /api/statistike/status"
-            }
-        )
-        
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"status": "napaka", "sporocilo": str(e)}
-        )
-
-
-async def statistike_status():
-    """
-    Status posodobitev statistik
-    
-    Primer uporabe:
-    - GET /api/statistike/status
-    """
-    try:
-        zadnji_log = []
-        if os.path.exists("statistics.log"):
-            with open("statistics.log", "r", encoding='utf-8') as f:
-                zadnji_log = f.readlines()[-15:]
-        else:
-            zadnji_log = ["Statistike še niso bile posodobljene."]
-        
-        status_info = stats_service.get_statistics_status()
-        
-        return JSONResponse(
-            status_code=200,
-            content={
-                "status": "uspeh",
-                "info_statistike": status_info,
-                "zadnji_log": zadnji_log
             }
         )
         
