@@ -27,7 +27,7 @@ class DeduplicationService:
             }
         )   
     
-    def create_deduplicated_properties(self, data_type: str):
+    def create_deduplicated_del_stavbe(self, data_type: str):
         """
         Ustvari deduplicirane lastnosti za prikaz na zemljevidu z uporabo VSEH podatkov vseh let.
         To naj se izvršuje ENKRAT potem, ko so vsa leta vnešena.
@@ -140,7 +140,7 @@ class DeduplicationService:
             logger.error(f"Napaka pri preverjanju rezultatov dedupliciranja: {str(e)}")
             # Ne sproži napake - to je samo preverjanje
     
-    def create_all_deduplicated_properties(self, data_types: list = None):
+    def create_all_deduplicated_del_stavbe(self, data_types: list = None):
         """
         Ustvari deduplicirane lastnosti za več tipov podatkov.
         """
@@ -155,7 +155,7 @@ class DeduplicationService:
             try:
                 logger.info("=" * 50)
                 logger.info(f"Obdelujem dedupliciranje za {data_type.upper()}")
-                self.create_deduplicated_properties(data_type)
+                self.create_deduplicated_del_stavbe(data_type)
             except Exception as e:
                 logger.error(f"Neuspešno ustvarjanje dedupliciranih lastnosti za {data_type}: {str(e)}")
                 # Nadaljuj z drugimi tipi podatkov, tudi če eden ne uspe
