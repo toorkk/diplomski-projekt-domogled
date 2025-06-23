@@ -1,15 +1,12 @@
 import { 
     CLUSTER_CONFIG, 
-    API_CONFIG,
     LAYER_IDS,
-    SOURCE_IDS 
 } from './MapConstants.jsx';
 import {
     buildClusterDetailsUrl,
     calculateClusterCenter,
     calculateExpansionRadius,
     getDataSourceType,
-    logClusterDebug,
     logPropertyArrangement,
     handleApiError
 } from './MapUtils.jsx';
