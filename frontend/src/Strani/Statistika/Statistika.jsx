@@ -329,15 +329,15 @@ export default function Statistika({ selectedRegionFromNavigation }) {
     // ===========================================
 
     return (
-        <div className="min-h-screen bg-gray-100 pt-16 pb-8 px-8">
+        <div className="min-h-screen bg-gray-100 lg:pt-16 lg:pb-8 lg:px-16">
             {/* Container za celoten dashboard */}
-            <div className="max-w-none mx-8">
+            <div className="max-w-none">
 
                 {/* Kombiniran container - zemljevid zgoraj, statistike spodaj, brez gapa */}
                 <div className="bg-white rounded-lg shadow-lg overflow-hidden">
 
                     {/* Zemljevid sekcija - zgoraj */}
-                    <div className="h-[600px]">
+                    <div className="h-[450px] lg:h-[600px]">
                         <StatisticsZemljevid
                             onMunicipalitySelect={handleMunicipalitySelect}
                             onObcinaSelect={handleObcinaSelect}

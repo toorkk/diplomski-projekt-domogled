@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 from sqlalchemy import create_engine, text
 from .logging_utils import setup_logger
 from .sql_utils import get_sql_query

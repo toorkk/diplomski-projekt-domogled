@@ -5,7 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .database import get_db, DATABASE_URL
-from .del_stavbe_service import DelStavbeService
+from .zemljevid_service import DelStavbeService
 from .data_ingestion import DataIngestionService
 from .deduplication import DeduplicationService
 from .energetska_izkaznica_ingestion import EnergetskaIzkaznicaIngestionService
@@ -83,31 +83,6 @@ async def ingest_data(
         )
 
 
-
-async def ingestion_status():
-    """Preveri status vnosa podatkov"""
-    try:
-        if os.path.exists("data_ingestion.log"):
-            with open("data_ingestion.log", "r") as f:
-                last_lines = f.readlines()[-20:]
-        else:
-            last_lines = ["Vnos podatkov še ni bil zagnan."]
-        
-        return JSONResponse(
-            status_code=200,
-            content={
-                "status": "success",
-                "last_logs": last_lines
-            }
-        )
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"status": "error", "message": str(e)}
-        )
-
-
-
 async def fill_deduplicated_tables(
     background_tasks: BackgroundTasks,
     data_type: str = Query(None, description="Tip podatkov (np, kpp, ali vsi za np + kpp)")
@@ -153,40 +128,6 @@ async def fill_deduplicated_tables(
         )
 
 
-
-async def deduplication_status(
-    data_type: str = Query(None, description="Tip podatkov (np, kpp, ali vsi)")
-):
-    """
-    API endpoint za pridobitev statistike deduplikacije.
-    """
-    try:
-        if data_type and data_type.lower() not in ["np", "kpp", "vsi"]:
-            return JSONResponse(
-                status_code=400,
-                content={"status": "error", "message": "Data type mora biti 'np', 'kpp' ali 'vsi'"}
-            )
-
-        if data_type and data_type.lower() != "vsi":
-            stats = deduplication_service.get_deduplication_stats(data_type.lower())
-        else:
-            stats = deduplication_service.get_deduplication_stats()
-
-        return JSONResponse(
-            status_code=200,
-            content={
-                "status": "success",
-                "deduplication_stats": stats
-            }
-        )
-
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"status": "error", "message": str(e)}
-        )
-
-
 async def ingest_energetske_izkaznice(
     background_tasks: BackgroundTasks,
     url: str = Query(None, description="Opcijski direktni URL do CSV datoteke")
@@ -216,40 +157,6 @@ async def ingest_energetske_izkaznice(
             content={"status": "error", "message": str(e)}
         )
 
-async def energetske_izkaznice_status():
-    """Preveri status uvoza energetskih izkaznic"""
-    try:
-        # Preberi zadnje vrstice iz log datoteke
-        if os.path.exists("energetska_izkaznica_ingestion.log"):
-            with open("energetska_izkaznica_ingestion.log", "r", encoding='utf-8') as f:
-                last_lines = f.readlines()[-20:]
-        else:
-            last_lines = ["Uvoz energetskih izkaznic še ni bil zagnan."]
-        
-        # Preveri tudi število zapisov v bazi
-        try:
-            with ei_ingestion_service.engine.connect() as conn:
-                count = conn.execute(text("SELECT COUNT(*) FROM core.energetska_izkaznica")).scalar()
-        except:
-            count = 0
-        
-        return JSONResponse(
-            status_code=200,
-            content={
-                "status": "success",
-                "database_stats": {
-                    "total_records": count,
-                },
-                "last_logs": last_lines
-            }
-        )
-        
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"status": "error", "message": str(e)}
-        )
-    
 
 # =============================================================================
 # DEL STAVBE ENDPOINTI
@@ -431,39 +338,6 @@ async def posodobi_statistike(background_tasks: BackgroundTasks):
                 "sporocilo": "Posodabljanje vseh statistik se je začelo",
                 "regije": "vse",
                 "opomba": "Preveri status z GET /api/statistike/status"
-            }
-        )
-        
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"status": "napaka", "sporocilo": str(e)}
-        )
-
-
-async def statistike_status():
-    """
-    Status posodobitev statistik
-    
-    Primer uporabe:
-    - GET /api/statistike/status
-    """
-    try:
-        zadnji_log = []
-        if os.path.exists("statistics.log"):
-            with open("statistics.log", "r", encoding='utf-8') as f:
-                zadnji_log = f.readlines()[-15:]
-        else:
-            zadnji_log = ["Statistike še niso bile posodobljene."]
-        
-        status_info = stats_service.get_statistics_status()
-        
-        return JSONResponse(
-            status_code=200,
-            content={
-                "status": "uspeh",
-                "info_statistike": status_info,
-                "zadnji_log": zadnji_log
             }
         )
         

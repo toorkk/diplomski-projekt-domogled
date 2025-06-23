@@ -17,7 +17,7 @@ export default function Switcher({ activeType, onChangeType }) {
   // Pozicioniranje glede na screen velikost
   const positionClasses = isMobile 
     ? 'absolute top-25 left-4 right-4' 
-    : 'absolute top-10 right-20';
+    : 'absolute top-7 right-4';
 
   return (
     <div 

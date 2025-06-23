@@ -51,7 +51,7 @@ export default function App() {
   };
 
   return (
-    <div className="relative w-screen h-screen">
+    <div className="relative w-full h-screen">
       <Navbar activePage={activePage} onPageChange={handlePageChange} />
       {renderPage()}
     </div>

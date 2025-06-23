@@ -64,15 +64,15 @@ class DelStavbeService:
         
         # 2. Python clustering po distance grid
         distance_groups = {}
-        for prop in all_del_stavbe:
+        for ds in all_del_stavbe:
             # Distance clustering - grid coordinates
-            cluster_x = int(prop.lng / resolution)
-            cluster_y = int(prop.lat / resolution)
-            cluster_key = f"{prop.obcina}_{cluster_x}_{cluster_y}"
+            cluster_x = int(ds.lng / resolution)
+            cluster_y = int(ds.lat / resolution)
+            cluster_key = f"{ds.obcina}_{cluster_x}_{cluster_y}"
             
             if cluster_key not in distance_groups:
                 distance_groups[cluster_key] = []
-            distance_groups[cluster_key].append(prop)
+            distance_groups[cluster_key].append(ds)
         
 
         # 3. Generiraj features
@@ -98,8 +98,8 @@ class DelStavbeService:
                 }
             else:
                 # distance multicluster
-                avg_lng = sum(float(p.lng) for p in del_stavbe) / len(del_stavbe)
-                avg_lat = sum(float(p.lat) for p in del_stavbe) / len(del_stavbe)
+                avg_lng = sum(float(ds.lng) for ds in del_stavbe) / len(del_stavbe)
+                avg_lat = sum(float(ds.lat) for ds in del_stavbe) / len(del_stavbe)
                 
                 first_ds = del_stavbe[0]
                 cluster_x = int(first_ds.lng / resolution)
@@ -171,13 +171,16 @@ class DelStavbeService:
                 feature = DelStavbeService._create_del_stavbe_feature_json(del_stavbe[0], data_source)
             else:
 
+                avg_lng = sum(float(p.lng) for p in del_stavbe) / len(del_stavbe)
+                avg_lat = sum(float(p.lat) for p in del_stavbe) / len(del_stavbe)
+
                 first_ds = del_stavbe[0]  # Vsi v isti stavbi imajo iste osnovne podatke
                 
                 feature = {
                     "type": "Feature",
                     "geometry": {
                         "type": "Point",
-                        "coordinates": [first_ds.lng, first_ds.lat]
+                        "coordinates": [avg_lng, avg_lat]
                     },
                     "properties": {
                         "type": "cluster",
@@ -539,7 +542,8 @@ class DelStavbeService:
                 if feature:
                     features.append(feature)
             else:
-                # Multi-point cluster
+                # Multicluster
+
                 feature = {
                     "type": "Feature",
                     "geometry": {
