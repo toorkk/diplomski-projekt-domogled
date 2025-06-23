@@ -94,11 +94,11 @@ export const SOURCE_IDS = {
     EXPANDED_PREFIX: 'expanded-'
 };
 
-// Zoom leveli za different data type
+// UPDATED: Zoom leveli za new logic
 export const ZOOM_LEVELS = {
-    OBCINE_THRESHOLD: 9,
-    MUNICIPALITY_DETAIL: 12, 
-    AUTO_LOAD_PROPERTIES: 11 
+    OBCINE_LABELS_THRESHOLD: 9,     // When to show občine labels
+    MUNICIPALITY_DETAIL: 11,        // When to show katastri for Ljubljana/Maribor
+    AUTO_LOAD_PROPERTIES: 11        // When to auto-load properties
 };
 
 // Zoom-dependent styling

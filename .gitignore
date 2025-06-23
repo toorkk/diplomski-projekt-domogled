@@ -27,4 +27,4 @@ venv/
 *.log
 
 #Vlke json datoteke
-frontend/src/Občine/*.json
+#frontend/src/Občine/*.json

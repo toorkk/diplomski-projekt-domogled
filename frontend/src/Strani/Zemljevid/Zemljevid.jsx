@@ -35,7 +35,7 @@ import {
 
 // Stili in JSON podatki (katastri, občine)
 import '../Stili/Zemljevid.css';
-import municipalitiesData from '../../Občine/KatObčine_z_obcinami.json';
+import municipalitiesData from '../../Občine/Katastri_Maribor_Ljubljana.json';
 import obcineData from '../../Občine/OB.json';
 
 export default function Zemljevid({ onNavigateToStatistics }) {
