@@ -2,11 +2,11 @@
 
 // API konfiguracija
 export const API_CONFIG = {
-    BASE_URL: 'http://localhost:8000',
+    BASE_URL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000',
     ENDPOINTS: {
         PROPERTIES: '/properties/geojson',
         CLUSTER_DETAILS: '/cluster',
-        STATISTICS: '/api/statistike/splosne' // NOVO: dodano za statistike
+        STATISTICS: '/api/statistike/splosne'
     }
 };
 
