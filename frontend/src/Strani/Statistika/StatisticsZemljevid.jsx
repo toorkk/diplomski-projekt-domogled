@@ -22,7 +22,7 @@ import {
 
 // Stili in JSON podatki (katastri, občine)
 import '../Stili/Zemljevid.css';
-import municipalitiesData from '../../Občine/KatObčine_z_obcinami.json';
+import municipalitiesData from '../../Občine/Katastri_Maribor_Ljubljana.json';
 import obcineData from '../../Občine/OB.json';
 
 export default function StatisticsZemljevid({ 
@@ -42,6 +42,15 @@ export default function StatisticsZemljevid({
     const [obcineLoaded, setObcineLoaded] = useState(false);
     const [hoveredRegion, setHoveredRegion] = useState(null);
     const [hoveredMunicipality, setHoveredMunicipality] = useState(null);
+
+    // 🆕 Lista občin z katastri
+    const OBCINE_Z_KATASTRI = ['LJUBLJANA', 'MARIBOR'];
+
+    // 🆕 Preverimo ali občina ima katastre
+    const obcinaHasKatastre = (obcinaName) => {
+        if (!obcinaName) return false;
+        return OBCINE_Z_KATASTRI.includes(obcinaName.toUpperCase());
+    };
 
     // ===========================================
     // NOVI EFFECTS ZA AVTOMATSKI ZOOM
@@ -77,7 +86,7 @@ export default function StatisticsZemljevid({
         }
     }, [selectedMunicipality, municipalitiesLoaded, selectedRegionFromNavigation, selectedObcina]);
 
-    // NOVO: Effect za avtomatski zoom ko je občina izbrana preko navigacije
+    // 🆕 POSODOBLJEN: Effect za avtomatski zoom ko je občina izbrana preko navigacije
     useEffect(() => {
         if (selectedObcina && obcineLoaded && layerManager.current && 
             selectedRegionFromNavigation?.autoZoomToRegion && 
@@ -94,8 +103,11 @@ export default function StatisticsZemljevid({
                 // Simuliraj click da se sproži zoom in gray out
                 const bounds = calculateBoundsFromGeometry(obcinaFeature.geometry);
                 
-                // 🚀 TAKOJ prikaži katastri - PRED zoom animacijo!
-                layerManager.current.updateLayerVisibilityByZoom(map.current.getZoom(), true);
+                // 🆕 Prikaži katastri SAMO če jih ima občina
+                const hasKatastre = obcinaHasKatastre(selectedObcina.name);
+                if (hasKatastre) {
+                    layerManager.current.updateLayerVisibilityByZoom(map.current.getZoom(), true, selectedObcina.name);
+                }
 
                 // Zoom to občina
                 map.current.fitBounds(bounds, {
@@ -179,6 +191,7 @@ export default function StatisticsZemljevid({
 
     }, [onMunicipalitySelect]);
 
+    // 🆕 POSODOBLJEN: Handle občina click glede na to ali ima katastre
     const handleObcinaClick = useCallback((obcinaFeature) => {
         if (!map.current || !obcinaFeature) return;
 
@@ -211,9 +224,16 @@ export default function StatisticsZemljevid({
             onObcinaSelect(obcinaData);
         }
 
-        // 🚀 TAKOJ prikaži katastri - PRED zoom animacijo!
+        // 🆕 Prikaži katastri SAMO če jih ima občina
+        const hasKatastre = obcinaHasKatastre(obcinaName);
         if (layerManager.current) {
-            layerManager.current.updateLayerVisibilityByZoom(map.current.getZoom(), true);
+            if (hasKatastre) {
+                // Prikaži katastri
+                layerManager.current.updateLayerVisibilityByZoom(map.current.getZoom(), true, obcinaName);
+            } else {
+                // Skrij katastri
+                layerManager.current.hideMunicipalities();
+            }
         }
 
         // Zoom to občina
@@ -313,7 +333,8 @@ export default function StatisticsZemljevid({
         map.current.setMaxBounds(null);
 
         if (layerManager.current) {
-            layerManager.current.updateLayerVisibilityByZoom(MAP_CONFIG.INITIAL_ZOOM, false);
+            // 🆕 Posodobi visibility z null občino
+            layerManager.current.updateLayerVisibilityByZoom(MAP_CONFIG.INITIAL_ZOOM, false, null);
         }
 
         map.current.flyTo({
@@ -460,7 +481,7 @@ export default function StatisticsZemljevid({
     }, [selectedMunicipality, handleMunicipalityClick]);
 
     // ===========================================
-    // ZOOM HANDLER 
+    // 🔧 POPRAVLJEN ZOOM HANDLER 
     // ===========================================
 
     const setupZoomHandler = () => {
@@ -468,7 +489,16 @@ export default function StatisticsZemljevid({
             const currentZoom = map.current.getZoom();
 
             if (layerManager.current) {
-                layerManager.current.updateLayerVisibilityByZoom(currentZoom);
+                // 🔧 KLJUČNA POPRAVKA: Ko je občina izbrana, ne spreminjaj visibility!
+                // Pošlji null kot force parameter da ne prepiše obstoječega stanja
+                if (selectedObcina) {
+                    console.log('Zoom ended, but občina is selected - keeping current municipality visibility');
+                    // Ne pokliči updateLayerVisibilityByZoom da ne povozi force flag!
+                    return;
+                } else {
+                    // Samo če ni nobene občine izbrane, uporabi normalno zoom logiko
+                    layerManager.current.updateLayerVisibilityByZoom(currentZoom, null, null);
+                }
             }
         };
 
@@ -560,7 +590,7 @@ export default function StatisticsZemljevid({
                 layerManager.current = new LayerManager(map.current);
                 loadObcine();
                 loadMunicipalities();
-                layerManager.current.updateLayerVisibilityByZoom(MAP_CONFIG.INITIAL_ZOOM);
+                layerManager.current.updateLayerVisibilityByZoom(MAP_CONFIG.INITIAL_ZOOM, false, null);
                 setupZoomHandler(); // Ponovno dodano za layer visibility
             });
         }
@@ -600,8 +630,9 @@ export default function StatisticsZemljevid({
                 </div>
             )}
 
-            {/* Hover preview box za katastrske občine */}
-            {hoveredMunicipality && selectedObcina && !selectedMunicipality && (
+            {/* 🆕 Hover preview box za katastrske občine - SAMO če ima občina katastre */}
+            {hoveredMunicipality && selectedObcina && !selectedMunicipality && 
+             obcinaHasKatastre(selectedObcina.name) && (
                 <div className="absolute bottom-16 right-4 z-20 bg-white/95 backdrop-blur-sm rounded-lg shadow-md border border-gray-200 px-3 py-2">
                     <div className="flex items-center space-x-2">
                         <span className="text-xs text-gray-500 font-medium">
@@ -626,6 +657,12 @@ export default function StatisticsZemljevid({
                                         : `Občina: ${selectedObcina.name}`
                                     }
                                 </span>
+                                {/* 🆕 Indikator za občine brez katastrov */}
+                                {selectedObcina && !obcinaHasKatastre(selectedObcina.name) && (
+                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                                        Brez katastrov
+                                    </span>
+                                )}
                             </div>
                         </div>
                         <button

@@ -20,15 +20,15 @@ class LayerManager {
         /* 
          * LAYER Z-ORDER HIERARCHY (bottom to top):
          * 1. Base map
-         * 2. Municipalities (katastrske občine) - fill, outline, labels
-         * 3. Občine - fill, outline, labels (ABOVE municipalities for context)
+         * 2. Občine - fill, outline, labels (ALWAYS visible for context)
+         * 3. Municipalities (katastrske občine) - fill, outline, labels (ONLY for Ljubljana/Maribor)
          * 4. Properties - circles, text
          * 5. Clusters - circles, count
          * 6. Expanded properties - circles, text
          */
     }
 
-    // Občine layers (for lower zoom levels)
+    // Občine layers (ALWAYS visible)
     addObcineLayers(obcineData) {
         if (this.map.getSource(SOURCE_IDS.OBCINE)) {
             console.log('Občine already loaded');
@@ -56,7 +56,7 @@ class LayerManager {
                 }
             });
 
-            // Add outline layer with improved default styles
+            // Add outline layer - ALWAYS visible
             this.map.addLayer({
                 id: LAYER_IDS.OBCINE.OUTLINE,
                 type: 'line',
@@ -89,23 +89,21 @@ class LayerManager {
             COLOR_SCHEME.OBCINA.DEFAULT
         ]);
 
-        // POPRAVKA: Fiksne line-width vrednosti brez zoom expressions
         this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-width', [
             'case',
             ['==', ['get', 'OB_ID'], selectedObcinaId || -1],
-            3.0,  // Fiksna selected line width
-            1.2   // Fiksna default line width
+            3.0,  // Selected line width
+            1.2   // Default line width
         ]);
 
-        // Update opacity for better visibility of selected
         this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-opacity', [
             'case',
             ['==', ['get', 'OB_ID'], selectedObcinaId || -1],
-            1.0,  // Popolna vidnost za selected
-            0.6   // Fiksna default opacity
+            1.0,  // Selected opacity
+            0.6   // Default opacity
         ]);
 
-        // Update click filter - disable clicks on selected občina, but only control the fill layer
+        // Update click filter
         if (selectedObcinaId) {
             this.map.setFilter(LAYER_IDS.OBCINE.FILL, [
                 '!=', ['get', 'OB_ID'], selectedObcinaId
@@ -115,11 +113,9 @@ class LayerManager {
         }
     }
 
-    // POPRAVLJENA: Update občina hover state z fiksnimi vrednostmi
     updateObcinaHover(hoveredObcinaId = null) {
         if (!this.map.getLayer(LAYER_IDS.OBCINE.OUTLINE)) return;
 
-        // Update outline style for hovered občina
         this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-color', [
             'case',
             ['==', ['get', 'OB_ID'], hoveredObcinaId || -1],
@@ -127,57 +123,33 @@ class LayerManager {
             COLOR_SCHEME.OBCINA.DEFAULT
         ]);
 
-        // POPRAVKA: Fiksne line-width vrednosti brez zoom expressions
         this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-width', [
             'case',
             ['==', ['get', 'OB_ID'], hoveredObcinaId || -1],
-            2.5,  // Fiksna hover line width
-            1.2   // Fiksna default line width
+            2.5,  // Hover line width
+            1.2   // Default line width
         ]);
 
-        // POPRAVKA: Fiksne opacity vrednosti brez zoom expressions
         this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-opacity', [
             'case',
             ['==', ['get', 'OB_ID'], hoveredObcinaId || -1],
-            0.9,  // Fiksna hover opacity
-            0.6   // Fiksna default opacity
+            0.9,  // Hover opacity
+            0.6   // Default opacity
         ]);
     }
 
-    // Control visibility based on zoom level
-    updateLayerVisibilityByZoom(currentZoom) {
-        const showObcineLabels = currentZoom < ZOOM_LEVELS.OBCINE_THRESHOLD;
-        const showObcineFill = currentZoom < ZOOM_LEVELS.OBCINE_THRESHOLD; // Only allow clicks when zoomed out
-        const showMunicipalities = currentZoom >= ZOOM_LEVELS.OBCINE_THRESHOLD;
-
-        // Control občine layers visibility
-        if (this.hasLayer(LAYER_IDS.OBCINE.FILL)) {
-            // Fill layer (for clicks) - only when zoomed out
-            this.map.setLayoutProperty(LAYER_IDS.OBCINE.FILL, 'visibility', showObcineFill ? 'visible' : 'none');
-            
-            // Outline layer - ALWAYS visible for context
-            this.map.setLayoutProperty(LAYER_IDS.OBCINE.OUTLINE, 'visibility', 'visible');
-            
-            // Labels layer - only if it exists
-            if (this.hasLayer(LAYER_IDS.OBCINE.LABELS)) {
-                this.map.setLayoutProperty(LAYER_IDS.OBCINE.LABELS, 'visibility', showObcineLabels ? 'visible' : 'none');
-            }
-        }
-
-        // Control municipalities layers visibility
-        if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.FILL)) {
-            this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'visibility', showMunicipalities ? 'visible' : 'none');
-            this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'visibility', showMunicipalities ? 'visible' : 'none');
-            
-            // Labels layer - only if it exists
-            if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.LABELS)) {
-                this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.LABELS, 'visibility', showMunicipalities ? 'visible' : 'none');
-            }
-        }
-
-        console.log(`Zoom ${currentZoom}: Občine outline always visible, labels ${showObcineLabels ? 'visible' : 'hidden'}, fill ${showObcineFill ? 'clickable' : 'disabled'}, Municipalities ${showMunicipalities ? 'visible' : 'hidden'}`);
+    // NEW: Filter municipalities data to only include Ljubljana and Maribor
+    filterMunicipalitiesForSpecificObcine(municipalitiesData) {
+        return {
+            ...municipalitiesData,
+            features: municipalitiesData.features.filter(feature => {
+                const obcina = feature.properties.OBCINA;
+                return obcina === 'LJUBLJANA' || obcina === 'MARIBOR';
+            })
+        };
     }
-    
+
+    // Municipalities layers (ONLY for Ljubljana and Maribor)
     addMunicipalitiesLayers(municipalitiesData) {
         if (this.map.getSource(SOURCE_IDS.MUNICIPALITIES)) {
             console.log('Municipalities already loaded');
@@ -185,10 +157,15 @@ class LayerManager {
         }
 
         try {
-            // Add source
+            // Filter data to only include Ljubljana and Maribor katastri
+            const filteredData = this.filterMunicipalitiesForSpecificObcine(municipalitiesData);
+            
+            console.log(`Filtered municipalities: ${filteredData.features.length} out of ${municipalitiesData.features.length} total`);
+
+            // Add source with filtered data
             this.map.addSource(SOURCE_IDS.MUNICIPALITIES, {
                 type: 'geojson',
-                data: municipalitiesData
+                data: filteredData
             });
 
             // Add fill layer (invisible, for clicks)
@@ -199,10 +176,13 @@ class LayerManager {
                 paint: {
                     'fill-color': 'transparent',
                     'fill-opacity': 0
+                },
+                layout: {
+                    'visibility': 'visible'
                 }
             });
 
-            // Add outline layer with improved default styles
+            // Add outline layer - ALWAYS visible when katastri are loaded
             this.map.addLayer({
                 id: LAYER_IDS.MUNICIPALITIES.OUTLINE,
                 type: 'line',
@@ -211,20 +191,51 @@ class LayerManager {
                     'line-color': COLOR_SCHEME.MUNICIPALITY.DEFAULT,
                     'line-width': ZOOM_STYLES.MUNICIPALITIES.LINE_WIDTH,
                     'line-opacity': ZOOM_STYLES.MUNICIPALITIES.LINE_OPACITY
+                },
+                layout: {
+                    'visibility': 'visible'
                 }
             });
 
-            console.log('Municipalities layers added successfully');
+            console.log('Municipalities layers added successfully (Ljubljana & Maribor only)');
         } catch (error) {
             console.error('Error adding municipalities layers:', error);
             throw error;
         }
     }
 
+    // NEW: Updated visibility logic - občine always visible, katastri for Ljubljana/Maribor always visible when zoom is high enough
+    updateLayerVisibilityByZoom(currentZoom) {
+        // Občine are ALWAYS visible
+        if (this.hasLayer(LAYER_IDS.OBCINE.FILL)) {
+            this.map.setLayoutProperty(LAYER_IDS.OBCINE.FILL, 'visibility', 'visible');
+            this.map.setLayoutProperty(LAYER_IDS.OBCINE.OUTLINE, 'visibility', 'visible');
+            
+            // Labels only at lower zoom levels
+            if (this.hasLayer(LAYER_IDS.OBCINE.LABELS)) {
+                const showObcineLabels = currentZoom < ZOOM_LEVELS.OBCINE_THRESHOLD;
+                this.map.setLayoutProperty(LAYER_IDS.OBCINE.LABELS, 'visibility', showObcineLabels ? 'visible' : 'none');
+            }
+        }
+
+        // Katastri (municipalities) visible when zoom is high enough for detail
+        const showMunicipalities = currentZoom >= ZOOM_LEVELS.MUNICIPALITY_DETAIL;
+        
+        if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.FILL)) {
+            this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'visibility', showMunicipalities ? 'visible' : 'none');
+            this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'visibility', showMunicipalities ? 'visible' : 'none');
+            
+            if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.LABELS)) {
+                this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.LABELS, 'visibility', showMunicipalities ? 'visible' : 'none');
+            }
+        }
+
+        console.log(`Zoom ${currentZoom}: Občine always visible, Katastri (Ljubljana/Maribor) ${showMunicipalities ? 'visible' : 'hidden'}`);
+    }
+
     updateMunicipalitySelection(selectedSifko = null) {
         if (!this.map.getLayer(LAYER_IDS.MUNICIPALITIES.OUTLINE)) return;
 
-        // POPRAVKA: Uporabi fiksne vrednosti namesto createMunicipalityOutlineStyle
         this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-color', [
             'case',
             ['==', ['get', 'SIFKO'], selectedSifko || -1],
@@ -235,16 +246,15 @@ class LayerManager {
         this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-width', [
             'case',
             ['==', ['get', 'SIFKO'], selectedSifko || -1],
-            2.5,  // Fiksna selected line width
-            1.0   // Fiksna default line width
+            2.5,  // Selected line width
+            1.0   // Default line width
         ]);
 
-        // Update opacity for selected municipality
         this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-opacity', [
             'case',
             ['==', ['get', 'SIFKO'], selectedSifko || -1],
-            1.0,  // Popolna vidnost za selected
-            0.7   // Fiksna default opacity
+            1.0,  // Selected opacity
+            0.7   // Default opacity
         ]);
 
         // Update click filter
@@ -257,11 +267,9 @@ class LayerManager {
         }
     }
 
-    // POPRAVLJENA: Update municipality hover state z fiksnimi vrednostmi
     updateMunicipalityHover(hoveredSifko = null) {
         if (!this.map.getLayer(LAYER_IDS.MUNICIPALITIES.OUTLINE)) return;
 
-        // Update outline style for hovered municipality
         this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-color', [
             'case',
             ['==', ['get', 'SIFKO'], hoveredSifko || -1],
@@ -269,20 +277,18 @@ class LayerManager {
             COLOR_SCHEME.MUNICIPALITY.DEFAULT
         ]);
 
-        // POPRAVKA: Fiksne line-width vrednosti brez zoom expressions
         this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-width', [
             'case',
             ['==', ['get', 'SIFKO'], hoveredSifko || -1],
-            2.0,  // Fiksna hover line width
-            1.0   // Fiksna default line width
+            2.0,  // Hover line width
+            1.0   // Default line width
         ]);
 
-        // POPRAVKA: Fiksne opacity vrednosti brez zoom expressions
         this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-opacity', [
             'case',
             ['==', ['get', 'SIFKO'], hoveredSifko || -1],
-            1.0,  // Fiksna hover opacity
-            0.7   // Fiksna default opacity
+            1.0,  // Hover opacity
+            0.7   // Default opacity
         ]);
     }
 
@@ -516,14 +522,14 @@ class LayerManager {
     cleanup() {
         console.log('LayerManager: Starting cleanup...');
 
-        // Remove občine layers - only cleanup existing layers
+        // Remove občine layers
         const obcineLayers = [LAYER_IDS.OBCINE.FILL, LAYER_IDS.OBCINE.OUTLINE];
         if (this.hasLayer(LAYER_IDS.OBCINE.LABELS)) {
             obcineLayers.push(LAYER_IDS.OBCINE.LABELS);
         }
         this.removeLayerAndSource(obcineLayers, SOURCE_IDS.OBCINE);
 
-        // Remove municipalities layers - only cleanup existing layers  
+        // Remove municipalities layers  
         const municipalityLayers = [LAYER_IDS.MUNICIPALITIES.FILL, LAYER_IDS.MUNICIPALITIES.OUTLINE];
         if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.LABELS)) {
             municipalityLayers.push(LAYER_IDS.MUNICIPALITIES.LABELS);

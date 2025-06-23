@@ -12,6 +12,12 @@ class StatisticsLayerManager {
     constructor(map) {
         this.map = map;
         this.selectedObcinaName = null; // Dodamo tracking za izbrano občino
+        
+        // 🆕 Lista občin ki imajo katastre
+        this.OBCINE_Z_KATASTRI = ['LJUBLJANA', 'MARIBOR'];
+        
+        // 🆕 Flag za force show katastrov
+        this.forceShowMunicipalities = false;
     }
 
     // Občine layers (for lower zoom levels)
@@ -64,11 +70,20 @@ class StatisticsLayerManager {
         }
     }
 
+    // 🆕 Preverimo ali občina ima katastre
+    obcinaHasKatastre(obcinaName) {
+        if (!obcinaName) return false;
+        return this.OBCINE_Z_KATASTRI.includes(obcinaName.toUpperCase());
+    }
+
     updateObcinaSelection(selectedObcinaId = null, selectedObcinaName = null) {
         if (!this.map.getLayer(LAYER_IDS.OBCINE.OUTLINE)) return;
 
         // Shranimo ime izbrane občine za filtriranje katastrov
         this.selectedObcinaName = selectedObcinaName;
+
+        // 🆕 Nastavi force show flag če je izbrana občina z katastri
+        this.forceShowMunicipalities = this.obcinaHasKatastre(selectedObcinaName);
 
         // Update outline style for selected občina
         this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-color', [
@@ -102,26 +117,60 @@ class StatisticsLayerManager {
             this.map.setFilter(LAYER_IDS.OBCINE.FILL, null);
         }
 
-        // Filtriraj katastre glede na izbrano občino
-        this.filterMunicipalitiesByObcina(selectedObcinaName);
+        // 🆕 Filtriraj katastre samo če občina ima katastre
+        if (this.obcinaHasKatastre(selectedObcinaName)) {
+            this.filterMunicipalitiesByObcina(selectedObcinaName);
+        } else {
+            // Če občina nima katastrov, jih skrij
+            this.hideMunicipalities();
+            this.forceShowMunicipalities = false;
+        }
+    }
+
+    // 🆕 Nova metoda za skrivanje katastrov
+    hideMunicipalities() {
+        if (!this.map.getLayer(LAYER_IDS.MUNICIPALITIES.FILL)) return;
+
+        // Skrij vse katastre
+        this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'visibility', 'none');
+        this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'visibility', 'none');
+        
+        if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.LABELS)) {
+            this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.LABELS, 'visibility', 'none');
+        }
+
+        console.log('Municipalities hidden - občina nima katastrov');
     }
 
     // Nova metoda za filtriranje katastrov glede na občino
     filterMunicipalitiesByObcina(obcinaName = null) {
         if (!this.map.getLayer(LAYER_IDS.MUNICIPALITIES.FILL)) return;
 
-        if (obcinaName) {
+        if (obcinaName && this.obcinaHasKatastre(obcinaName)) {
             // Prikaži samo katastre ki spadajo pod izbrano občino
             const filter = ['==', ['get', 'OBCINA'], obcinaName.toUpperCase()];
             
             this.map.setFilter(LAYER_IDS.MUNICIPALITIES.FILL, filter);
             this.map.setFilter(LAYER_IDS.MUNICIPALITIES.OUTLINE, filter);
             
+            // Prikaži sloje
+            this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'visibility', 'visible');
+            this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'visibility', 'visible');
+            
+            if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.LABELS)) {
+                this.map.setFilter(LAYER_IDS.MUNICIPALITIES.LABELS, filter);
+                this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.LABELS, 'visibility', 'visible');
+            }
+            
             console.log(`Municipalities filtered for občina: ${obcinaName}`);
         } else {
-            // Prikaži vse katastre
+            // Prikaži vse katastre ali jih skrij
             this.map.setFilter(LAYER_IDS.MUNICIPALITIES.FILL, null);
             this.map.setFilter(LAYER_IDS.MUNICIPALITIES.OUTLINE, null);
+            
+            if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.LABELS)) {
+                this.map.setFilter(LAYER_IDS.MUNICIPALITIES.LABELS, null);
+            }
             
             console.log('Municipality filters cleared');
         }
@@ -154,11 +203,25 @@ class StatisticsLayerManager {
         ]);
     }
 
-    // Control visibility based on zoom level
-    updateLayerVisibilityByZoom(currentZoom, forceShowMunicipalities = false) {
+    // 🔧 POPRAVLJENA metoda za kontrolo visibility
+    updateLayerVisibilityByZoom(currentZoom, forceShowMunicipalitiesParam = null, selectedObcinaName = null) {
         const showObcineLabels = currentZoom < ZOOM_LEVELS.OBCINE_THRESHOLD;
         const showObcineFill = currentZoom < ZOOM_LEVELS.OBCINE_THRESHOLD;
-        const showMunicipalities = currentZoom >= ZOOM_LEVELS.OBCINE_THRESHOLD || forceShowMunicipalities;
+        
+        // 🔧 Če je forceShowMunicipalitiesParam eksplicitno poslan, uporabi to
+        // Sicer uporabi internal flag ali zoom logiko
+        let shouldShowMunicipalities;
+        
+        if (forceShowMunicipalitiesParam !== null) {
+            // Eksplicitni parameter - nastavi tudi internal flag
+            this.forceShowMunicipalities = forceShowMunicipalitiesParam && this.obcinaHasKatastre(selectedObcinaName);
+            shouldShowMunicipalities = this.forceShowMunicipalities;
+        } else {
+            // Če ni eksplicitnega parametra, uporabi logiko
+            const zoomBasedShow = currentZoom >= ZOOM_LEVELS.OBCINE_THRESHOLD;
+            shouldShowMunicipalities = (zoomBasedShow || this.forceShowMunicipalities) && 
+                                     this.obcinaHasKatastre(selectedObcinaName || this.selectedObcinaName);
+        }
 
         // Control občine layers visibility
         if (this.hasLayer(LAYER_IDS.OBCINE.FILL)) {
@@ -172,15 +235,15 @@ class StatisticsLayerManager {
 
         // Control municipalities layers visibility
         if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.FILL)) {
-            this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'visibility', showMunicipalities ? 'visible' : 'none');
-            this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'visibility', showMunicipalities ? 'visible' : 'none');
+            this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'visibility', shouldShowMunicipalities ? 'visible' : 'none');
+            this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'visibility', shouldShowMunicipalities ? 'visible' : 'none');
             
             if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.LABELS)) {
-                this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.LABELS, 'visibility', showMunicipalities ? 'visible' : 'none');
+                this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.LABELS, 'visibility', shouldShowMunicipalities ? 'visible' : 'none');
             }
         }
 
-        console.log(`Zoom ${currentZoom}: Občine ${showObcineFill ? 'clickable' : 'disabled'}, Municipalities ${showMunicipalities ? 'visible' : 'hidden'}`);
+        console.log(`Zoom ${currentZoom}: Občine ${showObcineFill ? 'clickable' : 'disabled'}, Municipalities ${shouldShowMunicipalities ? 'visible' : 'hidden'}, Force: ${this.forceShowMunicipalities}, Selected: ${selectedObcinaName || this.selectedObcinaName}`);
     }
     
     addMunicipalitiesLayers(municipalitiesData) {
@@ -293,6 +356,7 @@ class StatisticsLayerManager {
     // Nova metoda za resetiranje filtrov
     resetFilters() {
         this.selectedObcinaName = null;
+        this.forceShowMunicipalities = false; // 🆕 Resetiraj tudi force flag
         this.filterMunicipalitiesByObcina(null);
     }
 
@@ -327,6 +391,7 @@ class StatisticsLayerManager {
 
         // Reset internal state
         this.selectedObcinaName = null;
+        this.forceShowMunicipalities = false; // 🆕 Resetiraj tudi force flag
 
         // Remove občine layers
         this.removeLayerAndSource(
