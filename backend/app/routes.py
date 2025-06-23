@@ -272,8 +272,8 @@ def get_del_stavbe_geojson(
 ):
     """
     Pridobi dele stavb trenutno vidne na ekranu:
-    - Če je podan sifko/municipality: Vrni VSE nepremičnine v tej občini (ignore bbox, samo building clustering)
-    - Sicer: Uporabi bbox z distance/building clustering
+    - DEPRECATED: Če je podan sifko/municipality: Vrni VSE nepremičnine v tej občini (ignore bbox, samo building clustering)
+    - VEDNO: Uporabi bbox z distance/building clustering
     
     Parameter data_source omogoča preklapljanje med različnimi viri podatkov:
     - 'np': najemni podatki (np_del_stavbe)
