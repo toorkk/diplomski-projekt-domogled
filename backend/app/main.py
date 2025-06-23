@@ -14,7 +14,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",                    # Lokalno
-        "https://your-vercel-app.vercel.app",      # Production
+        "https://domogled.vercel.app",      # Production
         "https://*.vercel.app"                     # Vercel previews
     ],
     allow_credentials=True,
