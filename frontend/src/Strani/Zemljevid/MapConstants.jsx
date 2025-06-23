@@ -1,16 +1,21 @@
 // constants/mapConstants.js
 
 // API konfiguracija
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
+
+console.log("Environment check:", {
+    REACT_APP_API_BASE_URL: process.env.REACT_APP_API_BASE_URL,
+    resolved_url: API_BASE_URL
+});
+
 export const API_CONFIG = {
-    BASE_URL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000',
+    BASE_URL: API_BASE_URL,
     ENDPOINTS: {
-        PROPERTIES: '/properties/geojson',
-        CLUSTER_DETAILS: '/cluster',
-        STATISTICS: '/api/statistike/splosne'
+        PROPERTIES: "/properties/geojson",
+        CLUSTER_DETAILS: "/cluster", 
+        STATISTICS: "/api/statistike/splosne"
     }
 };
-
-console.log('API Base URL:', API_CONFIG.BASE_URL);
 
 // Maptiler konfiguracija
 export const MAP_CONFIG = {
