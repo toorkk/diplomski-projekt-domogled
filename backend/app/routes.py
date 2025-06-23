@@ -71,7 +71,7 @@ async def ingest_data(
                 },
                 "next_step": {
                     "message": "Ko je vnos končan, zaženi deduplication",
-                    "endpoint": "/api/fill-deduplicated-tables",
+                    "endpoint": "/api/deduplication/ingest",
                     "note": "Deduplication gre skozi vse leta in se more zagnat po tem ko je vnos podatkov ČISTO končan. Reflektiral bo samo leta ki so trenutno naložena v bazo"
                 }
             }
@@ -500,7 +500,7 @@ def vse_statistike(
     - prodaja/najem
     - stanovanja/hiše  
     - letni podatki + zadnjih 12 mesecev
-    - vsi percentili in lastnosti
+    - vse lastnosti
     
     Primer uporabe:
     - GET /api/statistike/vse/LJUBLJANA

@@ -251,29 +251,9 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
                         <div>
                           <h4 className="font-semibold text-gray-800 mb-2 text-md">Dimenzije</h4>
                           <div className="grid grid-cols-2 gap-y-2 gap-x-8 text-sm">
-                            {(representativeProperty.povrsina_uradna || representativeProperty.povrsina_pogodba) && (
-                              <div className='flex justify-between'>
-                                <div className="text-gray-600">Površina uradna / pogodba:</div>
-                                <div className="font-medium text-gray-800">
-                                  {representativeProperty.povrsina_uradna && `${representativeProperty.povrsina_uradna} m²`}
-                                  {representativeProperty.povrsina_uradna && representativeProperty.povrsina_pogodba && ' / '}
-                                  {representativeProperty.povrsina_pogodba && `${representativeProperty.povrsina_pogodba} m²`}
-                                </div>
-                              </div>
-                            )}
 
-                            {(representativeProperty.povrsina_uporabna_uradna || representativeProperty.povrsina_uporabna_pogodba) && (
-                              <div className='flex justify-between'>
-                                <div className="text-gray-600">Uporabna površina uradna / pogodba:</div>
-                                <div className="font-medium text-gray-800">
-                                  {representativeProperty.povrsina_uporabna_uradna && `${representativeProperty.povrsina_uporabna_uradna} m²`}
-                                  {representativeProperty.povrsina_uporabna_uradna && representativeProperty.povrsina_uporabna_pogodba && ' / '}
-                                  {representativeProperty.povrsina_uporabna_pogodba && `${representativeProperty.povrsina_uporabna_pogodba} m²`}
-                                </div>
-                              </div>
-                            )}
-                            <DetailRow label="Uradna površina dela stavbe:" value={representativeProperty.stevilo_sob} />
-                            <DetailRow label="Število sob" value={representativeProperty.stevilo_sob} />
+                            <DetailRow label="Površina" value={representativeProperty.povrsina_uradna && `${representativeProperty.povrsina_uradna} m²`} />
+                            <DetailRow label="Uporabna površina" value={representativeProperty.povrsina_uporabna && `${representativeProperty.povrsina_uporabna} m²`} />
                             <DetailRow label="Število sob" value={representativeProperty.stevilo_sob} />
                             <DetailRow label="Število sob" value={representativeProperty.stevilo_sob} />
                             <DetailRow label="Nadstropje" value={representativeProperty.nadstropje} />
@@ -420,10 +400,8 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
                               </div>
 
                               <div className="grid grid-cols-1 gap-y-1 gap-x-2 text-sm">
-                                <DetailRow label="Površina uradna" value={part.povrsina_uradna && `${part.povrsina_uradna} m²`} />
-                                <DetailRow label="Površina pogodba" value={part.povrsina_pogodba && `${part.povrsina_pogodba} m²`} />
-                                <DetailRow label="Uporabna ur." value={part.povrsina_uporabna_uradna && `${part.povrsina_uporabna_uradna} m²`} />
-                                <DetailRow label="Uporabna pog." value={part.povrsina_uporabna_pogodba && `${part.povrsina_uporabna_pogodba} m²`} />
+                                <DetailRow label="Površina" value={part.povrsina_uradna && `${part.povrsina_uradna} m²`} />
+                                <DetailRow label="Uporabna površina" value={part.povrsina_uporabna && `${part.povrsina_uporabna} m²`} />
                                 <DetailRow label="Število sob" value={part.stevilo_sob > 0 ? part.stevilo_sob : null} />
                                 <DetailRow label="Nadstropje" value={part.nadstropje} />
                                 <DetailRow label="Lega" value={part.lega_v_stavbi} />

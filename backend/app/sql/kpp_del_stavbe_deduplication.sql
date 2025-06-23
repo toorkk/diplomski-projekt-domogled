@@ -5,10 +5,14 @@
 -- ki ima vsaj en zapis vrste 'stanovanje' ali 'hiša'
 -- =============================================================================
 
+SET work_mem = '512MB';
+SET maintenance_work_mem = '1GB';
+SET temp_buffers = '128MB';
+
 INSERT INTO core.kpp_del_stavbe_deduplicated (
     sifra_ko, stevilka_stavbe, stevilka_dela_stavbe, dejanska_raba, vrsta_nepremicnine,
     obcina, naselje, ulica, hisna_stevilka, dodatek_hs, stev_stanovanja,
-    povrsina_uradna, povrsina_pogodba, leto_izgradnje_stavbe,
+    povrsina_uradna, povrsina_uporabna, leto_izgradnje_stavbe,
     zadnja_cena, zadnje_vkljuceno_ddv, zadnja_stopnja_ddv, zadnje_leto,
     povezani_del_stavbe_ids, povezani_posel_ids, najnovejsi_del_stavbe_id, coordinates
 )
@@ -23,7 +27,8 @@ validne_nepremicnine AS (
         stevilka_dela_stavbe
     FROM core.kpp_del_stavbe
     WHERE vrsta_nepremicnine IN (1, 2)
-      AND coordinates IS NOT NULL
+      AND tip_rabe = 'bivalno' -- vzami samo bivalne (ker so stanovanja in hise ki so steti kot npr vrteci)
+      -- AND coordinates IS NOT NULL
       AND sifra_ko IS NOT NULL
       AND stevilka_stavbe IS NOT NULL 
       AND stevilka_dela_stavbe IS NOT NULL
@@ -59,7 +64,7 @@ najnovejsi_zapisi AS (
         ds.dodatek_hs,
         ds.stev_stanovanja,
         ds.povrsina_uradna,
-        ds.povrsina_pogodba,
+        ds.povrsina_uporabna,
         ds.leto_izgradnje_stavbe,
         ds.coordinates,
         ds.posel_id as najnovejsi_posel_id
@@ -70,6 +75,7 @@ najnovejsi_zapisi AS (
         vn.sifra_ko, vn.stevilka_stavbe, vn.stevilka_dela_stavbe,
         -- Prioriteta za izbiro "najnovejše" vrstice:
         CASE WHEN ds.vrsta_nepremicnine IN (1, 2) THEN 0 ELSE 1 END,  -- 1. vzami samo domove
+        CASE WHEN ds.tip_rabe = 'bivalno' THEN 0 ELSE 1 END,  -- 1.2 vzami samo bivalne prostore
         ds.leto DESC,                                                                -- 2. najnovejše leto
         ds.del_stavbe_id DESC                                                       -- 3. najnovejši ID
 ),
@@ -141,7 +147,7 @@ SELECT
     
     -- Tehnični podatki
     nz.povrsina_uradna,
-    nz.povrsina_pogodba, 
+    nz.povrsina_uporabna, 
     nz.leto_izgradnje_stavbe,
     
     -- Podatki najnovejšega posla

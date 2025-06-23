@@ -319,8 +319,6 @@ class PropertyService:
         del_stavbe_np_dodatno = {}
         if data_source.lower() == "np":
             del_stavbe_np_dodatno = {
-                "povrsina_uporabna_uradna": float(dedup_property[0].povrsina_uporabna_uradna) if dedup_property[0].povrsina_uporabna_uradna else None,
-                "povrsina_uporabna_pogodba": float(dedup_property[0].povrsina_uporabna_pogodba) if dedup_property[0].povrsina_uporabna_pogodba else None,
             }
 
             zadnji_posel_info = {
@@ -359,7 +357,7 @@ class PropertyService:
                 "stev_stanovanja": dedup_property[0].stev_stanovanja,
                 
                 "povrsina_uradna": float(dedup_property[0].povrsina_uradna) if dedup_property[0].povrsina_uradna else None,
-                "povrsina_pogodba": float(dedup_property[0].povrsina_pogodba) if dedup_property[0].povrsina_pogodba else None,
+                "povrsina_uporabna": float(dedup_property[0].povrsina_uporabna) if dedup_property[0].povrsina_uporabna else None,
                 **del_stavbe_np_dodatno,  # samo za np
 
                 "leto_izgradnje_stavbe": dedup_property[0].leto_izgradnje_stavbe,

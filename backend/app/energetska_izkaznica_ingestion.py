@@ -4,7 +4,7 @@ import pandas as pd
 import tempfile
 from datetime import datetime
 from .logging_utils import setup_logger
-from sqlalchemy import create_engine, text
+from sqlalchemy import QueuePool, create_engine, text
 from typing import Dict, Any
 import shutil
 from .sql_utils import execute_sql_file, execute_sql_count
@@ -16,8 +16,18 @@ logger = setup_logger("ei_ingestion", "energetska_izkaznica_ingestion.log", "EI"
 class EnergetskaIzkaznicaIngestionService:
     def __init__(self, db_url: str):
         self.db_url = db_url
-        self.engine = create_engine(db_url)
-
+        self.engine = create_engine(
+            db_url,
+            poolclass=QueuePool,
+            pool_size=5,
+            max_overflow=10,
+            pool_pre_ping=True,
+            pool_recycle=300,  # 5 minut
+            connect_args={
+                "connect_timeout": 60,
+                "options": "-c statement_timeout=300000"  # 5 minut za SQL
+            }
+        )
 
     def generate_current_url(self) -> str:
         """Generiraj URL za trenutni mesec in leto."""
@@ -159,9 +169,9 @@ class EnergetskaIzkaznicaIngestionService:
                         con=conn,
                         if_exists='append',
                         index=False,
-                        
+                        chunksize=1000,
+                        method='multi'
                     )
-                    #method='multi'
 
                     trans.commit()
                     

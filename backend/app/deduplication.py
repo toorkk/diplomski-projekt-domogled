@@ -1,5 +1,5 @@
 from .logging_utils import setup_logger
-from sqlalchemy import create_engine, text
+from sqlalchemy import QueuePool, create_engine, text
 from .sql_utils import get_sql_query, execute_sql_count
 
 
@@ -14,8 +14,18 @@ class DeduplicationService:
     
     def __init__(self, db_url: str):
         self.db_url = db_url
-        self.engine = create_engine(db_url)
-
+        self.engine = create_engine(
+            db_url,
+            poolclass=QueuePool,
+            pool_size=5,
+            max_overflow=10,
+            pool_pre_ping=True,
+            pool_recycle=300,  # 5 minut
+            connect_args={
+                "connect_timeout": 120,
+                "options": "-c statement_timeout=3600000 -c work_mem=512MB -c maintenance_work_mem=1GB"  # 1 ura
+            }
+        )   
     
     def create_deduplicated_properties(self, data_type: str):
         """

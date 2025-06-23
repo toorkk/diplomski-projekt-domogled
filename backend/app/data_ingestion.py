@@ -6,7 +6,7 @@ import zipfile
 import shutil
 
 from .logging_utils import YearTypeFilter, setup_logger
-from sqlalchemy import create_engine, text
+from sqlalchemy import QueuePool, create_engine, text
 from typing import Dict, Any
 import json
 
@@ -21,8 +21,18 @@ class DataIngestionService:
     
     def __init__(self, db_url: str):
         self.db_url = db_url
-        self.engine = create_engine(db_url)
-    
+        self.engine = create_engine(
+            db_url,
+            poolclass=QueuePool,
+            pool_size=5,
+            max_overflow=10,
+            pool_pre_ping=True,
+            pool_recycle=300,  # 5 minut
+            connect_args={
+                "connect_timeout": 60,
+                "options": "-c statement_timeout=300000"  # 5 minut za SQL
+            }
+        )    
     
 
     async def download_data(self, filter_year: str, data_type: str) -> str:
@@ -200,8 +210,9 @@ class DataIngestionService:
                         con=self.engine,
                         if_exists="append",
                         index=False,
+                        chunksize=1000,
+                        method='multi'
                     )
-                    #                        method='multi'
                     
                     row_count = execute_sql_count(self.engine, 'staging', table_name)
                     logger.info(f"Uspešno naloženih {row_count} vrstic v staging.{table_name}")
