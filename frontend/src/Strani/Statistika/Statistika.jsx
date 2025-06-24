@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import PropTypes from 'prop-types';
 import StatisticsZemljevid from "./StatisticsZemljevid.jsx";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import {API_CONFIG} from '../Zemljevid/MapConstants.jsx';
+
 
 // ========================================
 // POMOŽNE KOMPONENTE (Izvoz kompleksnosti)
@@ -245,7 +247,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
 
         try {
             const response = await fetch(
-                `https://domogled.up.railway.app/api/statistike/vse/${regionType}/${encodeURIComponent(regionName.toUpperCase())}`
+                `${API_CONFIG.BASE_URL}/api/statistike/vse/${regionType}/${encodeURIComponent(regionName.toUpperCase())}`
             );
 
             if (!response.ok) {
@@ -417,17 +419,17 @@ export default function Statistika({ selectedRegionFromNavigation }) {
 
                                             {/* Mreže nepremičnin */}
                                             <div className="space-y-6">
-                                                {apiState.data[activeTab]?.stanovanje?.zadnjih_12m && (
+                                                {apiState.data[activeTab]?.stanovanje?.zadnjih12m && (
                                                     <PropertyGrid
-                                                        data={apiState.data[activeTab].stanovanje.zadnjih_12m}
+                                                        data={apiState.data[activeTab].stanovanje.zadnjih12m}
                                                         activeTab={activeTab}
                                                         propertyType="stanovanje"
                                                     />
                                                 )}
 
-                                                {apiState.data[activeTab]?.hisa?.zadnjih_12m && (
+                                                {apiState.data[activeTab]?.hisa?.zadnjih12m && (
                                                     <PropertyGrid
-                                                        data={apiState.data[activeTab].hisa.zadnjih_12m}
+                                                        data={apiState.data[activeTab].hisa.zadnjih12m}
                                                         activeTab={activeTab}
                                                         propertyType="hisa"
                                                     />
@@ -435,7 +437,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                             </div>
 
                                             {/* Prikaži sporočilo če ni podatkov */}
-                                            {!apiState.data[activeTab]?.stanovanje?.zadnjih_12m && !apiState.data[activeTab]?.hisa?.zadnjih_12m && (
+                                            {!apiState.data[activeTab]?.stanovanje?.zadnjih12m && !apiState.data[activeTab]?.hisa?.zadnjih12m && (
                                                 <div className="text-center py-8 text-gray-500">
                                                     Ni podatkov za {activeTab} v tej regiji
                                                 </div>

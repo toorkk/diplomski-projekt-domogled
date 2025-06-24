@@ -24,7 +24,7 @@ class StatisticsService:
             logger.info("Posodabljam statistike za vse regije")
             
             # 1. Posodobi materialized views
-            self._refresh_materialized_views()
+            self._create_materialized_views()
             
             # 2. Počisti cache
             self._clear_cache()
@@ -116,19 +116,22 @@ class StatisticsService:
                 
                 result = conn.execute(text(query), {"tip_regije": tip_regije, "regija": regija})
                 rows = result.fetchall()
-                
+        
+                print(f"DEBUG: Najdenih {len(rows)} zapisov za regijo '{regija}', tip_regije '{tip_regije}'")
+
+
                 if not rows:
                     return {"status": "error", "message": f"Statistike za regijo '{regija}' niso najdene"}
                 
                 # Organiziraj podatke po strukturah
                 statistike = {
                     "prodaja": {
-                        "stanovanje": {"letno": [], "zadnjih_12m": None},
-                        "hisa": {"letno": [], "zadnjih_12m": None}
+                        "stanovanje": {"letno": [], "zadnjih12m": None},
+                        "hisa": {"letno": [], "zadnjih12m": None}
                     },
                     "najem": {
-                        "stanovanje": {"letno": [], "zadnjih_12m": None},
-                        "hisa": {"letno": [], "zadnjih_12m": None}
+                        "stanovanje": {"letno": [], "zadnjih12m": None},
+                        "hisa": {"letno": [], "zadnjih12m": None}
                     },
                 }
                 
@@ -157,8 +160,8 @@ class StatisticsService:
                     
                     if tip_obd == "letno":
                         statistike[tip_trans][vrsta_nep]["letno"].append(podatek)
-                    else:  # zadnjih_12m
-                        statistike[tip_trans][vrsta_nep]["zadnjih_12m"] = podatek
+                    else:  # zadnjih12m
+                        statistike[tip_trans][vrsta_nep]["zadnjih12m"] = podatek
                     
                 return {"status": "success", "statistike": statistike}
                 
@@ -186,8 +189,7 @@ class StatisticsService:
                 FROM stats.statistike_cache 
                 WHERE tip_regije = :tip_regije 
                   AND ime_regije = :regija
-                  AND tip_obdobja = 'letno'
-                  AND leto = 2025
+                  AND tip_obdobja = 'zadnjih12m'
                 ORDER BY tip_posla, vrsta_nepremicnine
                 """
                 
@@ -200,7 +202,7 @@ class StatisticsService:
                 splosne = {
                     "regija": regija,
                     "tip_regije": tip_regije,
-                    "obdobje": "zadnjih_12_mesecev",
+                    "obdobje": "zadnjih12m",
                     "pregled": {},
                 }
                 
@@ -398,8 +400,8 @@ class StatisticsService:
 
     # POMOŽNE METODE
     
-    def _refresh_materialized_views(self):
-        """Posodobi materialized views."""
+    def _create_materialized_views(self):
+        """Ustvari materialized views."""
         with self.engine.connect() as conn:
             trans = conn.begin()
             try:
@@ -410,9 +412,15 @@ class StatisticsService:
                 
                 rental_mv_sql = get_sql_query('stats/create_mv_najemne_stats.sql')
                 conn.execute(text(rental_mv_sql))
+
+                sales_mv_sql_12m = get_sql_query('stats/create_mv_prodajne_stats_12m.sql')
+                conn.execute(text(sales_mv_sql_12m))
+                
+                rental_mv_sql_12m = get_sql_query('stats/create_mv_najemne_stats_12m.sql')
+                conn.execute(text(rental_mv_sql_12m))
                 
                 trans.commit()
-                logger.info("Materialized views uspešno posodobljeni")
+                logger.info("Materialized views uspešno ustvarjeni")
                 
             except Exception as e:
                 trans.rollback()
@@ -440,8 +448,12 @@ class StatisticsService:
                 logger.info("Polnim cache z vsemi statistikami...")
                 
                 sales_sql = get_sql_query('stats/populate_statistike_cache.sql')
-                result = conn.execute(text(sales_sql))
-                logger.info(f"Vstavljena statistika: {result.rowcount} zapisov")
+                result_letno = conn.execute(text(sales_sql))
+
+                sales_sql_12m = get_sql_query('stats/populate_statistike_cache_12m.sql')
+                result_12m = conn.execute(text(sales_sql_12m))
+
+                logger.info(f"Vstavljena statistika: {result_letno.rowcount} letnih zapisov, {result_12m.rowcount} zadnjih 12 mesecev zapisov")
                 
                 trans.commit()
                 logger.info("Vsi cache podatki uspešno naloženi")
