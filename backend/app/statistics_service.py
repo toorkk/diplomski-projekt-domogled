@@ -24,7 +24,7 @@ class StatisticsService:
             logger.info("Posodabljam statistike za vse regije")
             
             # 1. Posodobi materialized views
-            self._create_materialized_views()
+            self._refresh_materialized_views()
             
             # 2. Počisti cache
             self._clear_cache()
@@ -116,22 +116,19 @@ class StatisticsService:
                 
                 result = conn.execute(text(query), {"tip_regije": tip_regije, "regija": regija})
                 rows = result.fetchall()
-        
-                print(f"DEBUG: Najdenih {len(rows)} zapisov za regijo '{regija}', tip_regije '{tip_regije}'")
-
-
+                
                 if not rows:
                     return {"status": "error", "message": f"Statistike za regijo '{regija}' niso najdene"}
                 
                 # Organiziraj podatke po strukturah
                 statistike = {
                     "prodaja": {
-                        "stanovanje": {"letno": [], "zadnjih12m": None},
-                        "hisa": {"letno": [], "zadnjih12m": None}
+                        "stanovanje": {"letno": [], "zadnjih_12m": None},
+                        "hisa": {"letno": [], "zadnjih_12m": None}
                     },
                     "najem": {
-                        "stanovanje": {"letno": [], "zadnjih12m": None},
-                        "hisa": {"letno": [], "zadnjih12m": None}
+                        "stanovanje": {"letno": [], "zadnjih_12m": None},
+                        "hisa": {"letno": [], "zadnjih_12m": None}
                     },
                 }
                 
@@ -160,8 +157,8 @@ class StatisticsService:
                     
                     if tip_obd == "letno":
                         statistike[tip_trans][vrsta_nep]["letno"].append(podatek)
-                    else:  # zadnjih12m
-                        statistike[tip_trans][vrsta_nep]["zadnjih12m"] = podatek
+                    else:  # zadnjih_12m
+                        statistike[tip_trans][vrsta_nep]["zadnjih_12m"] = podatek
                     
                 return {"status": "success", "statistike": statistike}
                 
@@ -189,7 +186,8 @@ class StatisticsService:
                 FROM stats.statistike_cache 
                 WHERE tip_regije = :tip_regije 
                   AND ime_regije = :regija
-                  AND tip_obdobja = 'zadnjih12m'
+                  AND tip_obdobja = 'letno'
+                  AND leto = 2025
                 ORDER BY tip_posla, vrsta_nepremicnine
                 """
                 
@@ -202,7 +200,7 @@ class StatisticsService:
                 splosne = {
                     "regija": regija,
                     "tip_regije": tip_regije,
-                    "obdobje": "zadnjih12m",
+                    "obdobje": "zadnjih_12_mesecev",
                     "pregled": {},
                 }
                 
@@ -231,16 +229,7 @@ class StatisticsService:
         Frontend bo filtriral katere se prikažejo
         """
         try:
-            print(f"DEBUG: get_all_obcine_posli_2025 called with vkljuci_katastrske={vkljuci_katastrske}")
-            
             with self.engine.connect() as conn:
-                # NAJPREJ PREVERI KAKŠNE tip_regije VREDNOSTI OBSTAJAJO
-                print("DEBUG: Checking what tip_regije values exist...")
-                tip_regije_query = "SELECT DISTINCT tip_regije FROM stats.statistike_cache"
-                tip_regije_result = conn.execute(text(tip_regije_query))
-                tip_regije_values = [row[0] for row in tip_regije_result.fetchall()]
-                print(f"DEBUG: Available tip_regije values: {tip_regije_values}")
-                
                 # Osnovni query za občine
                 query_obcine = """
                 SELECT 
@@ -255,10 +244,8 @@ class StatisticsService:
                 GROUP BY ime_regije, tip_posla, vrsta_nepremicnine
                 """
                 
-                print("DEBUG: Executing občine query...")
                 result_obcine = conn.execute(text(query_obcine), {"leto": 2025})
                 rows_obcine = result_obcine.fetchall()
-                print(f"DEBUG: Found {len(rows_obcine)} rows for občine")
                 
                 # Organizacija podatkov po občinah
                 obcine_data = {}
@@ -281,11 +268,7 @@ class StatisticsService:
                         obcine_data[obcina_name][tip_posla][vrsta_nep] = stevilo
                         obcine_data[obcina_name][tip_posla]["skupaj"] += stevilo
                         obcine_data[obcina_name]["skupaj_vsi_posli"] += stevilo
-                    else:
-                        print(f"DEBUG: Unexpected tip_posla: {tip_posla} or vrsta_nepremicnine: {vrsta_nep}")
 
-                print(f"DEBUG: Successfully processed data for {len(obcine_data)} občin")
-                
                 # Inicializiraj result
                 result = {
                     "status": "success",
@@ -296,11 +279,8 @@ class StatisticsService:
                     "skupaj_regij": len(obcine_data)
                 }
                 
-                # Dodaj VSE katastrske občine če je zahtevano (brez filtriranja)
+                # Dodaj VSE katastrske občine če je zahtevano
                 if vkljuci_katastrske:
-                    print("DEBUG: Processing VSE katastrske občine...")
-                    
-                    # POSODOBLJEN QUERY - pridobi VSE katastrske občine (brez ljubljana/maribor filtra)
                     query_katastrske = """
                     SELECT 
                         ime_regije,
@@ -318,33 +298,6 @@ class StatisticsService:
                     try:
                         result_katastrske = conn.execute(text(query_katastrske), {"leto": 2025})
                         rows_katastrske = result_katastrske.fetchall()
-                        print(f"DEBUG: Found {len(rows_katastrske)} rows for VSE katastrske občine")
-                        
-                        # Če ni podatkov za 2025, preveri katera leta so na voljo
-                        if len(rows_katastrske) == 0:
-                            print("DEBUG: No katastrske data for 2025, checking available years...")
-                            available_years_query = """
-                            SELECT DISTINCT leto, COUNT(*) as count
-                            FROM stats.statistike_cache 
-                            WHERE tip_regije = 'katastrska_obcina'
-                            GROUP BY leto
-                            ORDER BY leto DESC
-                            """
-                            years_result = conn.execute(text(available_years_query))
-                            available_years = [(row.leto, row.count) for row in years_result.fetchall()]
-                            print(f"DEBUG: Available years for katastrske: {available_years}")
-                            
-                            # Preveri vzorec imen katastrskih občin
-                            sample_names_query = """
-                            SELECT DISTINCT ime_regije 
-                            FROM stats.statistike_cache 
-                            WHERE tip_regije = 'katastrska_obcina'
-                            ORDER BY ime_regije
-                            LIMIT 20
-                            """
-                            names_result = conn.execute(text(sample_names_query))
-                            sample_names = [row[0] for row in names_result.fetchall()]
-                            print(f"DEBUG: Sample katastrske names: {sample_names}")
                         
                         katastrske_data = {}
                         
@@ -366,33 +319,18 @@ class StatisticsService:
                                 katastrske_data[kataster_name][tip_posla][vrsta_nep] = stevilo
                                 katastrske_data[kataster_name][tip_posla]["skupaj"] += stevilo
                                 katastrske_data[kataster_name]["skupaj_vsi_posli"] += stevilo
-                            else:
-                                print(f"DEBUG: Unexpected katastrski tip_posla: {tip_posla} or vrsta_nepremicnine: {vrsta_nep}")
 
                         result["katastrske_obcine_posli"] = katastrske_data
                         result["skupaj_regij"] = len(obcine_data) + len(katastrske_data)
                         
-                        print(f"DEBUG: Successfully processed {len(katastrske_data)} katastrskih občin")
-                        print(f"DEBUG: Sample katastrske names: {list(katastrske_data.keys())[:10]}")
-                        
-                        # Preveri koliko Ljubljana/Maribor katastrov imamo
-                        lj_mb_count = len([name for name in katastrske_data.keys() 
-                                         if 'ljubljana' in name.lower() or 'maribor' in name.lower()])
-                        print(f"DEBUG: Found {lj_mb_count} Ljubljana/Maribor katastrov od {len(katastrske_data)} skupno")
-                        
                     except Exception as e:
-                        print(f"DEBUG: Error processing katastrske občine: {str(e)}")
-                        import traceback
-                        print(f"DEBUG: Traceback: {traceback.format_exc()}")
+                        print(f"Error processing katastrske občine: {str(e)}")
                         # Nadaljuj brez katastrskih občin
                         pass
                 
                 return result
             
         except Exception as e:
-            print(f"DEBUG: Error in get_all_obcine_posli_2025: {str(e)}")
-            import traceback
-            print(f"DEBUG: Traceback: {traceback.format_exc()}")
             return {
                 "status": "error", 
                 "message": f"Database error: {str(e)} (Type: {type(e).__name__})"
@@ -400,8 +338,8 @@ class StatisticsService:
 
     # POMOŽNE METODE
     
-    def _create_materialized_views(self):
-        """Ustvari materialized views."""
+    def _refresh_materialized_views(self):
+        """Posodobi materialized views."""
         with self.engine.connect() as conn:
             trans = conn.begin()
             try:
@@ -412,15 +350,9 @@ class StatisticsService:
                 
                 rental_mv_sql = get_sql_query('stats/create_mv_najemne_stats.sql')
                 conn.execute(text(rental_mv_sql))
-
-                sales_mv_sql_12m = get_sql_query('stats/create_mv_prodajne_stats_12m.sql')
-                conn.execute(text(sales_mv_sql_12m))
-                
-                rental_mv_sql_12m = get_sql_query('stats/create_mv_najemne_stats_12m.sql')
-                conn.execute(text(rental_mv_sql_12m))
                 
                 trans.commit()
-                logger.info("Materialized views uspešno ustvarjeni")
+                logger.info("Materialized views uspešno posodobljeni")
                 
             except Exception as e:
                 trans.rollback()
@@ -448,12 +380,8 @@ class StatisticsService:
                 logger.info("Polnim cache z vsemi statistikami...")
                 
                 sales_sql = get_sql_query('stats/populate_statistike_cache.sql')
-                result_letno = conn.execute(text(sales_sql))
-
-                sales_sql_12m = get_sql_query('stats/populate_statistike_cache_12m.sql')
-                result_12m = conn.execute(text(sales_sql_12m))
-
-                logger.info(f"Vstavljena statistika: {result_letno.rowcount} letnih zapisov, {result_12m.rowcount} zadnjih 12 mesecev zapisov")
+                result = conn.execute(text(sales_sql))
+                logger.info(f"Vstavljena statistika: {result.rowcount} zapisov")
                 
                 trans.commit()
                 logger.info("Vsi cache podatki uspešno naloženi")
