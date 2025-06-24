@@ -433,19 +433,26 @@ def splosne_statistike(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DB napaka: {str(e)}")
     
-def vse_obcine_posli_2025():
+def vse_obcine_posli_2025(
+    vkljuci_katastrske: bool = Query(
+        default=True, 
+        description="Ali naj vključi tudi katastrske občine za Ljubljano in Maribor"
+    )
+):
     """
-    Pridobi število poslov za leto 2025 za VSE občine
-    
-    Uporaba za pobarvanje zemljevida glede na aktivnost poslov
-    
-    Primer uporabe:
-    - GET /api/statistike/vse-obcine-posli-2025
+    Pridobi število poslov za leto 2025 za VSE občine + opcijsko katastrske občine
     """
     try:
-        rezultat = stats_service.get_all_obcine_posli_2025()
+        print(f"DEBUG: Začenjam z vkljuci_katastrske={vkljuci_katastrske}")
+        
+        # Pokliči posodobljeno metodo
+        rezultat = stats_service.get_all_obcine_posli_2025(vkljuci_katastrske=vkljuci_katastrske)
+        
+        print(f"DEBUG: Rezultat iz service: {type(rezultat)}")
+        print(f"DEBUG: Status: {rezultat.get('status') if isinstance(rezultat, dict) else 'Unknown'}")
         
         if rezultat["status"] == "error":
+            print(f"DEBUG: Error message: {rezultat['message']}")
             raise HTTPException(status_code=404, detail=rezultat["message"])
         
         return JSONResponse(
@@ -453,7 +460,9 @@ def vse_obcine_posli_2025():
             content=rezultat
         )
         
-    except HTTPException:
-        raise  # Re-raise HTTP exceptions
     except Exception as e:
+        print(f"DEBUG: Exception occurred: {str(e)}")
+        print(f"DEBUG: Exception type: {type(e).__name__}")
+        import traceback
+        print(f"DEBUG: Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"DB napaka: {str(e)}")

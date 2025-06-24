@@ -45,8 +45,8 @@ export const PERCENTILE_COLOR_PALETTES = {
 
 // Konstante za color mapping
 export const COLOR_MAPPING_CONFIG = {
-    EMPTY_COLOR: 'rgba(200, 200, 200, 0.3)',
-    DEFAULT_FALLBACK: 'rgba(200, 200, 200, 0.1)',
+    EMPTY_COLOR: 'rgba(255, 255, 255, 0.8)', // Spremeni na belo
+    DEFAULT_FALLBACK: 'rgba(255, 255, 255, 0.8)', // Spremeni na belo
     PERCENTILE_THRESHOLDS: [0.2, 0.4, 0.6, 0.8],
     SUPPORTED_MUNICIPALITIES: ['LJUBLJANA', 'MARIBOR']
 };

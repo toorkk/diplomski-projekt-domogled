@@ -263,21 +263,25 @@ export default function Statistika({ selectedRegionFromNavigation }) {
         }
     }, []);
 
-    // Funkcije za izbiro regij
+    // Funkcije za izbiro katastrov
     const handleMunicipalitySelect = useCallback((municipalityData) => {
-        setSelectedMunicipality(municipalityData);
+    setSelectedMunicipality(municipalityData);
+    
+    // NE resetiraj selectedObcina če je preserveObcina = true
+    if (!municipalityData?.preserveObcina) {
         setSelectedObcina(null);
-        
-        if (municipalityData) {
-            let name = municipalityData.name;
-            if (name.includes('(') && name.includes(')')) {
-                name = name.split('(')[0].trim();
-            }
-            fetchStatistics(name, 'katastrska_obcina');
-        } else {
-            setApiState({ data: null, loading: false, error: null });
+    }
+    
+    if (municipalityData) {
+        let name = municipalityData.name;
+        if (name.includes('(') && name.includes(')')) {
+            name = name.split('(')[0].trim();
         }
-    }, [fetchStatistics]);
+        fetchStatistics(name, 'katastrska_obcina');
+    } else {
+        setApiState({ data: null, loading: false, error: null });
+    }
+}, [fetchStatistics]);
 
     const handleObcinaSelect = useCallback((obcinaData) => {
         setSelectedObcina(obcinaData);

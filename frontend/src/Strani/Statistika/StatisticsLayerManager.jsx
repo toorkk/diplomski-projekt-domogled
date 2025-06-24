@@ -13,10 +13,10 @@ class StatisticsLayerManager {
     constructor(map) {
         this.map = map;
         this.selectedObcinaName = null; // Dodamo tracking za izbrano občino
-        
+
         // Lista občin ki imajo katastre
         this.OBCINE_Z_KATASTRI = ['LJUBLJANA', 'MARIBOR'];
-        
+
         // Flag za prisilni prikaz katastrov
         this.forceShowMunicipalities = false;
     }
@@ -133,7 +133,7 @@ class StatisticsLayerManager {
         // Skrij vse katastre
         this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'visibility', 'none');
         this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'visibility', 'none');
-        
+
         if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.LABELS)) {
             this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.LABELS, 'visibility', 'none');
         }
@@ -146,24 +146,24 @@ class StatisticsLayerManager {
         if (obcinaName && this.obcinaHasKatastre(obcinaName)) {
             // Prikaži samo katastre ki spadajo pod izbrano občino
             const filter = ['==', ['get', 'OBCINA'], obcinaName.toUpperCase()];
-            
+
             this.map.setFilter(LAYER_IDS.MUNICIPALITIES.FILL, filter);
             this.map.setFilter(LAYER_IDS.MUNICIPALITIES.OUTLINE, filter);
-            
+
             // Prikaži sloje
             this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'visibility', 'visible');
             this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'visibility', 'visible');
-            
+
             if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.LABELS)) {
                 this.map.setFilter(LAYER_IDS.MUNICIPALITIES.LABELS, filter);
                 this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.LABELS, 'visibility', 'visible');
             }
-            
+
         } else {
             // Prikaži vse katastre ali jih skrij
             this.map.setFilter(LAYER_IDS.MUNICIPALITIES.FILL, null);
             this.map.setFilter(LAYER_IDS.MUNICIPALITIES.OUTLINE, null);
-            
+
             if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.LABELS)) {
                 this.map.setFilter(LAYER_IDS.MUNICIPALITIES.LABELS, null);
             }
@@ -205,16 +205,16 @@ class StatisticsLayerManager {
     _calculateMunicipalitiesVisibility(currentZoom, forceParam, selectedObcinaName) {
         const obcinaName = selectedObcinaName || this.selectedObcinaName;
         const hasKatastre = this.obcinaHasKatastre(obcinaName);
-        
+
         // Če ni katastrov, ne prikaži
         if (!hasKatastre) return false;
-        
+
         // Če je eksplicitni parameter, uporabi tega
         if (forceParam !== null) {
             this.forceShowMunicipalities = forceParam;
             return this.forceShowMunicipalities;
         }
-        
+
         // Sicer uporabi zoom logiko ali force flag
         const zoomBasedShow = currentZoom >= ZOOM_LEVELS.OBCINE_THRESHOLD;
         return zoomBasedShow || this.forceShowMunicipalities;
@@ -231,8 +231,8 @@ class StatisticsLayerManager {
     _createVisibilityConfig(currentZoom, forceParam, selectedObcinaName) {
         const isLowZoom = currentZoom < ZOOM_LEVELS.OBCINE_THRESHOLD;
         const shouldShowMunicipalities = this._calculateMunicipalitiesVisibility(
-            currentZoom, 
-            forceParam, 
+            currentZoom,
+            forceParam,
             selectedObcinaName
         );
 
@@ -272,7 +272,7 @@ class StatisticsLayerManager {
     // ========================================
     // OSTALE FUNKCIJE - POSODOBLJENE ZA BARVANJE
     // ========================================
-    
+
     addMunicipalitiesLayers(municipalitiesData) {
         if (this.map.getSource(SOURCE_IDS.MUNICIPALITIES)) {
             return;
@@ -291,7 +291,7 @@ class StatisticsLayerManager {
                 type: 'fill',
                 source: SOURCE_IDS.MUNICIPALITIES,
                 paint: {
-                    'fill-color': COLOR_MAPPING_CONFIG.DEFAULT_FALLBACK, // Privzeta svetlo siva
+                    'fill-color': 'rgba(255, 255, 255, 0.8)', // Spremeni na belo
                     'fill-opacity': 0.8 // Vidna prosojnost za barvanje
                 },
                 layout: {
@@ -320,12 +320,39 @@ class StatisticsLayerManager {
         }
     }
 
-    // Nova metoda za barvanje katastrov
+    // POPRAVLJENA metoda za barvanje katastrov z boljšim error handling-om
     updateMunicipalitiesFillColors(colorExpression) {
-        if (!this.map.getLayer(LAYER_IDS.MUNICIPALITIES.FILL)) return;
-        
-        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-color', colorExpression);
-        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-opacity', 0.8);
+        if (!this.map.getLayer(LAYER_IDS.MUNICIPALITIES.FILL)) {
+            console.warn('Municipalities fill layer not found');
+            return;
+        }
+
+        try {
+            // Preveri ali je colorExpression veljaven
+            if (!colorExpression || !Array.isArray(colorExpression)) {
+                console.warn('Invalid color expression, using default color');
+                this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-color', 'rgba(255, 255, 255, 0.8)'); 
+                return;
+            }
+
+            // Preveri če ima expression dovolj argumentov
+            if (colorExpression.length < 3) {
+                console.warn('Color expression too short, using default color');
+                this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-color', 'rgba(255, 255, 255, 0.8)');
+                return;
+            }
+
+            // Aplikacija color expression
+            this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-color', colorExpression);
+            this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-opacity', 0.8);
+
+            console.log('Municipality colors updated successfully');
+
+        } catch (error) {
+            console.error('Error updating municipality fill colors:', error);
+            // Fallback na osnovne barve
+            this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-color', COLOR_MAPPING_CONFIG.DEFAULT_FALLBACK);
+        }
     }
 
     updateMunicipalitySelection(selectedSifko = null) {
@@ -402,7 +429,7 @@ class StatisticsLayerManager {
     // Pomožna metoda za odstranjevanje slojev in virov
     removeLayerAndSource(layerIds, sourceId) {
         const layersArray = Array.isArray(layerIds) ? layerIds : [layerIds];
-        
+
         layersArray.forEach(layerId => {
             if (this.map.getLayer(layerId)) {
                 this.map.removeLayer(layerId);

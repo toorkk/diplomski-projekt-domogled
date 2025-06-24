@@ -3,20 +3,15 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import debounce from "lodash/debounce";
 
-// Importanje managerjev
 import LayerManager from "./StatisticsLayerManager.jsx";
 import {
     MAP_CONFIG,
-    ZOOM_LEVELS,
     SOURCE_IDS,
     LAYER_IDS,
     PERCENTILE_COLOR_PALETTES,
     COLOR_MAPPING_CONFIG
 } from './StatisticsMapConstants.jsx';
 
-import {API_CONFIG} from '../Zemljevid/MapConstants.jsx';
-
-//Importanje vseh utils
 import {
     getMunicipalityName,
     getObcinaName,
@@ -24,7 +19,6 @@ import {
     calculateBoundsFromGeometry
 } from './StatisticsMapUtils.jsx';
 
-// Stili in JSON podatki (katastri, občine)
 import '../Stili/Zemljevid.css';
 import municipalitiesData from '../../Občine/Katastri_Maribor_Ljubljana.json';
 import obcineData from '../../Občine/OB.json';
@@ -37,39 +31,39 @@ export default function StatisticsZemljevid({
     selectedRegionFromNavigation,
     activeTab = 'prodaja'
 }) {
-    // Refs
+    // Reference
     const mapContainer = useRef(null);
     const map = useRef(null);
     const layerManager = useRef(null);
 
-    // States
+    // Stanja za nalaganje podatkov
     const [municipalitiesLoaded, setMunicipalitiesLoaded] = useState(false);
     const [obcineLoaded, setObcineLoaded] = useState(false);
+    const [coloringLoaded, setColoringLoaded] = useState(false);
+    
+    // Stanja za hover efekte
     const [hoveredRegion, setHoveredRegion] = useState(null);
     const [hoveredMunicipality, setHoveredMunicipality] = useState(null);
     
-    // Novi states za barvanje občin
+    // Podatki za barvanje
     const [obcinePosliData, setObcinePosliData] = useState(null);
-    const [coloringLoaded, setColoringLoaded] = useState(false);
+    const [katastrskePosliData, setKatastrskePosliData] = useState(null);
     
-    // 🔧 POPRAVLJEN State za shranjevanje prejšnjega zoom/center
+    // Shranjeno stanje mape pred zoomom
     const [previousMapState, setPreviousMapState] = useState({
         center: MAP_CONFIG.INITIAL_CENTER,
         zoom: MAP_CONFIG.INITIAL_ZOOM
     });
 
-    // Preverimo ali občina ima katastre
+    // Preveri ali občina podpira katastre
     const obcinaHasKatastre = (obcinaName) => {
         if (!obcinaName) return false;
         return COLOR_MAPPING_CONFIG.SUPPORTED_MUNICIPALITIES.includes(obcinaName.toUpperCase());
     };
 
-    // ===========================================
-    // EFFECT ZA PRAVILNO SHRANJEVANJE STANJA
-    // ===========================================
+    // Shranjevanje stanja mape pred zoomom
     useEffect(() => {
         if (map.current && !selectedObcina && !selectedMunicipality) {
-            // Shrani trenutno stanje samo če ni nobene regije izbrane
             const currentCenter = map.current.getCenter();
             const currentZoom = map.current.getZoom();
             
@@ -77,23 +71,16 @@ export default function StatisticsZemljevid({
                 center: [currentCenter.lng, currentCenter.lat],
                 zoom: currentZoom
             });
-            
         }
     }, [map.current?.loaded, selectedObcina, selectedMunicipality]);
 
-    // ===========================================
-    // API FUNKCIJE ZA PRIDOBITEV PODATKOV O POSLIH
-    // ===========================================
-
+    // Pridobitev podatkov o poslih iz API
     const fetchObcinePosliData = async () => {
         try {
-            
-            // Poskusi najprej z 2025, potem z latest
-            let response = await fetch(`${API_CONFIG.BASE_URL}/api/statistike/vse-obcine-posli-2025`);
+            let response = await fetch('http://localhost:8000/api/statistike/vse-obcine-posli-2025?vkljuci_katastrske=true');
             
             if (!response.ok) {
-                console.warn('2025 data not available, trying latest year...');
-                response = await fetch(`${API_CONFIG.BASE_URL}/api/statistike/vse-obcine-posli-latest`);
+                response = await fetch('http://localhost:8000/api/statistike/vse-obcine-posli-latest?vkljuci_katastrske=true');
             }
             
             if (!response.ok) {
@@ -104,9 +91,10 @@ export default function StatisticsZemljevid({
             
             if (data.status === 'success') {
                 setObcinePosliData(data.obcine_posli);
-                return data.obcine_posli;
+                setKatastrskePosliData(data.katastrske_obcine_posli || {});
+                return { obcine: data.obcine_posli, katastrske: data.katastrske_obcine_posli };
             } else {
-                throw new Error(data.message || 'Napaka pri pridobivanju podatkov o poslih');
+                throw new Error(data.message || 'Napaka pri pridobivanju podatkov');
             }
         } catch (error) {
             console.error('Napaka pri pridobivanju podatkov o poslih:', error);
@@ -114,19 +102,12 @@ export default function StatisticsZemljevid({
         }
     };
 
-    // ===========================================
-    // PERCENTILNE FUNKCIJE ZA BARVANJE OBČIN
-    // ===========================================
-
-    // Levenshtein distance za closest string match
+    // Levenshtein razdalja za podobnost imen
     const levenshteinDistance = (str1, str2) => {
         const matrix = [];
-        for (let i = 0; i <= str2.length; i++) {
-            matrix[i] = [i];
-        }
-        for (let j = 0; j <= str1.length; j++) {
-            matrix[0][j] = j;
-        }
+        for (let i = 0; i <= str2.length; i++) matrix[i] = [i];
+        for (let j = 0; j <= str1.length; j++) matrix[0][j] = j;
+        
         for (let i = 1; i <= str2.length; i++) {
             for (let j = 1; j <= str1.length; j++) {
                 if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
@@ -143,22 +124,20 @@ export default function StatisticsZemljevid({
         return matrix[str2.length][str1.length];
     };
 
-    // Najdi najbližje ime občine
-    const findClosestObcinaName = (geojsonName, apiNames) => {
+    // Iskanje najbližjega imena v API podatkih
+    const findClosestName = (geojsonName, apiNames, maxDistance = 2) => {
         const geojsonUpper = geojsonName.toUpperCase();
         
-        // Najprej poskusi exact match
         if (apiNames.includes(geojsonUpper)) {
             return geojsonUpper;
         }
         
-        // Če ne najde exact match, poišči najbližjega
         let closestName = null;
         let minDistance = Infinity;
         
         for (const apiName of apiNames) {
             const distance = levenshteinDistance(geojsonUpper, apiName);
-            if (distance < minDistance && distance <= 2) { // Maksimalno 2 znaka razlike
+            if (distance < minDistance && distance <= maxDistance) {
                 minDistance = distance;
                 closestName = apiName;
             }
@@ -167,14 +146,13 @@ export default function StatisticsZemljevid({
         return closestName;
     };
 
-    // Percentil funkcija za barvanje - UPORABLJA COLOR PALETTES IZ CONSTANTS
+    // Določitev barve na podlagi percentila
     const getColorForValuePercentiles = (value, allValues, colorType = 'prodaja') => {
-        if (!value || value === 0) return COLOR_MAPPING_CONFIG.EMPTY_COLOR;
+        // Če je vrednost 0, vrni belo barvo namesto sive
+        if (!value || value === 0) return 'rgba(255, 255, 255, 0.8)'; // Bela barva
         
-        // Izračunaj percentile iz vseh vrednosti (samo pozitivne)
         const sortedValues = allValues.filter(v => v > 0).sort((a, b) => a - b);
-        
-        if (sortedValues.length === 0) return COLOR_MAPPING_CONFIG.EMPTY_COLOR;
+        if (sortedValues.length === 0) return 'rgba(255, 255, 255, 0.8)'; // Bela barva
         
         const [p20, p40, p60, p80] = COLOR_MAPPING_CONFIG.PERCENTILE_THRESHOLDS.map(threshold => 
             sortedValues[Math.floor(sortedValues.length * threshold)] || 0
@@ -191,77 +169,47 @@ export default function StatisticsZemljevid({
         return PERCENTILE_COLOR_PALETTES[colorType][getPercentileRange(value)];
     };
 
-    // Pridobitev vrednosti za legendo - UPORABLJA COLOR PALETTES IZ CONSTANTS
+    // Generiranje podatkov za legendo
     const getColorScalePercentiles = (colorType = 'prodaja', percentileStats = null) => {
-        // Dejanske vrednosti iz statistik
-        if (colorType === 'prodaja') {
-            return [
-                { range: '0', color: COLOR_MAPPING_CONFIG.EMPTY_COLOR, label: '0 prodaj' },
-                { range: `1-${percentileStats.p20}`, color: PERCENTILE_COLOR_PALETTES.prodaja[0], label: `1-${percentileStats.p20} prodaj` },
-                { range: `${percentileStats.p20 + 1}-${percentileStats.p40}`, color: PERCENTILE_COLOR_PALETTES.prodaja[1], label: `${percentileStats.p20 + 1}-${percentileStats.p40} prodaj` },
-                { range: `${percentileStats.p40 + 1}-${percentileStats.p60}`, color: PERCENTILE_COLOR_PALETTES.prodaja[2], label: `${percentileStats.p40 + 1}-${percentileStats.p60} prodaj` },
-                { range: `${percentileStats.p60 + 1}-${percentileStats.p80}`, color: PERCENTILE_COLOR_PALETTES.prodaja[3], label: `${percentileStats.p60 + 1}-${percentileStats.p80} prodaj` },
-                { range: `${percentileStats.p80 + 1}+`, color: PERCENTILE_COLOR_PALETTES.prodaja[4], label: `${percentileStats.p80 + 1}+ prodaj` }
-            ];
-        } else {
-            return [
-                { range: '0', color: COLOR_MAPPING_CONFIG.EMPTY_COLOR, label: '0 najemov' },
-                { range: `1-${percentileStats.p20}`, color: PERCENTILE_COLOR_PALETTES.najem[0], label: `1-${percentileStats.p20} najemov` },
-                { range: `${percentileStats.p20 + 1}-${percentileStats.p40}`, color: PERCENTILE_COLOR_PALETTES.najem[1], label: `${percentileStats.p20 + 1}-${percentileStats.p40} najemov` },
-                { range: `${percentileStats.p40 + 1}-${percentileStats.p60}`, color: PERCENTILE_COLOR_PALETTES.najem[2], label: `${percentileStats.p40 + 1}-${percentileStats.p60} najemov` },
-                { range: `${percentileStats.p60 + 1}-${percentileStats.p80}`, color: PERCENTILE_COLOR_PALETTES.najem[3], label: `${percentileStats.p60 + 1}-${percentileStats.p80} najemov` },
-                { range: `${percentileStats.p80 + 1}+`, color: PERCENTILE_COLOR_PALETTES.najem[4], label: `${percentileStats.p80 + 1}+ najemov` }
-            ];
-        }
+        const isRental = colorType === 'najem';
+        const unit = isRental ? 'najemov' : 'prodaj';
+        const colors = isRental ? PERCENTILE_COLOR_PALETTES.najem : PERCENTILE_COLOR_PALETTES.prodaja;
+        
+        return [
+            { range: '0', color: 'rgba(255, 255, 255, 0.8)', label: `0 ${unit}` }, // Bela barva za 0
+            { range: `1-${percentileStats?.p20 || '?'}`, color: colors[0], label: `1-${percentileStats?.p20 || '?'} ${unit}` },
+            { range: `${(percentileStats?.p20 || 0) + 1}-${percentileStats?.p40 || '?'}`, color: colors[1], label: `${(percentileStats?.p20 || 0) + 1}-${percentileStats?.p40 || '?'} ${unit}` },
+            { range: `${(percentileStats?.p40 || 0) + 1}-${percentileStats?.p60 || '?'}`, color: colors[2], label: `${(percentileStats?.p40 || 0) + 1}-${percentileStats?.p60 || '?'} ${unit}` },
+            { range: `${(percentileStats?.p60 || 0) + 1}-${percentileStats?.p80 || '?'}`, color: colors[3], label: `${(percentileStats?.p60 || 0) + 1}-${percentileStats?.p80 || '?'} ${unit}` },
+            { range: `${(percentileStats?.p80 || 0) + 1}+`, color: colors[4], label: `${(percentileStats?.p80 || 0) + 1}+ ${unit}` }
+        ];
     };
 
-    // Funkcija za barve percentilov
+    // Posodobitev barv občin
     const updateObcineFillColors = useCallback((activeTabParam = activeTab) => {
         if (!map.current || !obcinePosliData || !map.current.getLayer(LAYER_IDS.OBCINE.FILL)) {
             return;
         }
 
-        // Pridobi vse vrednosti za izračun percentil
         const allValues = [];
         const nameMapping = new Map();
-        const mappingDetails = [];
-        
-        // Ustvari mapping in zberi vse vrednosti
         const apiNames = Object.keys(obcinePosliData);
         
         obcineData.features.forEach(feature => {
             const geojsonName = feature.properties.OB_UIME;
-            const closestApiName = findClosestObcinaName(geojsonName, apiNames);
+            const closestApiName = findClosestName(geojsonName, apiNames);
             
             if (closestApiName) {
                 nameMapping.set(geojsonName, closestApiName);
                 const value = obcinePosliData[closestApiName][activeTabParam]?.skupaj || 0;
-                
-                mappingDetails.push({
-                    geojsonName,
-                    apiName: closestApiName,
-                    value,
-                    match: geojsonName === closestApiName ? 'EXACT' : 'FUZZY'
-                });
-                
                 if (value > 0) allValues.push(value);
-            } else {
-                mappingDetails.push({
-                    geojsonName,
-                    apiName: 'NO_MATCH',
-                    value: 0,
-                    match: 'FAILED'
-                });
             }
         });
 
-        // Izračunaj in prikaži statistike
+        // Izračun statistik za legendo
         const sortedValues = allValues.sort((a, b) => a - b);
         const stats = {
             count: allValues.length,
-            min: Math.min(...allValues),
-            max: Math.max(...allValues),
-            median: sortedValues[Math.floor(sortedValues.length / 2)],
             avg: Math.round(allValues.reduce((a, b) => a + b, 0) / allValues.length),
             p20: sortedValues[Math.floor(sortedValues.length * 0.2)],
             p40: sortedValues[Math.floor(sortedValues.length * 0.4)],
@@ -269,27 +217,22 @@ export default function StatisticsZemljevid({
             p80: sortedValues[Math.floor(sortedValues.length * 0.8)]
         };
 
-        // Shrani statistike za legendo
-        window.currentPercentileStats = stats; // Globalno dostopne statistike
+        window.currentPercentileStats = stats;
 
-        // Ustvari expression za mapbox style
+        // Ustvarjanje color expression za mapbox
         const colorExpression = ['case'];
         
         nameMapping.forEach((apiName, geojsonName) => {
             const obcinaData = obcinePosliData[apiName];
             const value = obcinaData[activeTabParam]?.skupaj || 0;
-            
-            // 🎯 UPORABI PERCENTILNO BARVANJE Z COLOR PALETTES
             const color = getColorForValuePercentiles(value, allValues, activeTabParam);
             
             colorExpression.push(['==', ['get', 'OB_UIME'], geojsonName]);
             colorExpression.push(color);
         });
         
-        // Default color za občine brez podatkov
         colorExpression.push(COLOR_MAPPING_CONFIG.DEFAULT_FALLBACK);
 
-        // Aplikacija na mapi
         map.current.setFilter(LAYER_IDS.OBCINE.FILL, null);
         map.current.setPaintProperty(LAYER_IDS.OBCINE.FILL, 'fill-color', colorExpression);
         map.current.setPaintProperty(LAYER_IDS.OBCINE.FILL, 'fill-opacity', 0.8);
@@ -298,20 +241,71 @@ export default function StatisticsZemljevid({
         setColoringLoaded(true);
     }, [obcinePosliData, activeTab]);
 
-    // ===========================================
-    // EFFECT ZA SPREMINJANJE BARV PRI SWITCHU TABOV
-    // ===========================================
+    // Posodobitev barv katastrskih občin
+    const updateMunicipalitiesFillColors = useCallback((activeTabParam = activeTab) => {
+        if (!map.current || !katastrskePosliData || !map.current.getLayer(LAYER_IDS.MUNICIPALITIES.FILL)) {
+            return;
+        }
 
+        const allValues = [];
+        const nameMapping = new Map();
+        const apiNames = Object.keys(katastrskePosliData);
+        
+        municipalitiesData.features.forEach(feature => {
+            const geojsonName = feature.properties.NAZIV || feature.properties.IMEKO;
+            
+            if (geojsonName) {
+                const closestApiName = findClosestName(geojsonName, apiNames, 3);
+                
+                if (closestApiName) {
+                    nameMapping.set(geojsonName, closestApiName);
+                    const value = katastrskePosliData[closestApiName][activeTabParam]?.skupaj || 0;
+                    if (value > 0) allValues.push(value);
+                }
+            }
+        });
+
+        const colorExpression = ['case'];
+        let hasValidMappings = false;
+        
+        nameMapping.forEach((apiName, geojsonName) => {
+            const municipalityData = katastrskePosliData[apiName];
+            const value = municipalityData[activeTabParam]?.skupaj || 0;
+            const color = getColorForValuePercentiles(value, allValues, activeTabParam);
+            
+            colorExpression.push(['==', ['get', 'NAZIV'], geojsonName]);
+            colorExpression.push(color);
+            hasValidMappings = true;
+        });
+        
+        colorExpression.push(COLOR_MAPPING_CONFIG.DEFAULT_FALLBACK);
+
+        if (!hasValidMappings || colorExpression.length < 3) {
+            if (layerManager.current) {
+                layerManager.current.updateMunicipalitiesFillColors(null);
+            }
+            return;
+        }
+
+        if (layerManager.current) {
+            layerManager.current.updateMunicipalitiesFillColors(colorExpression);
+        }
+    }, [katastrskePosliData, activeTab]);
+
+    // Učinki za spreminjanje barv pri menjavi tabov
     useEffect(() => {
         if (obcinePosliData && obcineLoaded) {
             updateObcineFillColors(activeTab);
         }
     }, [activeTab, obcinePosliData, obcineLoaded, updateObcineFillColors]);
 
-    // ===========================================
-    // NOVI EFFECTS ZA AVTOMATSKI ZOOM
-    // ===========================================
+    useEffect(() => {
+        if (katastrskePosliData && municipalitiesLoaded) {
+            updateMunicipalitiesFillColors(activeTab);
+        }
+    }, [activeTab, katastrskePosliData, municipalitiesLoaded, updateMunicipalitiesFillColors]);
 
+    // Avtomatski zoom na izbrano regijo iz navigacije
     useEffect(() => {
         if (selectedMunicipality && municipalitiesLoaded && layerManager.current && 
             selectedRegionFromNavigation?.autoZoomToRegion && 
@@ -321,17 +315,13 @@ export default function StatisticsZemljevid({
                 feature => feature.properties.SIFKO === selectedMunicipality.sifko
             );
             
-            if (municipalityFeature) {
-                
+            if (municipalityFeature && selectedObcina) {
                 const bounds = calculateBoundsFromGeometry(municipalityFeature.geometry);
-                
-                if (selectedObcina) {
-                    map.current.fitBounds(bounds, {
-                        padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
-                        duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION,
-                        essential: true
-                    });
-                }
+                map.current.fitBounds(bounds, {
+                    padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
+                    duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION,
+                    essential: true
+                });
             }
         }
     }, [selectedMunicipality, municipalitiesLoaded, selectedRegionFromNavigation, selectedObcina]);
@@ -346,10 +336,9 @@ export default function StatisticsZemljevid({
             );
             
             if (obcinaFeature) {
-                
                 const bounds = calculateBoundsFromGeometry(obcinaFeature.geometry);
-                
                 const hasKatastre = obcinaHasKatastre(selectedObcina.name);
+                
                 if (hasKatastre) {
                     layerManager.current.updateLayerVisibilityByZoom(map.current.getZoom(), true, selectedObcina.name);
                 }
@@ -361,128 +350,14 @@ export default function StatisticsZemljevid({
                 });
 
                 map.current.setMaxBounds(bounds);
-
-                const overlayLayerId = 'obcina-mask';
-                const sourceId = SOURCE_IDS.OBCINE;
-
-                if (!map.current.getLayer(overlayLayerId)) {
-                    map.current.addLayer({
-                        id: overlayLayerId,
-                        type: 'fill',
-                        source: sourceId,
-                        paint: {
-                            'fill-color': 'rgba(0, 0, 0, 0.6)',
-                            'fill-opacity': [
-                                'case',
-                                ['==', ['get', 'OB_ID'], selectedObcina.obcinaId],
-                                0,
-                                1
-                            ]
-                        }
-                    }, LAYER_IDS.OBCINE.OUTLINE);
-                } else {
-                    map.current.setPaintProperty(overlayLayerId, 'fill-opacity', [
-                        'case',
-                        ['==', ['get', 'OB_ID'], selectedObcina.obcinaId],
-                        0,
-                        1
-                    ]);
-                }
-                
-                layerManager.current.updateObcinaSelection(
-                    selectedObcina.obcinaId, 
-                    selectedObcina.name
-                );
+                addObcinaMask(selectedObcina.obcinaId);
+                layerManager.current.updateObcinaSelection(selectedObcina.obcinaId, selectedObcina.name);
             }
         }
     }, [selectedObcina, obcineLoaded, selectedRegionFromNavigation]);
 
-    // ===========================================
-    // KATASTER IN REGION HANDLERJI
-    // ===========================================
-
-    const handleMunicipalityClick = useCallback((municipalityFeature) => {
-        if (!map.current || !municipalityFeature) return;
-
-        const sifko = municipalityFeature.properties.SIFKO;
-        const municipalityName = getMunicipalityName(municipalityFeature);
-
-        setHoveredMunicipality(null);
-        if (layerManager.current) {
-            layerManager.current.updateMunicipalityHover(null);
-        }
-
-        const bounds = calculateBoundsFromGeometry(municipalityFeature.geometry);
-
-        const municipalityData = {
-            name: municipalityName,
-            sifko: sifko,
-            bounds: bounds
-        };
-
-        if (onMunicipalitySelect) {
-            onMunicipalitySelect(municipalityData);
-        }
-
-    }, [onMunicipalitySelect]);
-
-    // handleObcinaClick funkcija
-    const handleObcinaClick = useCallback((obcinaFeature) => {
-        if (!map.current || !obcinaFeature) return;
-
-        const obcinaId = getObcinaId(obcinaFeature);
-        const obcinaName = getObcinaName(obcinaFeature);
-
-        if (selectedObcina?.obcinaId === obcinaId) {
-            return;
-        }
-
-        // Shrani trenutno stanje SAMO če še ni občine izbrane
-        if (!selectedObcina) {
-            const currentCenter = map.current.getCenter();
-            const currentZoom = map.current.getZoom();
-            
-            setPreviousMapState({
-                center: [currentCenter.lng, currentCenter.lat],
-                zoom: currentZoom
-            });
-            
-        }
-
-        setHoveredRegion(null);
-        if (layerManager.current) {
-            layerManager.current.updateObcinaHover(null);
-        }
-
-        const bounds = calculateBoundsFromGeometry(obcinaFeature.geometry);
-
-        const obcinaData = {
-            name: obcinaName,
-            obcinaId: obcinaId,
-            bounds: bounds
-        };
-
-        if (onObcinaSelect) {
-            onObcinaSelect(obcinaData);
-        }
-
-        const hasKatastre = obcinaHasKatastre(obcinaName);
-        if (layerManager.current) {
-            if (hasKatastre) {
-                layerManager.current.updateLayerVisibilityByZoom(map.current.getZoom(), true, obcinaName);
-            } else {
-                layerManager.current.hideMunicipalities();
-            }
-        }
-
-        map.current.fitBounds(bounds, {
-            padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
-            duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION,
-            essential: true
-        });
-
-        map.current.setMaxBounds(bounds);
-
+    // Dodaj masko za izbrano občino
+    const addObcinaMask = (obcinaId) => {
         const overlayLayerId = 'obcina-mask';
         const sourceId = SOURCE_IDS.OBCINE;
 
@@ -509,51 +384,120 @@ export default function StatisticsZemljevid({
                 1
             ]);
         }
+    };
+
+    // Klik na katastrsko občino
+    const handleMunicipalityClick = useCallback((municipalityFeature) => {
+        if (!map.current || !municipalityFeature) return;
+
+        const sifko = municipalityFeature.properties.SIFKO;
+        const municipalityName = getMunicipalityName(municipalityFeature);
+
+        setHoveredMunicipality(null);
+        if (layerManager.current) {
+            layerManager.current.updateMunicipalityHover(null);
+        }
+
+        const bounds = calculateBoundsFromGeometry(municipalityFeature.geometry);
+
+        // Zagotovi da katastrski sloji ostanejo vidni po kliku
+        if (layerManager.current && selectedObcina) {
+            layerManager.current.updateLayerVisibilityByZoom(map.current.getZoom(), true, selectedObcina.name);
+        }
+
+        if (onMunicipalitySelect) {
+            onMunicipalitySelect({
+                name: municipalityName,
+                sifko: sifko,
+                bounds: bounds,
+                preserveObcina: true // Dodamo flag da naj se občina ohrani
+            });
+        }
+    }, [onMunicipalitySelect, selectedObcina]);
+
+    // Klik na občino
+    const handleObcinaClick = useCallback((obcinaFeature) => {
+        if (!map.current || !obcinaFeature) return;
+
+        const obcinaId = getObcinaId(obcinaFeature);
+        const obcinaName = getObcinaName(obcinaFeature);
+
+        if (selectedObcina?.obcinaId === obcinaId) return;
+
+        // Shrani trenutno stanje samo če še ni občine izbrane
+        if (!selectedObcina) {
+            const currentCenter = map.current.getCenter();
+            const currentZoom = map.current.getZoom();
+            
+            setPreviousMapState({
+                center: [currentCenter.lng, currentCenter.lat],
+                zoom: currentZoom
+            });
+        }
+
+        setHoveredRegion(null);
+        if (layerManager.current) {
+            layerManager.current.updateObcinaHover(null);
+        }
+
+        const bounds = calculateBoundsFromGeometry(obcinaFeature.geometry);
+        const hasKatastre = obcinaHasKatastre(obcinaName);
+
+        if (onObcinaSelect) {
+            onObcinaSelect({
+                name: obcinaName,
+                obcinaId: obcinaId,
+                bounds: bounds
+            });
+        }
+
+        if (layerManager.current) {
+            if (hasKatastre) {
+                layerManager.current.updateLayerVisibilityByZoom(map.current.getZoom(), true, obcinaName);
+            } else {
+                layerManager.current.hideMunicipalities();
+            }
+        }
+
+        map.current.fitBounds(bounds, {
+            padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
+            duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION,
+            essential: true
+        });
+
+        map.current.setMaxBounds(bounds);
+        addObcinaMask(obcinaId);
     }, [selectedObcina, onObcinaSelect]);
 
-    // ===========================================
-    // MAP LAYER MANAGEMENT
-    // ===========================================
-
+    // Naložitev podatkov občin
     const loadObcine = useCallback(async () => {
         if (!map.current || obcineLoaded || !layerManager.current) return;
 
         try {
-
             layerManager.current.addObcineLayers(obcineData);
             setupObcinaEventHandlers();
-
             setObcineLoaded(true);
-
-            const posliData = await fetchObcinePosliData();
-            if (posliData) {
-
-            }
-
+            await fetchObcinePosliData();
         } catch (error) {
-            console.error('Error loading občine:', error);
+            console.error('Napaka pri nalaganju občin:', error);
         }
     }, [obcineLoaded]);
 
+    // Naložitev podatkov katastrskih občin
     const loadMunicipalities = useCallback(() => {
         if (!map.current || municipalitiesLoaded || !layerManager.current) return;
 
         try {
-
             layerManager.current.addMunicipalitiesLayers(municipalitiesData);
             setupMunicipalityEventHandlers();
-
             setMunicipalitiesLoaded(true);
-            console.log('Municipalities layer loaded successfully');
-
         } catch (error) {
-            console.error('Error loading municipalities:', error);
+            console.error('Napaka pri nalaganju katastrskih občin:', error);
         }
     }, [municipalitiesLoaded]);
 
-    // handleReset funkcija
+    // Resetiranje izbire
     const handleReset = useCallback(() => {
-        
         setHoveredRegion(null);
         setHoveredMunicipality(null);
 
@@ -563,22 +507,23 @@ export default function StatisticsZemljevid({
             layerManager.current.resetFilters();
         }
 
+        // Odstrani masko občine
         const overlayLayerId = 'obcina-mask';
         if (map.current.getLayer(overlayLayerId)) {
             map.current.removeLayer(overlayLayerId);
         }
 
-        // Odstrani maxBounds omejitev
         map.current.setMaxBounds(null);
 
         if (layerManager.current) {
             layerManager.current.updateLayerVisibilityByZoom(previousMapState.zoom, false, null);
         }
 
-        if (obcinePosliData) {
-            updateObcineFillColors(activeTab);
-        }
+        // Obnovi barve
+        if (obcinePosliData) updateObcineFillColors(activeTab);
+        if (katastrskePosliData) updateMunicipalitiesFillColors(activeTab);
 
+        // Vrni na prejšnje stanje
         const resetCenter = previousMapState.center && previousMapState.center.length === 2 
             ? previousMapState.center 
             : MAP_CONFIG.INITIAL_CENTER;
@@ -593,18 +538,11 @@ export default function StatisticsZemljevid({
             duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION
         });
 
-        if (onMunicipalitySelect) {
-            onMunicipalitySelect(null);
-        }
-        if (onObcinaSelect) {
-            onObcinaSelect(null);
-        }
-    }, [onMunicipalitySelect, onObcinaSelect, obcinePosliData, activeTab, updateObcineFillColors, previousMapState]);
+        if (onMunicipalitySelect) onMunicipalitySelect(null);
+        if (onObcinaSelect) onObcinaSelect(null);
+    }, [onMunicipalitySelect, onObcinaSelect, obcinePosliData, katastrskePosliData, activeTab, updateObcineFillColors, updateMunicipalitiesFillColors, previousMapState]);
 
-    // ===========================================
-    // EVENT HANDLERJI
-    // ===========================================
-
+    // Event handlerji za občine
     const setupObcinaEventHandlers = useCallback(() => {
         if (!map.current) return;
 
@@ -626,9 +564,8 @@ export default function StatisticsZemljevid({
                     };
 
                     if (obcinePosliData) {
-                        // Uporabi closest match za hover podatke
                         const apiNames = Object.keys(obcinePosliData);
-                        const closestApiName = findClosestObcinaName(hoveredObcinaName, apiNames);
+                        const closestApiName = findClosestName(hoveredObcinaName, apiNames);
                         
                         if (closestApiName && obcinePosliData[closestApiName]) {
                             const posliInfo = obcinePosliData[closestApiName][activeTab];
@@ -670,13 +607,10 @@ export default function StatisticsZemljevid({
         map.current.on('mouseleave', 'obcine-fill', hoverLeaveHandler);
         map.current.on('click', 'obcine-fill', clickHandler);
 
-        map.current._obcinaHandlers = {
-            hoverMoveHandler,
-            hoverLeaveHandler,
-            clickHandler
-        };
+        map.current._obcinaHandlers = { hoverMoveHandler, hoverLeaveHandler, clickHandler };
     }, [selectedObcina, handleObcinaClick, obcinePosliData, activeTab]);
 
+    // Event handlerji za katastrske občine
     const setupMunicipalityEventHandlers = useCallback(() => {
         if (!map.current) return;
 
@@ -684,10 +618,24 @@ export default function StatisticsZemljevid({
 
         const debouncedHoverUpdate = debounce((hoveredSifko, hoveredMunicipalityName) => {
             if (!selectedMunicipality || selectedMunicipality.sifko !== hoveredSifko) {
-                setHoveredMunicipality({
+                let hoverInfo = {
                     name: hoveredMunicipalityName,
                     type: 'Kataster'
-                });
+                };
+
+                if (katastrskePosliData) {
+                    const municipalityName = hoveredMunicipalityName.split('(')[0].trim();
+                    const apiNames = Object.keys(katastrskePosliData);
+                    const closestApiName = findClosestName(municipalityName, apiNames, 3);
+                    
+                    if (closestApiName && katastrskePosliData[closestApiName]) {
+                        const posliInfo = katastrskePosliData[closestApiName][activeTab];
+                        hoverInfo.posli = posliInfo?.skupaj || 0;
+                        hoverInfo.activeTab = activeTab;
+                    }
+                }
+
+                setHoveredMunicipality(hoverInfo);
 
                 if (layerManager.current) {
                     layerManager.current.updateMunicipalityHover(hoveredSifko);
@@ -736,24 +684,16 @@ export default function StatisticsZemljevid({
         map.current.on('mouseleave', 'municipalities-fill', hoverLeaveHandler);
         map.current.on('click', 'municipalities-fill', clickHandler);
 
-        map.current._municipalityHandlers = {
-            hoverMoveHandler,
-            hoverLeaveHandler,
-            clickHandler
-        };
-    }, [selectedMunicipality, handleMunicipalityClick]);
+        map.current._municipalityHandlers = { hoverMoveHandler, hoverLeaveHandler, clickHandler };
+    }, [selectedMunicipality, handleMunicipalityClick, katastrskePosliData, activeTab]);
 
+    // Handler za zoom spremembe
     const setupZoomHandler = () => {
         const handleZoomEnd = () => {
             const currentZoom = map.current.getZoom();
 
-            if (layerManager.current) {
-                if (selectedObcina) {
-
-                    return;
-                } else {
-                    layerManager.current.updateLayerVisibilityByZoom(currentZoom, null, null);
-                }
+            if (layerManager.current && !selectedObcina) {
+                layerManager.current.updateLayerVisibilityByZoom(currentZoom, null, null);
             }
         };
 
@@ -761,10 +701,7 @@ export default function StatisticsZemljevid({
         map.current._zoomEndHandler = handleZoomEnd;
     };
 
-    // ===========================================
-    // UTILITY FUNKCIJE
-    // ===========================================
-
+    // Čiščenje event handlerjev
     const cleanup = () => {
         if (map.current) {
             if (map.current._zoomEndHandler) {
@@ -796,15 +733,17 @@ export default function StatisticsZemljevid({
         }
     };
 
-    // ===========================================
-    // EFFECTS
-    // ===========================================
-
+    // Posodabljanje izbire občine/katastra
     useEffect(() => {
         if (map.current && layerManager.current) {
             layerManager.current.updateMunicipalitySelection(selectedMunicipality?.sifko);
+            
+            // Če je izbran kataster, zagotovi da katastrski sloji ostanejo vidni
+            if (selectedMunicipality && selectedObcina) {
+                layerManager.current.updateLayerVisibilityByZoom(map.current.getZoom(), true, selectedObcina.name);
+            }
         }
-    }, [selectedMunicipality]);
+    }, [selectedMunicipality, selectedObcina]);
 
     useEffect(() => {
         if (map.current && layerManager.current) {
@@ -853,11 +792,10 @@ export default function StatisticsZemljevid({
         return cleanup;
     }, []);
 
-    // Legenda za barvno shemo - UPORABLJA COLOR PALETTES IZ CONSTANTS
-    const PercentileLegend = () => {
+    // Komponenta za legendo
+    const PercentileLegenda = () => {
         if (!coloringLoaded || selectedObcina || selectedMunicipality) return null;
         
-        // Uporabi shranjene statistike ali fallback
         const stats = window.currentPercentileStats || null;
         const colorScale = getColorScalePercentiles(activeTab, stats);
         
@@ -870,7 +808,11 @@ export default function StatisticsZemljevid({
                     {colorScale.map((item, index) => (
                         <div key={index} className="flex items-center space-x-2">
                             <div 
-                                className="w-4 h-3 rounded border border-gray-300 flex-shrink-0"
+                                className={`w-4 h-3 rounded flex-shrink-0 ${
+                                    item.color === 'rgba(255, 255, 255, 0.8)' 
+                                        ? 'border-2 border-gray-300' 
+                                        : 'border border-gray-300'
+                                }`}
                                 style={{ backgroundColor: item.color }}
                             ></div>
                             <span className="text-xs text-gray-600 min-w-0">
@@ -888,10 +830,6 @@ export default function StatisticsZemljevid({
         );
     };
 
-    // ===========================================
-    // RENDER
-    // ===========================================
-
     return (
         <div className="relative w-full h-full">
             <div
@@ -906,7 +844,7 @@ export default function StatisticsZemljevid({
                 }}
             />
 
-            {/* Hover preview box za občine z informacijami o poslih */}
+            {/* Hover predogled za občine */}
             {hoveredRegion && !selectedMunicipality && !selectedObcina && (
                 <div className="absolute bottom-4 right-4 z-20 bg-white/95 backdrop-blur-sm rounded-lg shadow-md border border-gray-200 px-3 py-2">
                     <div className="flex items-center space-x-2">
@@ -930,7 +868,7 @@ export default function StatisticsZemljevid({
                 </div>
             )}
 
-            {/* Hover preview box za katastrske občine */}
+            {/* Hover predogled za katastrske občine */}
             {hoveredMunicipality && selectedObcina && !selectedMunicipality && 
              obcinaHasKatastre(selectedObcina.name) && (
                 <div className="absolute bottom-16 right-4 z-20 bg-white/95 backdrop-blur-sm rounded-lg shadow-md border border-gray-200 px-3 py-2">
@@ -942,10 +880,20 @@ export default function StatisticsZemljevid({
                             {hoveredMunicipality.name}
                         </span>
                     </div>
+                    {hoveredMunicipality.posli !== undefined && (
+                        <div className="flex items-center space-x-2 mt-1">
+                            <span className="text-xs text-gray-500">
+                                {hoveredMunicipality.activeTab === 'prodaja' ? 'Prodaje' : 'Najemi'}:
+                            </span>
+                            <span className="text-sm font-semibold text-gray-800">
+                                {hoveredMunicipality.posli}
+                            </span>
+                        </div>
+                    )}
                 </div>
             )}
 
-            {/* Indikator ce je izbrana obcina ali kataster */}
+            {/* Indikator izbrane regije */}
             {(selectedMunicipality || selectedObcina) && (
                 <div className="absolute bottom-4 right-4 z-20 bg-white rounded-lg shadow-lg border border-gray-200 px-4 py-2 max-w-sm">
                     <div className="flex items-center justify-between space-x-2">
@@ -974,8 +922,8 @@ export default function StatisticsZemljevid({
                 </div>
             )}
 
-            {/* Legenda za barve*/}
-            <PercentileLegend />
+            {/* Legenda za barvno shemo */}
+            <PercentileLegenda />
         </div>
     );
 }
