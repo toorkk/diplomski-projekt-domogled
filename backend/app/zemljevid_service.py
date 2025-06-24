@@ -553,7 +553,7 @@ class DelStavbeService:
                     "properties": {
                         "type": "cluster",
                         "cluster_type": "building",
-                        "point_count": row.point_count,
+                        "point_count": 1,
                         "cluster_id": f"b_{matched_municipality or row.obcina}_{row.sifra_ko}_{row.stevilka_stavbe}",
                         "obcina": matched_municipality or row.obcina,
                         "sifra_ko": row.sifra_ko,
