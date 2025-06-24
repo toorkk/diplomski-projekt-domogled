@@ -222,117 +222,147 @@ class StatisticsService:
         except Exception as e:
             logger.error(f"Napaka pri pridobivanju splošnih statistik za regijo {regija}: {str(e)}")
             return {"status": "error", "message": str(e)}
-
-    # PREMAKNA ZNOTRAJ RAZREDA
-    def get_all_obcine_posli_2025(self) -> Dict[str, Any]:
-        """
-        Pridobi število poslov za leto 2025 za VSE občine
         
-        Returns:
-            Dict s podatki za vse občine organizirane po imenih občin
-        """
-        try:
-            with self.engine.connect() as conn:
-                # QUERY z boljšim error handling-om
-                query = """
-                SELECT 
-                    ime_regije,
-                    tip_posla,
-                    vrsta_nepremicnine,
-                    SUM(stevilo_poslov) as skupaj_poslov
-                FROM stats.statistike_cache 
-                WHERE leto = :leto
-                    AND tip_regije = :tip_regije
-                GROUP BY ime_regije, tip_posla, vrsta_nepremicnine
+
+def get_all_obcine_posli_2025(self, vkljuci_katastrske: bool = True) -> Dict[str, Any]:
+    """
+    Pridobi število poslov za leto 2025 za VSE občine + katastrske občine za Ljubljano in Maribor
+    
+    Args:
+        vkljuci_katastrske: Ali naj vključi tudi katastrske občine za LJ in MB
+    
+    Returns:
+        Dict s podatki za vse občine + katastrske občine organizirane po imenih
+    """
+    try:
+        with self.engine.connect() as conn:
+            # Osnovni query za občine
+            query_obcine = """
+            SELECT 
+                ime_regije,
+                tip_posla,
+                vrsta_nepremicnine,
+                'obcina' as tip_regije_oznaka,
+                SUM(stevilo_poslov) as skupaj_poslov
+            FROM stats.statistike_cache 
+            WHERE leto = :leto
+                AND tip_regije = 'obcina'
+            GROUP BY ime_regije, tip_posla, vrsta_nepremicnine
+            """
+            
+            # Query za katastrske občine (samo Ljubljana in Maribor)
+            query_katastrske = """
+            SELECT 
+                ime_regije,
+                tip_posla,
+                vrsta_nepremicnine,
+                'kat_obcina' as tip_regije_oznaka,
+                SUM(stevilo_poslov) as skupaj_poslov
+            FROM stats.statistike_cache 
+            WHERE leto = :leto
+                AND tip_regije = 'kat_obcina'
+                AND ime_regije LIKE '%Ljubljana%' OR ime_regije LIKE '%Maribor%'
+            GROUP BY ime_regije, tip_posla, vrsta_nepremicnine
+            """
+            
+            # Kombiniran query z UNION ALL
+            if vkljuci_katastrske:
+                final_query = f"""
+                {query_obcine}
+                UNION ALL
+                {query_katastrske}
                 ORDER BY ime_regije, tip_posla, vrsta_nepremicnine
                 """
+            else:
+                final_query = f"{query_obcine} ORDER BY ime_regije, tip_posla, vrsta_nepremicnine"
+            
+            result = conn.execute(text(final_query), {"leto": 2025})
+            rows = result.fetchall()
+            
+            logger.info(f"Found {len(rows)} rows for občine + katastrske posli 2025")
+            
+            if not rows:
+                # Error handling kot prej
+                test_query = "SELECT COUNT(*) as count FROM stats.statistike_cache LIMIT 1"
+                test_result = conn.execute(text(test_query))
+                table_exists = test_result.fetchone()
                 
-                # Uporabi parametre namesto hardcoded vrednosti
-                result = conn.execute(
-                    text(query), 
-                    {
-                        "leto": 2025,
-                        "tip_regije": "obcina"
-                    }
-                )
-                rows = result.fetchall()
-                
-                logger.info(f"Found {len(rows)} rows for občine posli 2025")
-                
-                if not rows:
-                    # Preverimo ali obstaja tabela in podatki sploh
-                    test_query = "SELECT COUNT(*) as count FROM stats.statistike_cache LIMIT 1"
-                    test_result = conn.execute(text(test_query))
-                    table_exists = test_result.fetchone()
-                    
-                    if not table_exists:
-                        return {
-                            "status": "error",
-                            "message": "Tabela stats.statistike_cache ne obstaja"
-                        }
-                    
-                    # Preverimo katera leta imamo na voljo
-                    years_query = "SELECT DISTINCT leto FROM stats.statistike_cache ORDER BY leto"
-                    years_result = conn.execute(text(years_query))
-                    available_years = [row[0] for row in years_result.fetchall()]
-                    
+                if not table_exists:
                     return {
-                        "status": "error", 
-                        "message": f"Podatki za leto 2025 niso najdeni za nobeno občino. Dostopna leta: {available_years}"
+                        "status": "error",
+                        "message": "Tabela stats.statistike_cache ne obstaja"
                     }
                 
-                # Organizacija podatkov po občinah
-                obcine_data = {}
-                
-                for row in rows:
-                    obcina_name = row.ime_regije
-                    tip_posla = row.tip_posla
-                    vrsta_nep = row.vrsta_nepremicnine
-                    stevilo = row.skupaj_poslov or 0
-                    
-                    # Inicializiraj občino če še ne obstaja
-                    if obcina_name not in obcine_data:
-                        obcine_data[obcina_name] = {
-                            "name": obcina_name,
-                            "prodaja": {
-                                "stanovanje": 0,
-                                "hisa": 0,
-                                "skupaj": 0
-                            },
-                            "najem": {
-                                "stanovanje": 0,
-                                "hisa": 0,
-                                "skupaj": 0
-                            },
-                            "skupaj_vsi_posli": 0
-                        }
-                    
-                    # Preveri ali so ključi veljavni
-                    if tip_posla in obcine_data[obcina_name] and vrsta_nep in obcine_data[obcina_name][tip_posla]:
-                        # Dodaj podatke
-                        obcine_data[obcina_name][tip_posla][vrsta_nep] = stevilo
-                        obcine_data[obcina_name][tip_posla]["skupaj"] += stevilo
-                        obcine_data[obcina_name]["skupaj_vsi_posli"] += stevilo
-                    else:
-                        logger.warning(f"Neočakovan tip_posla: {tip_posla} ali vrsta_nepremicnine: {vrsta_nep}")
-                
-                logger.info(f"Successfully processed data for {len(obcine_data)} občin")
+                years_query = "SELECT DISTINCT leto FROM stats.statistike_cache ORDER BY leto"
+                years_result = conn.execute(text(years_query))
+                available_years = [row[0] for row in years_result.fetchall()]
                 
                 return {
-                    "status": "success",
-                    "leto": 2025,
-                    "obcine_posli": obcine_data
+                    "status": "error", 
+                    "message": f"Podatki za leto 2025 niso najdeni. Dostopna leta: {available_years}"
                 }
-        
-        except Exception as e:
-            logger.error(f"Napaka pri pridobivanju poslov za vse občine 2025: {str(e)}")
-            logger.error(f"Error type: {type(e).__name__}")
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
+            
+            # Organizacija podatkov po regijah (občine + katastrske)
+            regije_data = {}
+            
+            for row in rows:
+                regija_name = row.ime_regije
+                tip_posla = row.tip_posla
+                vrsta_nep = row.vrsta_nepremicnine
+                tip_regije_oznaka = row.tip_regije_oznaka
+                stevilo = row.skupaj_poslov or 0
+                
+                # Inicializiraj regijo če še ne obstaja
+                if regija_name not in regije_data:
+                    regije_data[regija_name] = {
+                        "name": regija_name,
+                        "tip_regije": tip_regije_oznaka,  # označimo ali je občina ali kat_občina
+                        "prodaja": {
+                            "stanovanje": 0,
+                            "hisa": 0,
+                            "skupaj": 0
+                        },
+                        "najem": {
+                            "stanovanje": 0,
+                            "hisa": 0,
+                            "skupaj": 0
+                        },
+                        "skupaj_vsi_posli": 0
+                    }
+                
+                # Preveri ali so ključi veljavni
+                if tip_posla in regije_data[regija_name] and vrsta_nep in regije_data[regija_name][tip_posla]:
+                    # Dodaj podatke
+                    regije_data[regija_name][tip_posla][vrsta_nep] = stevilo
+                    regije_data[regija_name][tip_posla]["skupaj"] += stevilo
+                    regije_data[regija_name]["skupaj_vsi_posli"] += stevilo
+                else:
+                    logger.warning(f"Neočakovan tip_posla: {tip_posla} ali vrsta_nepremicnine: {vrsta_nep}")
+            
+            # Ločimo podatke po tipu regije za boljši pregled
+            obcine_data = {k: v for k, v in regije_data.items() if v["tip_regije"] == "obcina"}
+            katastrske_data = {k: v for k, v in regije_data.items() if v["tip_regije"] == "kat_obcina"}
+            
+            logger.info(f"Successfully processed data for {len(obcine_data)} občin and {len(katastrske_data)} katastrskih občin")
+            
             return {
-                "status": "error", 
-                "message": f"Database error: {str(e)} (Type: {type(e).__name__})"
+                "status": "success",
+                "leto": 2025,
+                "vkljucene_katastrske": vkljuci_katastrske,
+                "obcine_posli": obcine_data,
+                "katastrske_obcine_posli": katastrske_data if vkljuci_katastrske else {},
+                "skupaj_regij": len(regije_data)
             }
+    
+    except Exception as e:
+        logger.error(f"Napaka pri pridobivanju poslov za vse regije 2025: {str(e)}")
+        logger.error(f"Error type: {type(e).__name__}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return {
+            "status": "error", 
+            "message": f"Database error: {str(e)} (Type: {type(e).__name__})"
+        }
 
 
     # POMOŽNE METODE
