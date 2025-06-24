@@ -433,26 +433,20 @@ def splosne_statistike(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DB napaka: {str(e)}")
     
-def vse_obcine_posli_2025(
+def vse_obcine_posli_zadnjih_12m(
     vkljuci_katastrske: bool = Query(
         default=True, 
-        description="Ali naj vključi tudi katastrske občine za Ljubljano in Maribor"
+        description="Ali naj vključi tudi katastrske občine"
     )
 ):
     """
-    Pridobi število poslov za leto 2025 za VSE občine + opcijsko katastrske občine
+    Pridobi število poslov za zadnjih 12 mesecev za VSE občine + opcijsko katastrske občine
     """
     try:
-        print(f"DEBUG: Začenjam z vkljuci_katastrske={vkljuci_katastrske}")
-        
         # Pokliči posodobljeno metodo
-        rezultat = stats_service.get_all_obcine_posli_2025(vkljuci_katastrske=vkljuci_katastrske)
-        
-        print(f"DEBUG: Rezultat iz service: {type(rezultat)}")
-        print(f"DEBUG: Status: {rezultat.get('status') if isinstance(rezultat, dict) else 'Unknown'}")
+        rezultat = stats_service.get_all_obcine_posli_zadnjih_12m(vkljuci_katastrske=vkljuci_katastrske)
         
         if rezultat["status"] == "error":
-            print(f"DEBUG: Error message: {rezultat['message']}")
             raise HTTPException(status_code=404, detail=rezultat["message"])
         
         return JSONResponse(
@@ -461,8 +455,4 @@ def vse_obcine_posli_2025(
         )
         
     except Exception as e:
-        print(f"DEBUG: Exception occurred: {str(e)}")
-        print(f"DEBUG: Exception type: {type(e).__name__}")
-        import traceback
-        print(f"DEBUG: Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"DB napaka: {str(e)}")

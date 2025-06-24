@@ -123,12 +123,12 @@ class StatisticsService:
                 # Organiziraj podatke po strukturah
                 statistike = {
                     "prodaja": {
-                        "stanovanje": {"letno": [], "zadnjih_12m": None},
-                        "hisa": {"letno": [], "zadnjih_12m": None}
+                        "stanovanje": {"letno": [], "zadnjih12m": None},
+                        "hisa": {"letno": [], "zadnjih12m": None}
                     },
                     "najem": {
-                        "stanovanje": {"letno": [], "zadnjih_12m": None},
-                        "hisa": {"letno": [], "zadnjih_12m": None}
+                        "stanovanje": {"letno": [], "zadnjih12m": None},
+                        "hisa": {"letno": [], "zadnjih12m": None}
                     },
                 }
                 
@@ -157,8 +157,8 @@ class StatisticsService:
                     
                     if tip_obd == "letno":
                         statistike[tip_trans][vrsta_nep]["letno"].append(podatek)
-                    else:  # zadnjih_12m
-                        statistike[tip_trans][vrsta_nep]["zadnjih_12m"] = podatek
+                    else:  # zadnjih12m
+                        statistike[tip_trans][vrsta_nep]["zadnjih12m"] = podatek
                     
                 return {"status": "success", "statistike": statistike}
                 
@@ -223,14 +223,14 @@ class StatisticsService:
             logger.error(f"Napaka pri pridobivanju splošnih statistik za regijo {regija}: {str(e)}")
             return {"status": "error", "message": str(e)}
 
-    def get_all_obcine_posli_2025(self, vkljuci_katastrske: bool = True) -> Dict[str, Any]:
+    def get_all_obcine_posli_zadnjih_12m(self, vkljuci_katastrske: bool = True) -> Dict[str, Any]:
         """
-        Pridobi število poslov za leto 2025 za VSE občine + VSE katastrske občine
+        Pridobi število poslov za zadnjih 12 mesecev za VSE občine + VSE katastrske občine
         Frontend bo filtriral katere se prikažejo
         """
         try:
             with self.engine.connect() as conn:
-                # Osnovni query za občine
+                # Osnovni query za občine - zadnjih 12 mesecev
                 query_obcine = """
                 SELECT 
                     ime_regije,
@@ -239,12 +239,12 @@ class StatisticsService:
                     'obcina' as tip_regije_oznaka,
                     SUM(stevilo_poslov) as skupaj_poslov
                 FROM stats.statistike_cache 
-                WHERE leto = :leto
+                WHERE tip_obdobja = 'zadnjih12m'
                     AND tip_regije = 'obcina'
                 GROUP BY ime_regije, tip_posla, vrsta_nepremicnine
                 """
                 
-                result_obcine = conn.execute(text(query_obcine), {"leto": 2025})
+                result_obcine = conn.execute(text(query_obcine))
                 rows_obcine = result_obcine.fetchall()
                 
                 # Organizacija podatkov po občinah
@@ -272,7 +272,7 @@ class StatisticsService:
                 # Inicializiraj result
                 result = {
                     "status": "success",
-                    "leto": 2025,
+                    "obdobje": "zadnjih_12_mesecev",
                     "vkljucene_katastrske": vkljuci_katastrske,
                     "obcine_posli": obcine_data,
                     "katastrske_obcine_posli": {},
@@ -289,14 +289,14 @@ class StatisticsService:
                         'katastrska_obcina' as tip_regije_oznaka,
                         SUM(stevilo_poslov) as skupaj_poslov
                     FROM stats.statistike_cache 
-                    WHERE leto = :leto
+                    WHERE tip_obdobja = 'zadnjih12m'
                         AND tip_regije = 'katastrska_obcina'
                     GROUP BY ime_regije, tip_posla, vrsta_nepremicnine
                     ORDER BY ime_regije, tip_posla, vrsta_nepremicnine
                     """
                     
                     try:
-                        result_katastrske = conn.execute(text(query_katastrske), {"leto": 2025})
+                        result_katastrske = conn.execute(text(query_katastrske))
                         rows_katastrske = result_katastrske.fetchall()
                         
                         katastrske_data = {}
