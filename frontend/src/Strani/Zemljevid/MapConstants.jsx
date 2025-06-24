@@ -98,7 +98,7 @@ export const SOURCE_IDS = {
 export const ZOOM_LEVELS = {
     OBCINE_LABELS_THRESHOLD: 9,     // When to show občine labels
     MUNICIPALITY_DETAIL: 11,        // When to show katastri for Ljubljana/Maribor
-    AUTO_LOAD_PROPERTIES: 11        // When to auto-load properties
+    AUTO_LOAD_PROPERTIES: 7        // When to auto-load properties
 };
 
 // Zoom-dependent styling

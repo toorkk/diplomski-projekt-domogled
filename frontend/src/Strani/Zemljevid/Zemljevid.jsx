@@ -8,7 +8,7 @@ import Switcher from "./Switcher.jsx";
 import Iskalnik from "./Iskalnik.jsx";
 import Podrobnosti from "./Podrobnosti.jsx";
 import PopupManager from "./PopupManager.jsx";
-import StatistikePanel from "./StatistikePanel.jsx"; // NOVO
+import StatistikePanel from "./StatistikePanel.jsx";
 
 // Importanje managerjev
 import LayerManager from "./LayerManager.jsx";

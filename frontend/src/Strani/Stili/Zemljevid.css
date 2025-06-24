@@ -6,45 +6,35 @@
   background: none !important;
 }
 
-/* Stili za close button v MapLibre popupu */
 .maplibregl-popup-close-button {
-  /* Povečajte velikost gumba */
   width: 30px !important;
   height: 30px !important;
   
-  /* Nastavite barvo besedila na belo */
   color: white !important;
   
-  /* Povečajte velikost pisave (X ikone) */
   font-size: 20px !important;
   
-  /* Stil za bolj eleganten izgled */
   line-height: 30px !important;
   text-align: center !important;
   
-  /* Pozicioniranje gumba v zgornjem desnem kotu modrega zgornjega dela */
   position: absolute !important;
   top: 5px !important;
   right: 5px !important;
   
-  /* Odstranite privzeto ozadje in rob */
   background: transparent !important;
   border: none !important;
   padding: 0 !important;
   
-  /* Dodamo prosojno sivo ozadje pri hover */
   transition: background-color 0.2s ease !important;
 }
 
-/* Stil za hover stanje gumba */
 .maplibregl-popup-close-button:hover {
   background-color: rgba(0, 0, 0, 0.2) !important;
   color: white !important;
 }
 
-/* Če želite, da je gumb viden samo v zgornjem delu z modrim ozadjem */
 .custom-popup .maplibregl-popup-close-button {
-  z-index: 10 !important; /* Zagotovi, da je gumb nad vsemi drugimi elementi */
+  z-index: 10 !important;
 }
 
 .animate-slide-up {

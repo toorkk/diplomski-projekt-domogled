@@ -5,7 +5,7 @@ export default function Navbar({ activePage, onPageChange }) {
   const [isMobile, setIsMobile] = useState(false);
 
   const navItems = [
-    { name: 'Zemljevid', key: 'zemljevid' },
+    { name: 'Nepremičnine', key: 'zemljevid' },
     { name: 'Statistika', key: 'statistika' },
     { name: 'O podatkih', key: 'opodatkih' }
   ];
