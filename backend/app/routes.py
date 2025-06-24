@@ -443,7 +443,7 @@ def vse_obcine_posli_2025():
     - GET /api/statistike/vse-obcine-posli-2025
     """
     try:
-        rezultat = stats_service.get_all_obcine_posli_2025()
+        rezultat = stats_service.get_all_obcine_posli_zadnjih12m()
         
         if rezultat["status"] == "error":
             raise HTTPException(status_code=404, detail=rezultat["message"])

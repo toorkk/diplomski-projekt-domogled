@@ -1,17 +1,17 @@
 -- =============================================================================
--- MATERIALIZED VIEW ZA PRODAJNE STATISTIKE - LETNO
+-- MATERIALIZED VIEW ZA PRODAJNE STATISTIKE - ZADNJIH 12 MESECEV
 -- =============================================================================
--- Namen: Agregira prodajne podatke po katastrskih občinah, občinah in za celo Slovenijo
+-- Namen: Agregira prodajne podatke za zadnjih 12 mesecev po katastrskih občinah, občinah in za celo Slovenijo
 -- Logika: 
 -- 1. Pripravi osnovne prodajne podatke z validacijo
 -- 2. Izračuna statistike z GROUPING SETS na vseh nivojih hkrati
 -- =============================================================================
 
-DROP MATERIALIZED VIEW IF EXISTS stats.mv_prodajne_statistike;
-CREATE MATERIALIZED VIEW stats.mv_prodajne_statistike AS (
+DROP MATERIALIZED VIEW IF EXISTS stats.mv_prodajne_statistike_12m;
+CREATE MATERIALIZED VIEW stats.mv_prodajne_statistike_12m AS (
 
--- KORAK 1: PRIPRAVA OSNOVNIH PRODAJNIH PODATKOV
--- =============================================
+-- KORAK 1: PRIPRAVA OSNOVNIH PRODAJNIH PODATKOV - ZADNJIH 12 MESECEV
+-- ==================================================================
 WITH prodajni_podatki AS (
     SELECT 
         -- Identifikatorji
@@ -60,29 +60,25 @@ WITH prodajni_podatki AS (
             WHEN k.leto_izgradnje_stavbe IS NOT NULL 
             THEN date_part('year', kp.datum_sklenitve) - k.leto_izgradnje_stavbe
             ELSE NULL
-        END as starost_stavbe,
+        END as starost_stavbe
 
-        -- DATUMI
-        -- ======
-        date_part('year', kp.datum_sklenitve) as leto_sklenitve
-        
     FROM core.kpp_del_stavbe k
     JOIN core.kpp_posel kp ON k.posel_id = kp.posel_id
     WHERE 
-        -- FILTRIRANJE PODATKOV
-        -- ===================
+        -- FILTRIRANJE PODATKOV - ZADNJIH 12 MESECEV
+        -- ==========================================
         kp.vrsta_posla IN (1,2)
         AND k.ime_ko IS NOT NULL
         AND k.obcina IS NOT NULL
         AND kp.datum_sklenitve IS NOT NULL
-        AND date_part('year', kp.datum_sklenitve) BETWEEN 2007 AND EXTRACT(YEAR FROM CURRENT_DATE)
+        AND kp.datum_sklenitve >= CURRENT_DATE - INTERVAL '12 months'
         AND k.vrsta_nepremicnine IN (1, 2)
         AND k.tip_rabe = 'bivalno'
         AND k.prodani_delez = '1/1'
 ),
 
 -- KORAK 2: IZRAČUN KOLIKO VALIDNIH NEPREMIČNIN JE V POSLU IN DELITEV CENE S TEM ŠTEVILOM
--- =============================================
+-- =====================================================================================
 
 filtered_posli AS (
     SELECT 
@@ -97,6 +93,7 @@ vsi_posli AS (
         posel_id,
         COUNT(*) as celotno_stevilo_delov_stavb
     FROM core.kpp_del_stavbe 
+    WHERE posel_id IN (SELECT DISTINCT posel_id FROM prodajni_podatki)
     GROUP BY posel_id
 ),
 
@@ -153,7 +150,6 @@ SELECT
     -- ================
     vrsta_nepremicnine,
     'prodaja' as tip_posla,
-    leto_sklenitve as leto,
 
     -- AGREGIRANE MERIKE (poenotena imena z najemom)
     -- ============================================
@@ -172,17 +168,17 @@ SELECT
     
 FROM prodajni_podatki_z_razdeljeno_ceno
 GROUP BY GROUPING SETS (
-    (ime_ko, vrsta_nepremicnine, leto_sklenitve),     -- Katastrske občine
-    (obcina, vrsta_nepremicnine, leto_sklenitve),     -- Občine  
-    (vrsta_nepremicnine, leto_sklenitve)              -- Slovenija
+    (ime_ko, vrsta_nepremicnine),     -- Katastrske občine
+    (obcina, vrsta_nepremicnine),     -- Občine  
+    (vrsta_nepremicnine)              -- Slovenija
 ));
 
 -- =============================================================================
 -- KREIRANJE INDEKSOV
 -- =============================================================================
 
-CREATE INDEX idx_mv_prodajne_universal 
-ON stats.mv_prodajne_statistike(tip_regije, ime_regije, vrsta_nepremicnine, leto);
+CREATE INDEX idx_mv_prodajne_12m_universal 
+ON stats.mv_prodajne_statistike_12m(tip_regije, ime_regije, vrsta_nepremicnine);
 
-CREATE INDEX idx_mv_prodajne_vrsta 
-ON stats.mv_prodajne_statistike(vrsta_nepremicnine);
+CREATE INDEX idx_mv_prodajne_12m_vrsta 
+ON stats.mv_prodajne_statistike_12m(vrsta_nepremicnine);
