@@ -23,7 +23,6 @@ class StatisticsLayerManager {
     // Dodaj sloje občin za nizke zoom nivoje
     addObcineLayers(obcineData) {
         if (this.map.getSource(SOURCE_IDS.OBCINE)) {
-            console.log('Občine already loaded');
             return;
         }
 
@@ -63,7 +62,6 @@ class StatisticsLayerManager {
                 }
             });
 
-            console.log('Občine layers added successfully');
         } catch (error) {
             console.error('Error adding občine layers:', error);
             throw error;
@@ -138,8 +136,6 @@ class StatisticsLayerManager {
         if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.LABELS)) {
             this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.LABELS, 'visibility', 'none');
         }
-
-        console.log('Municipalities hidden - občina nima katastrov');
     }
 
     // Filtriraj katastre glede na občino
@@ -162,7 +158,6 @@ class StatisticsLayerManager {
                 this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.LABELS, 'visibility', 'visible');
             }
             
-            console.log(`Municipalities filtered for občina: ${obcinaName}`);
         } else {
             // Prikaži vse katastre ali jih skrij
             this.map.setFilter(LAYER_IDS.MUNICIPALITIES.FILL, null);
@@ -171,8 +166,6 @@ class StatisticsLayerManager {
             if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.LABELS)) {
                 this.map.setFilter(LAYER_IDS.MUNICIPALITIES.LABELS, null);
             }
-            
-            console.log('Municipality filters cleared');
         }
     }
 
@@ -203,53 +196,84 @@ class StatisticsLayerManager {
         ]);
     }
 
-    // Kontrola vidnosti slojev glede na zoom - odstranjena coloringLoaded referenca
-    updateLayerVisibilityByZoom(currentZoom, forceShowMunicipalitiesParam = null, selectedObcinaName = null) {
-        const showObcineLabels = currentZoom < ZOOM_LEVELS.OBCINE_THRESHOLD;
-        // Odstranjena nedefinirana coloringLoaded spremenljivka
-        const showObcineFill = currentZoom < ZOOM_LEVELS.OBCINE_THRESHOLD;
+    // ========================================
+    // OPTIMIZIRANA updateLayerVisibilityByZoom
+    // ========================================
+
+    // Helper metoda za določitev ali naj se prikaže municipalities
+    _calculateMunicipalitiesVisibility(currentZoom, forceParam, selectedObcinaName) {
+        const obcinaName = selectedObcinaName || this.selectedObcinaName;
+        const hasKatastre = this.obcinaHasKatastre(obcinaName);
         
-        // Če je forceShowMunicipalitiesParam eksplicitno poslan, uporabi to
-        // Sicer uporabi internal flag ali zoom logiko
-        let shouldShowMunicipalities;
+        // Če ni katastrov, ne prikaži
+        if (!hasKatastre) return false;
         
-        if (forceShowMunicipalitiesParam !== null) {
-            // Eksplicitni parameter - nastavi tudi internal flag
-            this.forceShowMunicipalities = forceShowMunicipalitiesParam && this.obcinaHasKatastre(selectedObcinaName);
-            shouldShowMunicipalities = this.forceShowMunicipalities;
-        } else {
-            // Če ni eksplicitnega parametra, uporabi logiko
-            const zoomBasedShow = currentZoom >= ZOOM_LEVELS.OBCINE_THRESHOLD;
-            shouldShowMunicipalities = (zoomBasedShow || this.forceShowMunicipalities) && 
-                                     this.obcinaHasKatastre(selectedObcinaName || this.selectedObcinaName);
+        // Če je eksplicitni parameter, uporabi tega
+        if (forceParam !== null) {
+            this.forceShowMunicipalities = forceParam;
+            return this.forceShowMunicipalities;
         }
-
-        // Kontrola vidnosti slojev občin
-        if (this.hasLayer(LAYER_IDS.OBCINE.FILL)) {
-            this.map.setLayoutProperty(LAYER_IDS.OBCINE.FILL, 'visibility', showObcineFill ? 'visible' : 'none');
-            this.map.setLayoutProperty(LAYER_IDS.OBCINE.OUTLINE, 'visibility', 'visible'); // Vedno vidne za kontekst
-            
-            if (this.hasLayer(LAYER_IDS.OBCINE.LABELS)) {
-                this.map.setLayoutProperty(LAYER_IDS.OBCINE.LABELS, 'visibility', showObcineLabels ? 'visible' : 'none');
-            }
-        }
-
-        // Kontrola vidnosti slojev katastrov
-        if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.FILL)) {
-            this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'visibility', shouldShowMunicipalities ? 'visible' : 'none');
-            this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'visibility', shouldShowMunicipalities ? 'visible' : 'none');
-            
-            if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.LABELS)) {
-                this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.LABELS, 'visibility', shouldShowMunicipalities ? 'visible' : 'none');
-            }
-        }
-
-        console.log(`Zoom ${currentZoom}: Občine ${showObcineFill ? 'clickable' : 'disabled'}, Municipalities ${shouldShowMunicipalities ? 'visible' : 'hidden'}, Force: ${this.forceShowMunicipalities}, Selected: ${selectedObcinaName || this.selectedObcinaName}`);
+        
+        // Sicer uporabi zoom logiko ali force flag
+        const zoomBasedShow = currentZoom >= ZOOM_LEVELS.OBCINE_THRESHOLD;
+        return zoomBasedShow || this.forceShowMunicipalities;
     }
+
+    // Helper metoda za nastavljanje vidnosti posameznega sloja
+    _setLayerVisibility(layerId, isVisible) {
+        if (this.hasLayer(layerId)) {
+            this.map.setLayoutProperty(layerId, 'visibility', isVisible ? 'visible' : 'none');
+        }
+    }
+
+    // Helper metoda za kreiranje visibility konfiguracije
+    _createVisibilityConfig(currentZoom, forceParam, selectedObcinaName) {
+        const isLowZoom = currentZoom < ZOOM_LEVELS.OBCINE_THRESHOLD;
+        const shouldShowMunicipalities = this._calculateMunicipalitiesVisibility(
+            currentZoom, 
+            forceParam, 
+            selectedObcinaName
+        );
+
+        return {
+            obcine: {
+                fill: isLowZoom,
+                outline: true, // Vedno vidne za kontekst
+                labels: isLowZoom
+            },
+            municipalities: {
+                fill: shouldShowMunicipalities,
+                outline: shouldShowMunicipalities,
+                labels: shouldShowMunicipalities
+            }
+        };
+    }
+
+    // Helper metoda za aplikacijo visibility konfiguracije
+    _applyVisibilityConfig(config) {
+        // Nastavi občine
+        this._setLayerVisibility(LAYER_IDS.OBCINE.FILL, config.obcine.fill);
+        this._setLayerVisibility(LAYER_IDS.OBCINE.OUTLINE, config.obcine.outline);
+        this._setLayerVisibility(LAYER_IDS.OBCINE.LABELS, config.obcine.labels);
+
+        // Nastavi municipalities
+        this._setLayerVisibility(LAYER_IDS.MUNICIPALITIES.FILL, config.municipalities.fill);
+        this._setLayerVisibility(LAYER_IDS.MUNICIPALITIES.OUTLINE, config.municipalities.outline);
+        this._setLayerVisibility(LAYER_IDS.MUNICIPALITIES.LABELS, config.municipalities.labels);
+    }
+
+    // Glavna funkcija - sedaj drastično poenostavljena
+    updateLayerVisibilityByZoom(currentZoom, forceShowMunicipalitiesParam = null, selectedObcinaName = null) {
+        const config = this._createVisibilityConfig(currentZoom, forceShowMunicipalitiesParam, selectedObcinaName);
+        this._applyVisibilityConfig(config);
+    }
+
+    // ========================================
+    // OSTALE FUNKCIJE OSTANEJO ENAKE
+    // ========================================
     
     addMunicipalitiesLayers(municipalitiesData) {
         if (this.map.getSource(SOURCE_IDS.MUNICIPALITIES)) {
-            console.log('Municipalities already loaded');
             return;
         }
 
@@ -283,7 +307,6 @@ class StatisticsLayerManager {
                 }
             });
 
-            console.log('Municipalities layers added successfully');
         } catch (error) {
             console.error('Error adding municipalities layers:', error);
             throw error;
@@ -386,8 +409,6 @@ class StatisticsLayerManager {
 
     // Počisti vse sloje
     cleanup() {
-        console.log('StatisticsLayerManager: Starting cleanup...');
-
         // Resetiraj stanje
         this.selectedObcinaName = null;
         this.forceShowMunicipalities = false; // Resetiraj tudi prisilni flag
@@ -403,8 +424,6 @@ class StatisticsLayerManager {
             [LAYER_IDS.MUNICIPALITIES.LABELS, LAYER_IDS.MUNICIPALITIES.OUTLINE, LAYER_IDS.MUNICIPALITIES.FILL],
             SOURCE_IDS.MUNICIPALITIES
         );
-
-        console.log('StatisticsLayerManager: Cleanup completed');
     }
 }
 

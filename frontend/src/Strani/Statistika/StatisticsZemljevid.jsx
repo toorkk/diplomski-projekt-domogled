@@ -9,7 +9,9 @@ import {
     MAP_CONFIG,
     ZOOM_LEVELS,
     SOURCE_IDS,
-    LAYER_IDS
+    LAYER_IDS,
+    PERCENTILE_COLOR_PALETTES,
+    COLOR_MAPPING_CONFIG
 } from './StatisticsMapConstants.jsx';
 
 //Importanje vseh utils
@@ -54,13 +56,10 @@ export default function StatisticsZemljevid({
         zoom: MAP_CONFIG.INITIAL_ZOOM
     });
 
-    // Lista občin z katastri
-    const OBCINE_Z_KATASTRI = ['LJUBLJANA', 'MARIBOR'];
-
     // Preverimo ali občina ima katastre
     const obcinaHasKatastre = (obcinaName) => {
         if (!obcinaName) return false;
-        return OBCINE_Z_KATASTRI.includes(obcinaName.toUpperCase());
+        return COLOR_MAPPING_CONFIG.SUPPORTED_MUNICIPALITIES.includes(obcinaName.toUpperCase());
     };
 
     // ===========================================
@@ -166,57 +165,50 @@ export default function StatisticsZemljevid({
         return closestName;
     };
 
-    // Percentil funkcija za barvanje
+    // Percentil funkcija za barvanje - UPORABLJA COLOR PALETTES IZ CONSTANTS
     const getColorForValuePercentiles = (value, allValues, colorType = 'prodaja') => {
-        if (!value || value === 0) return 'rgba(200, 200, 200, 0.3)'; // Siva za 0
+        if (!value || value === 0) return COLOR_MAPPING_CONFIG.EMPTY_COLOR;
         
         // Izračunaj percentile iz vseh vrednosti (samo pozitivne)
         const sortedValues = allValues.filter(v => v > 0).sort((a, b) => a - b);
         
-        if (sortedValues.length === 0) return 'rgba(200, 200, 200, 0.3)';
+        if (sortedValues.length === 0) return COLOR_MAPPING_CONFIG.EMPTY_COLOR;
         
-        const p20 = sortedValues[Math.floor(sortedValues.length * 0.2)] || 0;
-        const p40 = sortedValues[Math.floor(sortedValues.length * 0.4)] || 0;
-        const p60 = sortedValues[Math.floor(sortedValues.length * 0.6)] || 0;
-        const p80 = sortedValues[Math.floor(sortedValues.length * 0.8)] || 0;
-                
-        // Določi barvo glede na percentil
-        if (colorType === 'prodaja') {
-            if (value <= p20) return 'rgba(219, 234, 254, 0.8)';      // Najnižjih 20% - zelo svetlo modra
-            else if (value <= p40) return 'rgba(147, 197, 253, 0.8)'; // 20-40% - svetlo modra
-            else if (value <= p60) return 'rgba(59, 130, 246, 0.8)';  // 40-60% - srednja modra
-            else if (value <= p80) return 'rgba(37, 99, 235, 0.8)';   // 60-80% - temna modra
-            else return 'rgba(29, 78, 216, 0.9)';                     // Najvišjih 20% - zelo temna modra
-        } else {
-            if (value <= p20) return 'rgba(209, 250, 229, 0.8)';      // Najnižjih 20% - zelo svetlo zelena
-            else if (value <= p40) return 'rgba(110, 231, 183, 0.8)'; // 20-40% - svetlo zelena
-            else if (value <= p60) return 'rgba(16, 185, 129, 0.8)';  // 40-60% - srednja zelena
-            else if (value <= p80) return 'rgba(5, 150, 105, 0.8)';   // 60-80% - temna zelena
-            else return 'rgba(4, 120, 87, 0.9)';                      // Najvišjih 20% - zelo temna zelena
-        }
+        const [p20, p40, p60, p80] = COLOR_MAPPING_CONFIG.PERCENTILE_THRESHOLDS.map(threshold => 
+            sortedValues[Math.floor(sortedValues.length * threshold)] || 0
+        );
+        
+        const getPercentileRange = (val) => {
+            if (val <= p20) return 0;
+            if (val <= p40) return 1; 
+            if (val <= p60) return 2;
+            if (val <= p80) return 3;
+            return 4;
+        };
+        
+        return PERCENTILE_COLOR_PALETTES[colorType][getPercentileRange(value)];
     };
 
-    // Pridobitev vrednosti za legendo
+    // Pridobitev vrednosti za legendo - UPORABLJA COLOR PALETTES IZ CONSTANTS
     const getColorScalePercentiles = (colorType = 'prodaja', percentileStats = null) => {
-
         // Dejanske vrednosti iz statistik
         if (colorType === 'prodaja') {
             return [
-                { range: '0', color: 'rgba(200, 200, 200, 0.3)', label: '0 prodaj' },
-                { range: `1-${percentileStats.p20}`, color: 'rgba(219, 234, 254, 0.8)', label: `1-${percentileStats.p20} prodaj` },
-                { range: `${percentileStats.p20 + 1}-${percentileStats.p40}`, color: 'rgba(147, 197, 253, 0.8)', label: `${percentileStats.p20 + 1}-${percentileStats.p40} prodaj` },
-                { range: `${percentileStats.p40 + 1}-${percentileStats.p60}`, color: 'rgba(59, 130, 246, 0.8)', label: `${percentileStats.p40 + 1}-${percentileStats.p60} prodaj` },
-                { range: `${percentileStats.p60 + 1}-${percentileStats.p80}`, color: 'rgba(37, 99, 235, 0.8)', label: `${percentileStats.p60 + 1}-${percentileStats.p80} prodaj` },
-                { range: `${percentileStats.p80 + 1}+`, color: 'rgba(29, 78, 216, 0.9)', label: `${percentileStats.p80 + 1}+ prodaj` }
+                { range: '0', color: COLOR_MAPPING_CONFIG.EMPTY_COLOR, label: '0 prodaj' },
+                { range: `1-${percentileStats.p20}`, color: PERCENTILE_COLOR_PALETTES.prodaja[0], label: `1-${percentileStats.p20} prodaj` },
+                { range: `${percentileStats.p20 + 1}-${percentileStats.p40}`, color: PERCENTILE_COLOR_PALETTES.prodaja[1], label: `${percentileStats.p20 + 1}-${percentileStats.p40} prodaj` },
+                { range: `${percentileStats.p40 + 1}-${percentileStats.p60}`, color: PERCENTILE_COLOR_PALETTES.prodaja[2], label: `${percentileStats.p40 + 1}-${percentileStats.p60} prodaj` },
+                { range: `${percentileStats.p60 + 1}-${percentileStats.p80}`, color: PERCENTILE_COLOR_PALETTES.prodaja[3], label: `${percentileStats.p60 + 1}-${percentileStats.p80} prodaj` },
+                { range: `${percentileStats.p80 + 1}+`, color: PERCENTILE_COLOR_PALETTES.prodaja[4], label: `${percentileStats.p80 + 1}+ prodaj` }
             ];
         } else {
             return [
-                { range: '0', color: 'rgba(200, 200, 200, 0.3)', label: '0 najemov' },
-                { range: `1-${percentileStats.p20}`, color: 'rgba(209, 250, 229, 0.8)', label: `1-${percentileStats.p20} najemov` },
-                { range: `${percentileStats.p20 + 1}-${percentileStats.p40}`, color: 'rgba(110, 231, 183, 0.8)', label: `${percentileStats.p20 + 1}-${percentileStats.p40} najemov` },
-                { range: `${percentileStats.p40 + 1}-${percentileStats.p60}`, color: 'rgba(16, 185, 129, 0.8)', label: `${percentileStats.p40 + 1}-${percentileStats.p60} najemov` },
-                { range: `${percentileStats.p60 + 1}-${percentileStats.p80}`, color: 'rgba(5, 150, 105, 0.8)', label: `${percentileStats.p60 + 1}-${percentileStats.p80} najemov` },
-                { range: `${percentileStats.p80 + 1}+`, color: 'rgba(4, 120, 87, 0.9)', label: `${percentileStats.p80 + 1}+ najemov` }
+                { range: '0', color: COLOR_MAPPING_CONFIG.EMPTY_COLOR, label: '0 najemov' },
+                { range: `1-${percentileStats.p20}`, color: PERCENTILE_COLOR_PALETTES.najem[0], label: `1-${percentileStats.p20} najemov` },
+                { range: `${percentileStats.p20 + 1}-${percentileStats.p40}`, color: PERCENTILE_COLOR_PALETTES.najem[1], label: `${percentileStats.p20 + 1}-${percentileStats.p40} najemov` },
+                { range: `${percentileStats.p40 + 1}-${percentileStats.p60}`, color: PERCENTILE_COLOR_PALETTES.najem[2], label: `${percentileStats.p40 + 1}-${percentileStats.p60} najemov` },
+                { range: `${percentileStats.p60 + 1}-${percentileStats.p80}`, color: PERCENTILE_COLOR_PALETTES.najem[3], label: `${percentileStats.p60 + 1}-${percentileStats.p80} najemov` },
+                { range: `${percentileStats.p80 + 1}+`, color: PERCENTILE_COLOR_PALETTES.najem[4], label: `${percentileStats.p80 + 1}+ najemov` }
             ];
         }
     };
@@ -285,7 +277,7 @@ export default function StatisticsZemljevid({
             const obcinaData = obcinePosliData[apiName];
             const value = obcinaData[activeTabParam]?.skupaj || 0;
             
-            // 🎯 UPORABI PERCENTILNO BARVANJE
+            // 🎯 UPORABI PERCENTILNO BARVANJE Z COLOR PALETTES
             const color = getColorForValuePercentiles(value, allValues, activeTabParam);
             
             colorExpression.push(['==', ['get', 'OB_UIME'], geojsonName]);
@@ -293,7 +285,7 @@ export default function StatisticsZemljevid({
         });
         
         // Default color za občine brez podatkov
-        colorExpression.push('rgba(200, 200, 200, 0.1)');
+        colorExpression.push(COLOR_MAPPING_CONFIG.DEFAULT_FALLBACK);
 
         // Aplikacija na mapi
         map.current.setFilter(LAYER_IDS.OBCINE.FILL, null);
@@ -859,7 +851,7 @@ export default function StatisticsZemljevid({
         return cleanup;
     }, []);
 
-    // Legenda za barvno shemo
+    // Legenda za barvno shemo - UPORABLJA COLOR PALETTES IZ CONSTANTS
     const PercentileLegend = () => {
         if (!coloringLoaded || selectedObcina || selectedMunicipality) return null;
         

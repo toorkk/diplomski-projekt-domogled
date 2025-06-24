@@ -25,6 +25,32 @@ export const COLOR_SCHEME = {
     }
 };
 
+// Color palettes za percentile barvanje občin
+export const PERCENTILE_COLOR_PALETTES = {
+    prodaja: [
+        'rgba(219, 234, 254, 0.8)', // p20 - zelo svetlo modra
+        'rgba(147, 197, 253, 0.8)', // p40 - svetlo modra  
+        'rgba(59, 130, 246, 0.8)',  // p60 - srednja modra
+        'rgba(37, 99, 235, 0.8)',   // p80 - temna modra
+        'rgba(29, 78, 216, 0.9)'    // p100 - zelo temna modra
+    ],
+    najem: [
+        'rgba(209, 250, 229, 0.8)', // p20 - zelo svetlo zelena
+        'rgba(110, 231, 183, 0.8)', // p40 - svetlo zelena
+        'rgba(16, 185, 129, 0.8)',  // p60 - srednja zelena  
+        'rgba(5, 150, 105, 0.8)',   // p80 - temna zelena
+        'rgba(4, 120, 87, 0.9)'     // p100 - zelo temna zelena
+    ]
+};
+
+// Konstante za color mapping
+export const COLOR_MAPPING_CONFIG = {
+    EMPTY_COLOR: 'rgba(200, 200, 200, 0.3)',
+    DEFAULT_FALLBACK: 'rgba(200, 200, 200, 0.1)',
+    PERCENTILE_THRESHOLDS: [0.2, 0.4, 0.6, 0.8],
+    SUPPORTED_MUNICIPALITIES: ['LJUBLJANA', 'MARIBOR']
+};
+
 // Layer IDs
 export const LAYER_IDS = {
     MUNICIPALITIES: {
