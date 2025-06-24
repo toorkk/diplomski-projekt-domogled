@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getDaBoljNe, getNeBoljDa, getVrstaDelaStavbe, getGradebnaFaza, getStopnjaDDV, getCasNajemanja, getTrznostPosla, getVrstaAkta, getVrstaNajemnegaPosla, getVrstaProdajnegaPosla, getEnergyClassColor, getColorClasses, getNaslov, getNaslovDodatek, getCeloStDelaStavbe } from './PodrobnostiHelper.jsx';
+import { API_CONFIG } from './MapConstants.jsx';
 
 export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) {
   const [loading, setLoading] = useState(true);
@@ -16,7 +17,7 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
     const fetchPropertyDetails = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`https://domogled.up.railway.app/property-details/${propertyId}?data_source=${dataSource}`);
+        const response = await fetch(`${API_CONFIG.BASE_URL}/property-details/${propertyId}?data_source=${dataSource}`);
 
         if (!response.ok) {
           throw new Error(`HTTP error: ${response.status}`);

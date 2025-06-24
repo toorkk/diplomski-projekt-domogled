@@ -14,6 +14,8 @@ import {
     COLOR_MAPPING_CONFIG
 } from './StatisticsMapConstants.jsx';
 
+import {API_CONFIG} from '../Zemljevid/MapConstants.jsx';
+
 //Importanje vseh utils
 import {
     getMunicipalityName,
@@ -87,11 +89,11 @@ export default function StatisticsZemljevid({
         try {
             
             // Poskusi najprej z 2025, potem z latest
-            let response = await fetch('http://localhost:8000/api/statistike/vse-obcine-posli-2025');
+            let response = await fetch(`${API_CONFIG.BASE_URL}/api/statistike/vse-obcine-posli-2025`);
             
             if (!response.ok) {
                 console.warn('2025 data not available, trying latest year...');
-                response = await fetch('http://localhost:8000/api/statistike/vse-obcine-posli-latest');
+                response = await fetch(`${API_CONFIG.BASE_URL}/api/statistike/vse-obcine-posli-latest`);
             }
             
             if (!response.ok) {

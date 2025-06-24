@@ -5,8 +5,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-print("All env vars:", dict(os.environ))
-
 DATABASE_URL = os.environ.get("DATABASE_URL")
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

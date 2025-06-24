@@ -1,14 +1,8 @@
 // constants/mapConstants.js
 
 // API konfiguracija
-const API_BASE_URL = "https://domogled.up.railway.app";
-
-console.log("Environment check:", {
-    resolved_url: API_BASE_URL
-});
-
 export const API_CONFIG = {
-    BASE_URL: API_BASE_URL,
+    BASE_URL: import.meta.env.VITE_BACKEND_URL,
     ENDPOINTS: {
         PROPERTIES: "/properties/geojson",
         CLUSTER_DETAILS: "/cluster", 
