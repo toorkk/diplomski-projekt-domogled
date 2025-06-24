@@ -1,3 +1,5 @@
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -9,14 +11,11 @@ app = FastAPI(
     version="0.1.0"
 )
 
-# CORS middleware
+CORS_ORIGINS = os.environ.get("CORS_ORIGINS")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",                    # Lokalno
-        "https://domogled.vercel.app",      # Production
-        "https://*.vercel.app"                     # Vercel previews
-    ],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

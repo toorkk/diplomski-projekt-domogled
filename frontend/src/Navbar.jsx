@@ -7,6 +7,7 @@ export default function Navbar({ activePage, onPageChange }) {
   const navItems = [
     { name: 'Zemljevid', key: 'zemljevid' },
     { name: 'Statistika', key: 'statistika' },
+    { name: 'O podatkih', key: 'opodatkih' }
   ];
 
   // Detecta screen size
