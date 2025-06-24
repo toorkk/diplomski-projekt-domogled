@@ -5,7 +5,8 @@ import {
     ZOOM_STYLES,
     COLOR_SCHEME,
     ZOOM_LEVELS,
-    MAP_CONFIG
+    MAP_CONFIG,
+    COLOR_MAPPING_CONFIG
 } from './StatisticsMapConstants.jsx';
 
 class StatisticsLayerManager {
@@ -269,7 +270,7 @@ class StatisticsLayerManager {
     }
 
     // ========================================
-    // OSTALE FUNKCIJE OSTANEJO ENAKE
+    // OSTALE FUNKCIJE - POSODOBLJENE ZA BARVANJE
     // ========================================
     
     addMunicipalitiesLayers(municipalitiesData) {
@@ -284,14 +285,17 @@ class StatisticsLayerManager {
                 data: municipalitiesData
             });
 
-            // Dodaj fill sloj - nevidljiv, za klike
+            // Dodaj fill sloj - VIDLJIV za barvanje (namesto transparent)
             this.map.addLayer({
                 id: LAYER_IDS.MUNICIPALITIES.FILL,
                 type: 'fill',
                 source: SOURCE_IDS.MUNICIPALITIES,
                 paint: {
-                    'fill-color': 'transparent',
-                    'fill-opacity': 0
+                    'fill-color': COLOR_MAPPING_CONFIG.DEFAULT_FALLBACK, // Privzeta svetlo siva
+                    'fill-opacity': 0.8 // Vidna prosojnost za barvanje
+                },
+                layout: {
+                    'visibility': 'none' // Na začetku skrit, prikaže se z zoom ali selection
                 }
             });
 
@@ -304,6 +308,9 @@ class StatisticsLayerManager {
                     'line-color': COLOR_SCHEME.MUNICIPALITY.DEFAULT,
                     'line-width': ZOOM_STYLES.MUNICIPALITIES.LINE_WIDTH,
                     'line-opacity': ZOOM_STYLES.MUNICIPALITIES.LINE_OPACITY
+                },
+                layout: {
+                    'visibility': 'none' // Na začetku skrit
                 }
             });
 
@@ -311,6 +318,14 @@ class StatisticsLayerManager {
             console.error('Error adding municipalities layers:', error);
             throw error;
         }
+    }
+
+    // Nova metoda za barvanje katastrov
+    updateMunicipalitiesFillColors(colorExpression) {
+        if (!this.map.getLayer(LAYER_IDS.MUNICIPALITIES.FILL)) return;
+        
+        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-color', colorExpression);
+        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-opacity', 0.8);
     }
 
     updateMunicipalitySelection(selectedSifko = null) {

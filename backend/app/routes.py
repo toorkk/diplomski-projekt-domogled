@@ -433,37 +433,17 @@ def splosne_statistike(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DB napaka: {str(e)}")
     
-def vse_obcine_posli_2025(
-    vkljuci_katastrske: bool = Query(
-        default=True, 
-        description="Ali naj vključi tudi katastrske občine za Ljubljano in Maribor"
-    )
-):
+def vse_obcine_posli_2025():
     """
-    Pridobi število poslov za leto 2025 za VSE občine + opcijsko katastrske občine
+    Pridobi število poslov za leto 2025 za VSE občine
     
     Uporaba za pobarvanje zemljevida glede na aktivnost poslov
     
-    Parameters:
-    - vkljuci_katastrske: Ali naj vključi tudi katastrske občine za LJ in MB (default: True)
-    
-    Primeri uporabe:
+    Primer uporabe:
     - GET /api/statistike/vse-obcine-posli-2025
-    - GET /api/statistike/vse-obcine-posli-2025?vkljuci_katastrske=true
-    - GET /api/statistike/vse-obcine-posli-2025?vkljuci_katastrske=false
-    
-    Returns:
-    {
-        "status": "success",
-        "leto": 2025,
-        "vkljucene_katastrske": true/false,
-        "obcine_posli": {...},           // vedno prisotno
-        "katastrske_obcine_posli": {...}, // samo če vkljuci_katastrske=true
-        "skupaj_regij": 212
-    }
     """
     try:
-        rezultat = stats_service.get_all_obcine_posli_2025(vkljuci_katastrske=vkljuci_katastrske)
+        rezultat = stats_service.get_all_obcine_posli_2025()
         
         if rezultat["status"] == "error":
             raise HTTPException(status_code=404, detail=rezultat["message"])
@@ -474,6 +454,6 @@ def vse_obcine_posli_2025(
         )
         
     except HTTPException:
-        raise  
+        raise  # Re-raise HTTP exceptions
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DB napaka: {str(e)}")

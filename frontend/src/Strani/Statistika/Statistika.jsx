@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import PropTypes from 'prop-types';
 import StatisticsZemljevid from "./StatisticsZemljevid.jsx";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { API_CONFIG } from "../Zemljevid/MapConstants.jsx";
 
 // ========================================
 // POMOŽNE KOMPONENTE (Izvoz kompleksnosti)
@@ -246,7 +245,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
 
         try {
             const response = await fetch(
-                `${API_CONFIG.BASE_URL}/api/statistike/vse/${regionType}/${encodeURIComponent(regionName.toUpperCase())}`
+                `https://domogled.up.railway.app/api/statistike/vse/${regionType}/${encodeURIComponent(regionName.toUpperCase())}`
             );
 
             if (!response.ok) {
