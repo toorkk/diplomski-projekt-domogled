@@ -76,7 +76,8 @@ WHERE vrsta_dela_stavbe IS NOT NULL
 AND sifra_ko IS NOT NULL 
 AND stevilka_stavbe IS NOT NULL 
 AND stevilka_dela_stavbe IS NOT NULL 
-AND id_posla IS NOT NULL;
+AND id_posla IS NOT NULL
+AND (opombe_o_nepremicnini IS NULL OR opombe_o_nepremicnini NOT ILIKE '%prodani solastniški deleži%');
 
 
 UPDATE core.kpp_del_stavbe 

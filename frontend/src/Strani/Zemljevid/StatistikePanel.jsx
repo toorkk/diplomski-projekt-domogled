@@ -84,8 +84,7 @@ export default function StatistikePanel({
                 className="fixed bottom-4 z-10 left-1/2 transform -translate-x-1/2 bg-white shadow-lg border border-gray-200 hover:bg-gray-50 transition-all duration-300 flex items-center justify-between px-4 py-3 cursor-pointer"
                 style={{
                     borderRadius: '25px',
-                    minWidth: '200px',
-                    maxWidth: '280px'
+                    width: '55vw',
                 }}
                 title="Prikaži statistike"
             >
@@ -205,7 +204,7 @@ function StatistikeContent({
     return (
         <div className="space-y-4">
             {/* Obdobje */}
-            <div className="text-sm text-gray-500 bg-gray-50 px-2 py-2 rounded-md text-center">
+            <div className="text-sm text-gray-700 bg-gray-50 px-2 py-2 rounded-md text-center">
                 Podatki za zadnjih 12 mesecev
             </div>
 
