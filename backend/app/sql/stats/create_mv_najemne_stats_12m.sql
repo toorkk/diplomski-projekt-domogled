@@ -183,9 +183,9 @@ SELECT
 
     -- AGREGIRANE MERIKE (poenotena imena s prodajo)
     -- ===========================================
-    AVG(najemnina_m2) as povprecna_cena_m2,
-    AVG(skupna_najemnina) as povprecna_skupna_cena,
-    AVG(povrsina_uporabna) as povprecna_velikost_m2,
+    ROUND(AVG(najemnina_m2), 2) as povprecna_cena_m2,
+    ROUND(AVG(skupna_najemnina), 2) as povprecna_skupna_cena,
+    ROUND(AVG(povrsina_uporabna)) as povprecna_velikost_m2,
     ROUND(AVG(starost_stavbe)) as povprecna_starost_stavbe,
     
     -- ŠTEVILO POSLOV SKLENJENIH V ZADNJIH 12 MESECIH

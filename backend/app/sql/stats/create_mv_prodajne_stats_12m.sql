@@ -153,9 +153,9 @@ SELECT
 
     -- AGREGIRANE MERIKE (poenotena imena z najemom)
     -- ============================================
-    AVG(cena_m2) as povprecna_cena_m2,
-    AVG(skupna_cena) as povprecna_skupna_cena,
-    AVG(povrsina_uporabna) as povprecna_velikost_m2,
+    ROUND(AVG(cena_m2), 2) as povprecna_cena_m2,
+    ROUND(AVG(skupna_cena), 2) as povprecna_skupna_cena,
+    ROUND(AVG(povrsina_uporabna)) as povprecna_velikost_m2,
     ROUND(AVG(starost_stavbe)) as povprecna_starost_stavbe,
     COUNT(*) as stevilo_poslov,
     
