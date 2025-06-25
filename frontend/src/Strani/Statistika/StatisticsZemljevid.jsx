@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import debounce from "lodash/debounce";
+import { API_CONFIG } from '../Zemljevid/MapConstants.jsx';
+
 
 import LayerManager from "./StatisticsLayerManager.jsx";
 import {
@@ -23,10 +25,10 @@ import '../Stili/Zemljevid.css';
 import municipalitiesData from '../../Občine/Katastri_Maribor_Ljubljana.json';
 import obcineData from '../../Občine/OB.json';
 
-export default function StatisticsZemljevid({ 
-    onMunicipalitySelect, 
-    onObcinaSelect, 
-    selectedMunicipality, 
+export default function StatisticsZemljevid({
+    onMunicipalitySelect,
+    onObcinaSelect,
+    selectedMunicipality,
     selectedObcina,
     selectedRegionFromNavigation,
     activeTab = 'prodaja'
@@ -36,78 +38,36 @@ export default function StatisticsZemljevid({
     const map = useRef(null);
     const layerManager = useRef(null);
 
-    // Stanja za nalaganje podatkov
+    // Stanja
     const [municipalitiesLoaded, setMunicipalitiesLoaded] = useState(false);
     const [obcineLoaded, setObcineLoaded] = useState(false);
     const [coloringLoaded, setColoringLoaded] = useState(false);
-    
-    // Stanja za hover efekte
     const [hoveredRegion, setHoveredRegion] = useState(null);
     const [hoveredMunicipality, setHoveredMunicipality] = useState(null);
-    
+    const [viewMode, setViewMode] = useState('posli');
+
     // Podatki za barvanje
     const [obcinePosliData, setObcinePosliData] = useState(null);
     const [katastrskePosliData, setKatastrskePosliData] = useState(null);
-    
-    // Shranjeno stanje mape pred zoomom
+    const [obcineCeneData, setObcineCeneData] = useState(null);
+    const [katastrskeCeneData, setKatastrskeCeneData] = useState(null);
+
     const [previousMapState, setPreviousMapState] = useState({
         center: MAP_CONFIG.INITIAL_CENTER,
         zoom: MAP_CONFIG.INITIAL_ZOOM
     });
 
-    // Preveri ali občina podpira katastre
+    // Utility funkcije
     const obcinaHasKatastre = (obcinaName) => {
         if (!obcinaName) return false;
         return COLOR_MAPPING_CONFIG.SUPPORTED_MUNICIPALITIES.includes(obcinaName.toUpperCase());
     };
 
-    // Shranjevanje stanja mape pred zoomom
-    useEffect(() => {
-        if (map.current && !selectedObcina && !selectedMunicipality) {
-            const currentCenter = map.current.getCenter();
-            const currentZoom = map.current.getZoom();
-            
-            setPreviousMapState({
-                center: [currentCenter.lng, currentCenter.lat],
-                zoom: currentZoom
-            });
-        }
-    }, [map.current?.loaded, selectedObcina, selectedMunicipality]);
-
-    // Pridobitev podatkov o poslih iz API
-    const fetchObcinePosliData = async () => {
-        try {
-            let response = await fetch('http://localhost:8000/api/statistike/vse-obcine-posli-2025?vkljuci_katastrske=true');
-            
-            if (!response.ok) {
-                response = await fetch('http://localhost:8000/api/statistike/vse-obcine-posli-latest?vkljuci_katastrske=true');
-            }
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            const data = await response.json();
-            
-            if (data.status === 'success') {
-                setObcinePosliData(data.obcine_posli);
-                setKatastrskePosliData(data.katastrske_obcine_posli || {});
-                return { obcine: data.obcine_posli, katastrske: data.katastrske_obcine_posli };
-            } else {
-                throw new Error(data.message || 'Napaka pri pridobivanju podatkov');
-            }
-        } catch (error) {
-            console.error('Napaka pri pridobivanju podatkov o poslih:', error);
-            return null;
-        }
-    };
-
-    // Levenshtein razdalja za podobnost imen
     const levenshteinDistance = (str1, str2) => {
         const matrix = [];
         for (let i = 0; i <= str2.length; i++) matrix[i] = [i];
         for (let j = 0; j <= str1.length; j++) matrix[0][j] = j;
-        
+
         for (let i = 1; i <= str2.length; i++) {
             for (let j = 1; j <= str1.length; j++) {
                 if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
@@ -124,17 +84,16 @@ export default function StatisticsZemljevid({
         return matrix[str2.length][str1.length];
     };
 
-    // Iskanje najbližjega imena v API podatkih
     const findClosestName = (geojsonName, apiNames, maxDistance = 2) => {
         const geojsonUpper = geojsonName.toUpperCase();
-        
+
         if (apiNames.includes(geojsonUpper)) {
             return geojsonUpper;
         }
-        
+
         let closestName = null;
         let minDistance = Infinity;
-        
+
         for (const apiName of apiNames) {
             const distance = levenshteinDistance(geojsonUpper, apiName);
             if (distance < minDistance && distance <= maxDistance) {
@@ -142,221 +101,325 @@ export default function StatisticsZemljevid({
                 closestName = apiName;
             }
         }
-        
+
         return closestName;
     };
 
-    // Določitev barve na podlagi percentila
     const getColorForValuePercentiles = (value, allValues, colorType = 'prodaja') => {
-        // Če je vrednost 0, vrni belo barvo namesto sive
-        if (!value || value === 0) return 'rgba(255, 255, 255, 0.8)'; // Bela barva
-        
+        if (!value || value === 0) return 'rgba(255, 255, 255, 0.8)';
+
         const sortedValues = allValues.filter(v => v > 0).sort((a, b) => a - b);
-        if (sortedValues.length === 0) return 'rgba(255, 255, 255, 0.8)'; // Bela barva
-        
-        const [p20, p40, p60, p80] = COLOR_MAPPING_CONFIG.PERCENTILE_THRESHOLDS.map(threshold => 
+        if (sortedValues.length === 0) return 'rgba(255, 255, 255, 0.8)';
+
+        const [p20, p40, p60, p80] = COLOR_MAPPING_CONFIG.PERCENTILE_THRESHOLDS.map(threshold =>
             sortedValues[Math.floor(sortedValues.length * threshold)] || 0
         );
-        
+
         const getPercentileRange = (val) => {
             if (val <= p20) return 0;
-            if (val <= p40) return 1; 
+            if (val <= p40) return 1;
             if (val <= p60) return 2;
             if (val <= p80) return 3;
             return 4;
         };
-        
+
         return PERCENTILE_COLOR_PALETTES[colorType][getPercentileRange(value)];
     };
 
-    // Generiranje podatkov za legendo
-    const getColorScalePercentiles = (colorType = 'prodaja', percentileStats = null) => {
-        const isRental = colorType === 'najem';
-        const unit = isRental ? 'najemov' : 'prodaj';
-        const colors = isRental ? PERCENTILE_COLOR_PALETTES.najem : PERCENTILE_COLOR_PALETTES.prodaja;
-        
-        return [
-            { range: '0', color: 'rgba(255, 255, 255, 0.8)', label: `0 ${unit}` }, // Bela barva za 0
-            { range: `1-${percentileStats?.p20 || '?'}`, color: colors[0], label: `1-${percentileStats?.p20 || '?'} ${unit}` },
-            { range: `${(percentileStats?.p20 || 0) + 1}-${percentileStats?.p40 || '?'}`, color: colors[1], label: `${(percentileStats?.p20 || 0) + 1}-${percentileStats?.p40 || '?'} ${unit}` },
-            { range: `${(percentileStats?.p40 || 0) + 1}-${percentileStats?.p60 || '?'}`, color: colors[2], label: `${(percentileStats?.p40 || 0) + 1}-${percentileStats?.p60 || '?'} ${unit}` },
-            { range: `${(percentileStats?.p60 || 0) + 1}-${percentileStats?.p80 || '?'}`, color: colors[3], label: `${(percentileStats?.p60 || 0) + 1}-${percentileStats?.p80 || '?'} ${unit}` },
-            { range: `${(percentileStats?.p80 || 0) + 1}+`, color: colors[4], label: `${(percentileStats?.p80 || 0) + 1}+ ${unit}` }
-        ];
+    // API funkcija
+    const fetchAllData = async () => {
+        try {
+            const [posliResponse, ceneResponse] = await Promise.all([
+                fetch(`${API_CONFIG.BASE_URL}/api/statistike/vse-obcine-posli-zadnjih-12m?vkljuci_katastrske=true`),
+                fetch(`${API_CONFIG.BASE_URL}/api/statistike/vse-obcine-cene-m2-zadnjih-12m?vkljuci_katastrske=true`)
+            ]);
+
+            if (!posliResponse.ok || !ceneResponse.ok) {
+                throw new Error(`HTTP error - Posli: ${posliResponse.status}, Cene: ${ceneResponse.status}`);
+            }
+
+            const [posliData, ceneData] = await Promise.all([
+                posliResponse.json(),
+                ceneResponse.json()
+            ]);
+
+            if (posliData.status === 'success') {
+                setObcinePosliData(posliData.obcine_posli);
+                setKatastrskePosliData(posliData.katastrske_obcine_posli || {});
+            }
+
+            if (ceneData.status === 'success') {
+                setObcineCeneData(ceneData.obcine_cene);
+                setKatastrskeCeneData(ceneData.katastrske_obcine_cene || {});
+            }
+
+            return { posliData, ceneData };
+        } catch (error) {
+            console.error('Napaka pri pridobivanju podatkov:', error);
+            return null;
+        }
     };
 
-    // Posodobitev barv občin
-    const updateObcineFillColors = useCallback((activeTabParam = activeTab) => {
-        if (!map.current || !obcinePosliData || !map.current.getLayer(LAYER_IDS.OBCINE.FILL)) {
-            return;
-        }
+    // Unified barvanje za občine in katastre
+    const updateRegionColors = useCallback((
+        regionType, // 'obcine' ali 'municipalities'
+        activeTabParam = activeTab,
+        viewModeParam = viewMode
+    ) => {
+        const isObcine = regionType === 'obcine';
+        const layerId = isObcine ? LAYER_IDS.OBCINE.FILL : LAYER_IDS.MUNICIPALITIES.FILL;
+
+        if (!map.current || !map.current.getLayer(layerId)) return;
+
+        // Izberi pravi podatkovni set
+        const dataSource = viewModeParam === 'cene'
+            ? (isObcine ? obcineCeneData : katastrskeCeneData)
+            : (isObcine ? obcinePosliData : katastrskePosliData);
+
+        if (!dataSource) return;
 
         const allValues = [];
         const nameMapping = new Map();
-        const apiNames = Object.keys(obcinePosliData);
-        
-        obcineData.features.forEach(feature => {
-            const geojsonName = feature.properties.OB_UIME;
-            const closestApiName = findClosestName(geojsonName, apiNames);
-            
+        const apiNames = Object.keys(dataSource);
+        const geoData = isObcine ? obcineData : municipalitiesData;
+        const nameProperty = isObcine ? 'OB_UIME' : 'NAZIV';
+        const maxDistance = isObcine ? 2 : 3;
+
+        geoData.features.forEach(feature => {
+            const geojsonName = feature.properties[nameProperty] || feature.properties.IMEKO;
+            if (!geojsonName) return;
+
+            const closestApiName = findClosestName(geojsonName, apiNames, maxDistance);
+
             if (closestApiName) {
                 nameMapping.set(geojsonName, closestApiName);
-                const value = obcinePosliData[closestApiName][activeTabParam]?.skupaj || 0;
+                const value = viewModeParam === 'cene'
+                    ? dataSource[closestApiName][activeTabParam]?.skupna_povprecna_cena_m2 || 0
+                    : dataSource[closestApiName][activeTabParam]?.skupaj || 0;
+
                 if (value > 0) allValues.push(value);
             }
         });
 
-        // Izračun statistik za legendo
-        const sortedValues = allValues.sort((a, b) => a - b);
-        const stats = {
-            count: allValues.length,
-            avg: Math.round(allValues.reduce((a, b) => a + b, 0) / allValues.length),
-            p20: sortedValues[Math.floor(sortedValues.length * 0.2)],
-            p40: sortedValues[Math.floor(sortedValues.length * 0.4)],
-            p60: sortedValues[Math.floor(sortedValues.length * 0.6)],
-            p80: sortedValues[Math.floor(sortedValues.length * 0.8)]
-        };
-
-        window.currentPercentileStats = stats;
-
-        // Ustvarjanje color expression za mapbox
-        const colorExpression = ['case'];
-        
-        nameMapping.forEach((apiName, geojsonName) => {
-            const obcinaData = obcinePosliData[apiName];
-            const value = obcinaData[activeTabParam]?.skupaj || 0;
-            const color = getColorForValuePercentiles(value, allValues, activeTabParam);
-            
-            colorExpression.push(['==', ['get', 'OB_UIME'], geojsonName]);
-            colorExpression.push(color);
-        });
-        
-        colorExpression.push(COLOR_MAPPING_CONFIG.DEFAULT_FALLBACK);
-
-        map.current.setFilter(LAYER_IDS.OBCINE.FILL, null);
-        map.current.setPaintProperty(LAYER_IDS.OBCINE.FILL, 'fill-color', colorExpression);
-        map.current.setPaintProperty(LAYER_IDS.OBCINE.FILL, 'fill-opacity', 0.8);
-        map.current.setLayoutProperty(LAYER_IDS.OBCINE.FILL, 'visibility', 'visible');
-
-        setColoringLoaded(true);
-    }, [obcinePosliData, activeTab]);
-
-    // Posodobitev barv katastrskih občin
-    const updateMunicipalitiesFillColors = useCallback((activeTabParam = activeTab) => {
-        if (!map.current || !katastrskePosliData || !map.current.getLayer(LAYER_IDS.MUNICIPALITIES.FILL)) {
-            return;
+        // Izračun statistik
+        if (isObcine) {
+            const sortedValues = allValues.sort((a, b) => a - b);
+            const stats = {
+                count: allValues.length,
+                avg: Math.round(allValues.reduce((a, b) => a + b, 0) / allValues.length),
+                p20: sortedValues[Math.floor(sortedValues.length * 0.2)],
+                p40: sortedValues[Math.floor(sortedValues.length * 0.4)],
+                p60: sortedValues[Math.floor(sortedValues.length * 0.6)],
+                p80: sortedValues[Math.floor(sortedValues.length * 0.8)]
+            };
+            window.currentPercentileStats = stats;
+            window.currentViewMode = viewModeParam;
         }
 
-        const allValues = [];
-        const nameMapping = new Map();
-        const apiNames = Object.keys(katastrskePosliData);
-        
-        municipalitiesData.features.forEach(feature => {
-            const geojsonName = feature.properties.NAZIV || feature.properties.IMEKO;
-            
-            if (geojsonName) {
-                const closestApiName = findClosestName(geojsonName, apiNames, 3);
-                
-                if (closestApiName) {
-                    nameMapping.set(geojsonName, closestApiName);
-                    const value = katastrskePosliData[closestApiName][activeTabParam]?.skupaj || 0;
-                    if (value > 0) allValues.push(value);
+        // Ustvarjanje color expression
+        const colorExpression = ['case'];
+
+        nameMapping.forEach((apiName, geojsonName) => {
+            const regionData = dataSource[apiName];
+            const value = viewModeParam === 'cene'
+                ? regionData[activeTabParam]?.skupna_povprecna_cena_m2 || 0
+                : regionData[activeTabParam]?.skupaj || 0;
+
+            const color = getColorForValuePercentiles(value, allValues, activeTabParam);
+
+            colorExpression.push(['==', ['get', nameProperty], geojsonName]);
+            colorExpression.push(color);
+        });
+
+        colorExpression.push(COLOR_MAPPING_CONFIG.DEFAULT_FALLBACK);
+
+        // Aplikacija na mapo
+        if (isObcine) {
+            map.current.setFilter(layerId, null);
+            map.current.setPaintProperty(layerId, 'fill-color', colorExpression);
+            map.current.setPaintProperty(layerId, 'fill-opacity', 0.8);
+            map.current.setLayoutProperty(layerId, 'visibility', 'visible');
+            setColoringLoaded(true);
+        } else {
+            if (colorExpression.length >= 3 && layerManager.current) {
+                layerManager.current.updateMunicipalitiesFillColors(colorExpression);
+            }
+        }
+    }, [obcinePosliData, obcineCeneData, katastrskePosliData, katastrskeCeneData, activeTab, viewMode]);
+
+    // Unified hover setup
+    const createHoverHandlers = useCallback((regionType) => {
+        const isObcine = regionType === 'obcine';
+        const layerId = isObcine ? 'obcine-fill' : 'municipalities-fill';
+        const idProperty = isObcine ? 'OB_ID' : 'SIFKO';
+        const nameProperty = isObcine ? 'OB_UIME' : 'NAZIV';
+
+        let currentHoveredId = null;
+        const debouncedUpdate = debounce((hoveredId, hoveredName) => {
+            const selected = isObcine ? selectedObcina : selectedMunicipality;
+            const selectedId = isObcine ? selected?.obcinaId : selected?.sifko;
+
+            if (!selected || selectedId !== hoveredId) {
+                let hoverInfo = {
+                    name: isObcine ? hoveredName : getMunicipalityName({ properties: { [nameProperty]: hoveredName } }),
+                    type: isObcine ? 'Občina' : 'Kataster'
+                };
+
+                // Dodaj podatke
+                const dataSource = viewMode === 'cene'
+                    ? (isObcine ? obcineCeneData : katastrskeCeneData)
+                    : (isObcine ? obcinePosliData : katastrskePosliData);
+
+                if (dataSource) {
+                    const searchName = isObcine ? hoveredName : hoveredName.split('(')[0].trim();
+                    const apiNames = Object.keys(dataSource);
+                    const closestApiName = findClosestName(searchName, apiNames, isObcine ? 2 : 3);
+
+                    if (closestApiName && dataSource[closestApiName]) {
+                        const regionData = dataSource[closestApiName][activeTab];
+
+                        if (viewMode === 'cene') {
+                            hoverInfo.value = regionData?.skupna_povprecna_cena_m2 || 0;
+                            hoverInfo.unit = '€/m²';
+                        } else {
+                            hoverInfo.value = regionData?.skupaj || 0;
+                            hoverInfo.unit = activeTab === 'prodaja' ? 'prodaj' : 'najemov';
+                        }
+                        hoverInfo.viewMode = viewMode;
+                        hoverInfo.activeTab = activeTab;
+                    }
+                }
+
+                if (isObcine) {
+                    setHoveredRegion(hoverInfo);
+                    layerManager.current?.updateObcinaHover(hoveredId);
+                } else {
+                    setHoveredMunicipality(hoverInfo);
+                    layerManager.current?.updateMunicipalityHover(hoveredId);
                 }
             }
-        });
+        }, 30);
 
-        const colorExpression = ['case'];
-        let hasValidMappings = false;
-        
-        nameMapping.forEach((apiName, geojsonName) => {
-            const municipalityData = katastrskePosliData[apiName];
-            const value = municipalityData[activeTabParam]?.skupaj || 0;
-            const color = getColorForValuePercentiles(value, allValues, activeTabParam);
-            
-            colorExpression.push(['==', ['get', 'NAZIV'], geojsonName]);
-            colorExpression.push(color);
-            hasValidMappings = true;
-        });
-        
-        colorExpression.push(COLOR_MAPPING_CONFIG.DEFAULT_FALLBACK);
+        return {
+            move: (e) => {
+                const hoveredId = e.features[0]?.properties?.[idProperty];
+                const hoveredName = e.features[0]?.properties?.[nameProperty];
 
-        if (!hasValidMappings || colorExpression.length < 3) {
-            if (layerManager.current) {
-                layerManager.current.updateMunicipalitiesFillColors(null);
+                if (hoveredId !== currentHoveredId) {
+                    currentHoveredId = hoveredId;
+                    map.current.getCanvas().style.cursor = 'pointer';
+                    debouncedUpdate(hoveredId, hoveredName);
+                }
+            },
+            leave: () => {
+                currentHoveredId = null;
+                map.current.getCanvas().style.cursor = '';
+                debouncedUpdate.cancel();
+
+                if (isObcine) {
+                    setHoveredRegion(null);
+                    layerManager.current?.updateObcinaHover(null);
+                } else {
+                    setHoveredMunicipality(null);
+                    layerManager.current?.updateMunicipalityHover(null);
+                }
+            },
+            click: (e) => {
+                if (e.features?.[0]) {
+                    debouncedUpdate.cancel();
+                    if (isObcine) {
+                        setHoveredRegion(null);
+                        layerManager.current?.updateObcinaHover(null);
+                        handleObcinaClick(e.features[0]);
+                    } else {
+                        setHoveredMunicipality(null);
+                        layerManager.current?.updateMunicipalityHover(null);
+                        handleMunicipalityClick(e.features[0]);
+                    }
+                }
             }
-            return;
+        };
+    }, [selectedObcina, selectedMunicipality, obcinePosliData, obcineCeneData, katastrskePosliData, katastrskeCeneData, activeTab, viewMode]);
+
+    // Klik handleri
+    const handleMunicipalityClick = useCallback((municipalityFeature) => {
+        if (!map.current || !municipalityFeature) return;
+
+        const sifko = municipalityFeature.properties.SIFKO;
+        const municipalityName = getMunicipalityName(municipalityFeature);
+        const bounds = calculateBoundsFromGeometry(municipalityFeature.geometry);
+
+        if (layerManager.current && selectedObcina) {
+            layerManager.current.updateLayerVisibilityByZoom(map.current.getZoom(), true, selectedObcina.name);
         }
+
+        onMunicipalitySelect?.({
+            name: municipalityName,
+            sifko: sifko,
+            bounds: bounds,
+            preserveObcina: true
+        });
+    }, [onMunicipalitySelect, selectedObcina]);
+
+    const handleObcinaClick = useCallback((obcinaFeature) => {
+        if (!map.current || !obcinaFeature) return;
+
+        const obcinaId = getObcinaId(obcinaFeature);
+        const obcinaName = getObcinaName(obcinaFeature);
+
+        if (selectedObcina?.obcinaId === obcinaId) return;
+
+        if (!selectedObcina) {
+            const currentCenter = map.current.getCenter();
+            const currentZoom = map.current.getZoom();
+            setPreviousMapState({
+                center: [currentCenter.lng, currentCenter.lat],
+                zoom: currentZoom
+            });
+        }
+
+        const bounds = calculateBoundsFromGeometry(obcinaFeature.geometry);
+        const hasKatastre = obcinaHasKatastre(obcinaName);
+
+        onObcinaSelect?.({
+            name: obcinaName,
+            obcinaId: obcinaId,
+            bounds: bounds
+        });
 
         if (layerManager.current) {
-            layerManager.current.updateMunicipalitiesFillColors(colorExpression);
-        }
-    }, [katastrskePosliData, activeTab]);
-
-    // Učinki za spreminjanje barv pri menjavi tabov
-    useEffect(() => {
-        if (obcinePosliData && obcineLoaded) {
-            updateObcineFillColors(activeTab);
-        }
-    }, [activeTab, obcinePosliData, obcineLoaded, updateObcineFillColors]);
-
-    useEffect(() => {
-        if (katastrskePosliData && municipalitiesLoaded) {
-            updateMunicipalitiesFillColors(activeTab);
-        }
-    }, [activeTab, katastrskePosliData, municipalitiesLoaded, updateMunicipalitiesFillColors]);
-
-    // Avtomatski zoom na izbrano regijo iz navigacije
-    useEffect(() => {
-        if (selectedMunicipality && municipalitiesLoaded && layerManager.current && 
-            selectedRegionFromNavigation?.autoZoomToRegion && 
-            selectedRegionFromNavigation.type === 'katastrska_obcina') {
-            
-            const municipalityFeature = municipalitiesData.features.find(
-                feature => feature.properties.SIFKO === selectedMunicipality.sifko
-            );
-            
-            if (municipalityFeature && selectedObcina) {
-                const bounds = calculateBoundsFromGeometry(municipalityFeature.geometry);
-                map.current.fitBounds(bounds, {
-                    padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
-                    duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION,
-                    essential: true
-                });
+            if (hasKatastre) {
+                layerManager.current.updateLayerVisibilityByZoom(map.current.getZoom(), true, obcinaName);
+            } else {
+                layerManager.current.hideMunicipalities();
             }
         }
-    }, [selectedMunicipality, municipalitiesLoaded, selectedRegionFromNavigation, selectedObcina]);
 
-    useEffect(() => {
-        if (selectedObcina && obcineLoaded && layerManager.current && 
-            selectedRegionFromNavigation?.autoZoomToRegion && 
-            selectedRegionFromNavigation.type === 'obcina') {
-            
-            const obcinaFeature = obcineData.features.find(
-                feature => getObcinaId(feature) === selectedObcina.obcinaId
-            );
-            
-            if (obcinaFeature) {
-                const bounds = calculateBoundsFromGeometry(obcinaFeature.geometry);
-                const hasKatastre = obcinaHasKatastre(selectedObcina.name);
-                
-                if (hasKatastre) {
-                    layerManager.current.updateLayerVisibilityByZoom(map.current.getZoom(), true, selectedObcina.name);
-                }
+        map.current.fitBounds(bounds, {
+            padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
+            duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION,
+            essential: true
+        });
 
-                map.current.fitBounds(bounds, {
-                    padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
-                    duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION,
-                    essential: true
-                });
+        map.current.setMaxBounds(bounds);
+        addObcinaMask(obcinaId);
+    }, [selectedObcina, onObcinaSelect]);
 
-                map.current.setMaxBounds(bounds);
-                addObcinaMask(selectedObcina.obcinaId);
-                layerManager.current.updateObcinaSelection(selectedObcina.obcinaId, selectedObcina.name);
-            }
-        }
-    }, [selectedObcina, obcineLoaded, selectedRegionFromNavigation]);
+    // Setup funkcije
+    const setupEventHandlers = useCallback((regionType) => {
+        if (!map.current) return;
 
-    // Dodaj masko za izbrano občino
+        const isObcine = regionType === 'obcine';
+        const layerId = isObcine ? 'obcine-fill' : 'municipalities-fill';
+        const handlers = createHoverHandlers(regionType);
+
+        map.current.on('mousemove', layerId, handlers.move);
+        map.current.on('mouseleave', layerId, handlers.leave);
+        map.current.on('click', layerId, handlers.click);
+
+        map.current[`_${regionType}Handlers`] = handlers;
+    }, [createHoverHandlers]);
+
     const addObcinaMask = (obcinaId) => {
         const overlayLayerId = 'obcina-mask';
         const sourceId = SOURCE_IDS.OBCINE;
@@ -386,117 +449,31 @@ export default function StatisticsZemljevid({
         }
     };
 
-    // Klik na katastrsko občino
-    const handleMunicipalityClick = useCallback((municipalityFeature) => {
-        if (!map.current || !municipalityFeature) return;
-
-        const sifko = municipalityFeature.properties.SIFKO;
-        const municipalityName = getMunicipalityName(municipalityFeature);
-
-        setHoveredMunicipality(null);
-        if (layerManager.current) {
-            layerManager.current.updateMunicipalityHover(null);
-        }
-
-        const bounds = calculateBoundsFromGeometry(municipalityFeature.geometry);
-
-        // Zagotovi da katastrski sloji ostanejo vidni po kliku
-        if (layerManager.current && selectedObcina) {
-            layerManager.current.updateLayerVisibilityByZoom(map.current.getZoom(), true, selectedObcina.name);
-        }
-
-        if (onMunicipalitySelect) {
-            onMunicipalitySelect({
-                name: municipalityName,
-                sifko: sifko,
-                bounds: bounds,
-                preserveObcina: true // Dodamo flag da naj se občina ohrani
-            });
-        }
-    }, [onMunicipalitySelect, selectedObcina]);
-
-    // Klik na občino
-    const handleObcinaClick = useCallback((obcinaFeature) => {
-        if (!map.current || !obcinaFeature) return;
-
-        const obcinaId = getObcinaId(obcinaFeature);
-        const obcinaName = getObcinaName(obcinaFeature);
-
-        if (selectedObcina?.obcinaId === obcinaId) return;
-
-        // Shrani trenutno stanje samo če še ni občine izbrane
-        if (!selectedObcina) {
-            const currentCenter = map.current.getCenter();
-            const currentZoom = map.current.getZoom();
-            
-            setPreviousMapState({
-                center: [currentCenter.lng, currentCenter.lat],
-                zoom: currentZoom
-            });
-        }
-
-        setHoveredRegion(null);
-        if (layerManager.current) {
-            layerManager.current.updateObcinaHover(null);
-        }
-
-        const bounds = calculateBoundsFromGeometry(obcinaFeature.geometry);
-        const hasKatastre = obcinaHasKatastre(obcinaName);
-
-        if (onObcinaSelect) {
-            onObcinaSelect({
-                name: obcinaName,
-                obcinaId: obcinaId,
-                bounds: bounds
-            });
-        }
-
-        if (layerManager.current) {
-            if (hasKatastre) {
-                layerManager.current.updateLayerVisibilityByZoom(map.current.getZoom(), true, obcinaName);
-            } else {
-                layerManager.current.hideMunicipalities();
-            }
-        }
-
-        map.current.fitBounds(bounds, {
-            padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
-            duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION,
-            essential: true
-        });
-
-        map.current.setMaxBounds(bounds);
-        addObcinaMask(obcinaId);
-    }, [selectedObcina, onObcinaSelect]);
-
-    // Naložitev podatkov občin
     const loadObcine = useCallback(async () => {
         if (!map.current || obcineLoaded || !layerManager.current) return;
 
         try {
             layerManager.current.addObcineLayers(obcineData);
-            setupObcinaEventHandlers();
+            setupEventHandlers('obcine');
             setObcineLoaded(true);
-            await fetchObcinePosliData();
+            await fetchAllData();
         } catch (error) {
             console.error('Napaka pri nalaganju občin:', error);
         }
-    }, [obcineLoaded]);
+    }, [obcineLoaded, setupEventHandlers]);
 
-    // Naložitev podatkov katastrskih občin
     const loadMunicipalities = useCallback(() => {
         if (!map.current || municipalitiesLoaded || !layerManager.current) return;
 
         try {
             layerManager.current.addMunicipalitiesLayers(municipalitiesData);
-            setupMunicipalityEventHandlers();
+            setupEventHandlers('municipalities');
             setMunicipalitiesLoaded(true);
         } catch (error) {
             console.error('Napaka pri nalaganju katastrskih občin:', error);
         }
-    }, [municipalitiesLoaded]);
+    }, [municipalitiesLoaded, setupEventHandlers]);
 
-    // Resetiranje izbire
     const handleReset = useCallback(() => {
         setHoveredRegion(null);
         setHoveredMunicipality(null);
@@ -507,7 +484,6 @@ export default function StatisticsZemljevid({
             layerManager.current.resetFilters();
         }
 
-        // Odstrani masko občine
         const overlayLayerId = 'obcina-mask';
         if (map.current.getLayer(overlayLayerId)) {
             map.current.removeLayer(overlayLayerId);
@@ -519,17 +495,15 @@ export default function StatisticsZemljevid({
             layerManager.current.updateLayerVisibilityByZoom(previousMapState.zoom, false, null);
         }
 
-        // Obnovi barve
-        if (obcinePosliData) updateObcineFillColors(activeTab);
-        if (katastrskePosliData) updateMunicipalitiesFillColors(activeTab);
+        updateRegionColors('obcine', activeTab, viewMode);
+        updateRegionColors('municipalities', activeTab, viewMode);
 
-        // Vrni na prejšnje stanje
-        const resetCenter = previousMapState.center && previousMapState.center.length === 2 
-            ? previousMapState.center 
+        const resetCenter = previousMapState.center && previousMapState.center.length === 2
+            ? previousMapState.center
             : MAP_CONFIG.INITIAL_CENTER;
-        
-        const resetZoom = previousMapState.zoom && previousMapState.zoom > 0 
-            ? previousMapState.zoom 
+
+        const resetZoom = previousMapState.zoom && previousMapState.zoom > 0
+            ? previousMapState.zoom
             : MAP_CONFIG.INITIAL_ZOOM;
 
         map.current.flyTo({
@@ -538,207 +512,217 @@ export default function StatisticsZemljevid({
             duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION
         });
 
-        if (onMunicipalitySelect) onMunicipalitySelect(null);
-        if (onObcinaSelect) onObcinaSelect(null);
-    }, [onMunicipalitySelect, onObcinaSelect, obcinePosliData, katastrskePosliData, activeTab, updateObcineFillColors, updateMunicipalitiesFillColors, previousMapState]);
+        onMunicipalitySelect?.(null);
+        onObcinaSelect?.(null);
+    }, [onMunicipalitySelect, onObcinaSelect, activeTab, viewMode, updateRegionColors, previousMapState]);
 
-    // Event handlerji za občine
-    const setupObcinaEventHandlers = useCallback(() => {
-        if (!map.current) return;
+    // Legenda komponenta
+    const getColorScalePercentiles = (colorType = 'prodaja', percentileStats = null, viewModeParam = 'posli') => {
+        const isRental = colorType === 'najem';
+        const isPriceView = viewModeParam === 'cene';
 
-        let currentHoveredObcinaId = null;
+        const unit = isPriceView ? '€/m²' : (isRental ? 'najemov' : 'prodaj');
+        const colors = isRental ? PERCENTILE_COLOR_PALETTES.najem : PERCENTILE_COLOR_PALETTES.prodaja;
 
-        const hoverMoveHandler = (e) => {
-            const hoveredObcinaId = e.features[0]?.properties?.OB_ID;
-            const hoveredObcinaName = e.features[0]?.properties?.OB_UIME;
+        const formatRange = (start, end) => {
+            if (isPriceView) {
+                return `${Math.round(start)}-${Math.round(end)}€/m²`;
+            }
+            return `${start}-${end} ${unit}`;
+        };
 
-            if (hoveredObcinaId !== currentHoveredObcinaId) {
-                currentHoveredObcinaId = hoveredObcinaId;
+        return [
+            { color: 'rgba(255, 255, 255, 0.8)', label: `0 ${isPriceView ? 'cena/m²' : unit}` },
+            { color: colors[0], label: formatRange(1, percentileStats?.p20 || '?') },
+            { color: colors[1], label: formatRange((percentileStats?.p20 || 0) + 1, percentileStats?.p40 || '?') },
+            { color: colors[2], label: formatRange((percentileStats?.p40 || 0) + 1, percentileStats?.p60 || '?') },
+            { color: colors[3], label: formatRange((percentileStats?.p60 || 0) + 1, percentileStats?.p80 || '?') },
+            { color: colors[4], label: `${Math.round((percentileStats?.p80 || 0) + 1)}+ ${unit}` }
+        ];
+    };
 
-                if (!selectedObcina || selectedObcina.obcinaId !== hoveredObcinaId) {
-                    map.current.getCanvas().style.cursor = 'pointer';
+    const PercentileLegenda = () => {
+        if (!coloringLoaded || selectedObcina || selectedMunicipality) return null;
 
-                    let hoverInfo = {
-                        name: hoveredObcinaName,
-                        type: 'Občina'
-                    };
+        const getCurrentStats = () => {
+            const dataSource = viewMode === 'cene' ? obcineCeneData : obcinePosliData;
+            if (!dataSource) return null;
 
-                    if (obcinePosliData) {
-                        const apiNames = Object.keys(obcinePosliData);
-                        const closestApiName = findClosestName(hoveredObcinaName, apiNames);
-                        
-                        if (closestApiName && obcinePosliData[closestApiName]) {
-                            const posliInfo = obcinePosliData[closestApiName][activeTab];
-                            hoverInfo.posli = posliInfo?.skupaj || 0;
-                            hoverInfo.activeTab = activeTab;
+            const allValues = [];
+            const apiNames = Object.keys(dataSource);
+
+            obcineData.features.forEach(feature => {
+                const geojsonName = feature.properties.OB_UIME;
+                const closestApiName = findClosestName(geojsonName, apiNames);
+
+                if (closestApiName) {
+                    const value = viewMode === 'cene'
+                        ? dataSource[closestApiName][activeTab]?.skupna_povprecna_cena_m2 || 0
+                        : dataSource[closestApiName][activeTab]?.skupaj || 0;
+                    if (value > 0) allValues.push(value);
+                }
+            });
+
+            if (allValues.length === 0) return null;
+
+            const sortedValues = allValues.sort((a, b) => a - b);
+            return {
+                count: allValues.length,
+                avg: Math.round(allValues.reduce((a, b) => a + b, 0) / allValues.length),
+                p20: sortedValues[Math.floor(sortedValues.length * 0.2)],
+                p40: sortedValues[Math.floor(sortedValues.length * 0.4)],
+                p60: sortedValues[Math.floor(sortedValues.length * 0.6)],
+                p80: sortedValues[Math.floor(sortedValues.length * 0.8)]
+            };
+        };
+
+        const stats = getCurrentStats();
+        const colorScale = getColorScalePercentiles(activeTab, stats, viewMode);
+
+        const getLegendTitle = () => {
+            const transaction = activeTab === 'prodaja' ? 'Prodaje' : 'Najemi';
+            const metric = viewMode === 'cene' ? 'povprečne cene/m²' : 'število poslov';
+            return `${transaction} - ${metric} (zadnjih 12 mesecev)`;
+        };
+
+        return (
+            <div className="absolute top-4 left-4 z-20 bg-white/95 backdrop-blur-sm rounded-lg shadow-md border border-gray-200 px-3 py-3">
+                <div className="text-xs font-medium text-gray-700 mb-3">
+                    {getLegendTitle()}
+                </div>
+                <div className="space-y-2">
+                    {colorScale.map((item, index) => (
+                        <div key={index} className="flex items-center space-x-2">
+                            <div
+                                className={`w-4 h-3 rounded flex-shrink-0 ${item.color === 'rgba(255, 255, 255, 0.8)'
+                                        ? 'border-2 border-gray-300'
+                                        : 'border border-gray-300'
+                                    }`}
+                                style={{ backgroundColor: item.color }}
+                            ></div>
+                            <span className="text-xs text-gray-600 min-w-0">
+                                {item.label}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+                {stats && (
+                    <div className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-200">
+                        Občin z podatki: {stats.count} | Povprečje: {
+                            viewMode === 'cene'
+                                ? `${Math.round(stats.avg)}€/m²`
+                                : stats.avg
                         }
-                    }
+                    </div>
+                )}
+            </div>
+        );
+    };
 
-                    setHoveredRegion(hoverInfo);
+    const HoverPreview = ({ region, position = "bottom-4 right-4" }) => (
+        <div className={`absolute ${position} z-20 bg-white/95 backdrop-blur-sm rounded-lg shadow-md border border-gray-200 px-3 py-2`}>
+            <div className="flex items-center space-x-2">
+                <span className="text-xs text-gray-500 font-medium">{region.type}:</span>
+                <span className="text-sm font-medium text-gray-700">{region.name}</span>
+            </div>
+            {region.value !== undefined && (
+                <div className="flex items-center space-x-2 mt-1">
+                    <span className="text-xs text-gray-500">
+                        {region.viewMode === 'cene' ? 'Cena/m²' :
+                            (region.activeTab === 'prodaja' ? 'Prodaje' : 'Najemi')}:
+                    </span>
+                    <span className="text-sm font-semibold text-gray-800">
+                        {region.viewMode === 'cene'
+                            ? `${Math.round(region.value)}€/m²`
+                            : region.value
+                        }
+                    </span>
+                </div>
+            )}
+        </div>
+    );
 
-                    if (layerManager.current) {
-                        layerManager.current.updateObcinaHover(hoveredObcinaId);
-                    }
-                }
-            }
-        };
-
-        const hoverLeaveHandler = () => {
-            currentHoveredObcinaId = null;
-            map.current.getCanvas().style.cursor = '';
-            setHoveredRegion(null);
-
-            if (layerManager.current) {
-                layerManager.current.updateObcinaHover(null);
-            }
-        };
-
-        const clickHandler = (e) => {
-            if (e.features && e.features[0]) {
-                setHoveredRegion(null);
-                if (layerManager.current) {
-                    layerManager.current.updateObcinaHover(null);
-                }
-                handleObcinaClick(e.features[0]);
-            }
-        };
-
-        map.current.on('mousemove', 'obcine-fill', hoverMoveHandler);
-        map.current.on('mouseleave', 'obcine-fill', hoverLeaveHandler);
-        map.current.on('click', 'obcine-fill', clickHandler);
-
-        map.current._obcinaHandlers = { hoverMoveHandler, hoverLeaveHandler, clickHandler };
-    }, [selectedObcina, handleObcinaClick, obcinePosliData, activeTab]);
-
-    // Event handlerji za katastrske občine
-    const setupMunicipalityEventHandlers = useCallback(() => {
-        if (!map.current) return;
-
-        let currentHoveredSifko = null;
-
-        const debouncedHoverUpdate = debounce((hoveredSifko, hoveredMunicipalityName) => {
-            if (!selectedMunicipality || selectedMunicipality.sifko !== hoveredSifko) {
-                let hoverInfo = {
-                    name: hoveredMunicipalityName,
-                    type: 'Kataster'
-                };
-
-                if (katastrskePosliData) {
-                    const municipalityName = hoveredMunicipalityName.split('(')[0].trim();
-                    const apiNames = Object.keys(katastrskePosliData);
-                    const closestApiName = findClosestName(municipalityName, apiNames, 3);
-                    
-                    if (closestApiName && katastrskePosliData[closestApiName]) {
-                        const posliInfo = katastrskePosliData[closestApiName][activeTab];
-                        hoverInfo.posli = posliInfo?.skupaj || 0;
-                        hoverInfo.activeTab = activeTab;
-                    }
-                }
-
-                setHoveredMunicipality(hoverInfo);
-
-                if (layerManager.current) {
-                    layerManager.current.updateMunicipalityHover(hoveredSifko);
-                }
-            }
-        }, 30);
-
-        const hoverMoveHandler = (e) => {
-            const hoveredSifko = e.features[0]?.properties?.SIFKO;
-            const hoveredMunicipalityName = getMunicipalityName(e.features[0]);
-
-            if (!hoveredSifko || hoveredSifko === currentHoveredSifko) return;
-
-            currentHoveredSifko = hoveredSifko;
-            map.current.getCanvas().style.cursor = 'pointer';
-
-            debouncedHoverUpdate(hoveredSifko, hoveredMunicipalityName);
-        };
-
-        const hoverLeaveHandler = () => {
-            currentHoveredSifko = null;
-            map.current.getCanvas().style.cursor = '';
-            setHoveredMunicipality(null);
-
-            debouncedHoverUpdate.cancel();
-
-            if (layerManager.current) {
-                layerManager.current.updateMunicipalityHover(null);
-            }
-        };
-
-        const clickHandler = (e) => {
-            if (e.features && e.features[0]) {
-                setHoveredMunicipality(null);
-                debouncedHoverUpdate.cancel();
-
-                if (layerManager.current) {
-                    layerManager.current.updateMunicipalityHover(null);
-                }
-
-                handleMunicipalityClick(e.features[0]);
-            }
-        };
-
-        map.current.on('mousemove', 'municipalities-fill', hoverMoveHandler);
-        map.current.on('mouseleave', 'municipalities-fill', hoverLeaveHandler);
-        map.current.on('click', 'municipalities-fill', clickHandler);
-
-        map.current._municipalityHandlers = { hoverMoveHandler, hoverLeaveHandler, clickHandler };
-    }, [selectedMunicipality, handleMunicipalityClick, katastrskePosliData, activeTab]);
-
-    // Handler za zoom spremembe
-    const setupZoomHandler = () => {
-        const handleZoomEnd = () => {
+    // Effects
+    useEffect(() => {
+        if (map.current && !selectedObcina && !selectedMunicipality) {
+            const currentCenter = map.current.getCenter();
             const currentZoom = map.current.getZoom();
 
-            if (layerManager.current && !selectedObcina) {
-                layerManager.current.updateLayerVisibilityByZoom(currentZoom, null, null);
-            }
-        };
-
-        map.current.on('zoomend', handleZoomEnd);
-        map.current._zoomEndHandler = handleZoomEnd;
-    };
-
-    // Čiščenje event handlerjev
-    const cleanup = () => {
-        if (map.current) {
-            if (map.current._zoomEndHandler) {
-                map.current.off('zoomend', map.current._zoomEndHandler);
-            }
-
-            if (map.current._obcinaHandlers) {
-                const { hoverMoveHandler, hoverLeaveHandler, clickHandler } = map.current._obcinaHandlers;
-                map.current.off('mousemove', 'obcine-fill', hoverMoveHandler);
-                map.current.off('mouseleave', 'obcine-fill', hoverLeaveHandler);
-                map.current.off('click', 'obcine-fill', clickHandler);
-                delete map.current._obcinaHandlers;
-            }
-
-            if (map.current._municipalityHandlers) {
-                const { hoverMoveHandler, hoverLeaveHandler, clickHandler } = map.current._municipalityHandlers;
-                map.current.off('mousemove', 'municipalities-fill', hoverMoveHandler);
-                map.current.off('mouseleave', 'municipalities-fill', hoverLeaveHandler);
-                map.current.off('click', 'municipalities-fill', clickHandler);
-                delete map.current._municipalityHandlers;
-            }
-
-            if (layerManager.current) {
-                layerManager.current.cleanup();
-            }
-
-            map.current.remove();
-            map.current = null;
+            setPreviousMapState({
+                center: [currentCenter.lng, currentCenter.lat],
+                zoom: currentZoom
+            });
         }
-    };
+    }, [map.current?.loaded, selectedObcina, selectedMunicipality]);
 
-    // Posodabljanje izbire občine/katastra
+    useEffect(() => {
+        const currentObcineData = viewMode === 'cene' ? obcineCeneData : obcinePosliData;
+        if (currentObcineData && obcineLoaded) {
+            updateRegionColors('obcine', activeTab, viewMode);
+        }
+    }, [activeTab, viewMode, obcinePosliData, obcineCeneData, obcineLoaded, updateRegionColors]);
+
+    useEffect(() => {
+        const currentKatastrData = viewMode === 'cene' ? katastrskeCeneData : katastrskePosliData;
+        if (currentKatastrData && municipalitiesLoaded) {
+            updateRegionColors('municipalities', activeTab, viewMode);
+        }
+    }, [activeTab, viewMode, katastrskePosliData, katastrskeCeneData, municipalitiesLoaded, updateRegionColors]);
+
+    useEffect(() => {
+        if (selectedMunicipality && municipalitiesLoaded && layerManager.current &&
+            selectedRegionFromNavigation?.autoZoomToRegion &&
+            selectedRegionFromNavigation.type === 'katastrska_obcina') {
+
+            const municipalityFeature = municipalitiesData.features.find(
+                feature => feature.properties.SIFKO === selectedMunicipality.sifko
+            );
+
+            if (municipalityFeature && selectedObcina) {
+                const bounds = calculateBoundsFromGeometry(municipalityFeature.geometry);
+                map.current.fitBounds(bounds, {
+                    padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
+                    duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION,
+                    essential: true
+                });
+            }
+        }
+    }, [selectedMunicipality, municipalitiesLoaded, selectedRegionFromNavigation, selectedObcina]);
+
+    useEffect(() => {
+        if (selectedObcina && obcineLoaded && layerManager.current &&
+            selectedRegionFromNavigation?.autoZoomToRegion &&
+            selectedRegionFromNavigation.type === 'obcina') {
+
+            const obcinaFeature = obcineData.features.find(
+                feature => getObcinaId(feature) === selectedObcina.obcinaId
+            );
+
+            if (obcinaFeature) {
+                const bounds = calculateBoundsFromGeometry(obcinaFeature.geometry);
+                const hasKatastre = obcinaHasKatastre(selectedObcina.name);
+
+                if (hasKatastre) {
+                    layerManager.current.updateLayerVisibilityByZoom(map.current.getZoom(), true, selectedObcina.name);
+                }
+
+                map.current.fitBounds(bounds, {
+                    padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
+                    duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION,
+                    essential: true
+                });
+
+                map.current.setMaxBounds(bounds);
+                addObcinaMask(selectedObcina.obcinaId);
+                layerManager.current.updateObcinaSelection(selectedObcina.obcinaId, selectedObcina.name);
+            }
+        }
+    }, [selectedObcina, obcineLoaded, selectedRegionFromNavigation]);
+
     useEffect(() => {
         if (map.current && layerManager.current) {
             layerManager.current.updateMunicipalitySelection(selectedMunicipality?.sifko);
-            
-            // Če je izbran kataster, zagotovi da katastrski sloji ostanejo vidni
+
             if (selectedMunicipality && selectedObcina) {
                 layerManager.current.updateLayerVisibilityByZoom(map.current.getZoom(), true, selectedObcina.name);
             }
@@ -748,13 +732,12 @@ export default function StatisticsZemljevid({
     useEffect(() => {
         if (map.current && layerManager.current) {
             layerManager.current.updateObcinaSelection(
-                selectedObcina?.obcinaId, 
+                selectedObcina?.obcinaId,
                 selectedObcina?.name
             );
         }
     }, [selectedObcina]);
 
-    // Inicializacija mape
     useEffect(() => {
         if (!map.current && mapContainer.current) {
             map.current = new maplibregl.Map({
@@ -780,8 +763,14 @@ export default function StatisticsZemljevid({
                 loadObcine();
                 loadMunicipalities();
                 layerManager.current.updateLayerVisibilityByZoom(MAP_CONFIG.INITIAL_ZOOM, false, null);
-                setupZoomHandler();
-                
+
+                map.current.on('zoomend', () => {
+                    const currentZoom = map.current.getZoom();
+                    if (layerManager.current && !selectedObcina) {
+                        layerManager.current.updateLayerVisibilityByZoom(currentZoom, null, null);
+                    }
+                });
+
                 setPreviousMapState({
                     center: MAP_CONFIG.INITIAL_CENTER,
                     zoom: MAP_CONFIG.INITIAL_ZOOM
@@ -789,46 +778,25 @@ export default function StatisticsZemljevid({
             });
         }
 
-        return cleanup;
-    }, []);
+        return () => {
+            if (map.current) {
+                // Cleanup event handlers
+                ['obcine', 'municipalities'].forEach(regionType => {
+                    const handlers = map.current[`_${regionType}Handlers`];
+                    if (handlers) {
+                        const layerId = regionType === 'obcine' ? 'obcine-fill' : 'municipalities-fill';
+                        map.current.off('mousemove', layerId, handlers.move);
+                        map.current.off('mouseleave', layerId, handlers.leave);
+                        map.current.off('click', layerId, handlers.click);
+                    }
+                });
 
-    // Komponenta za legendo
-    const PercentileLegenda = () => {
-        if (!coloringLoaded || selectedObcina || selectedMunicipality) return null;
-        
-        const stats = window.currentPercentileStats || null;
-        const colorScale = getColorScalePercentiles(activeTab, stats);
-        
-        return (
-            <div className="absolute top-4 left-4 z-20 bg-white/95 backdrop-blur-sm rounded-lg shadow-md border border-gray-200 px-3 py-3">
-                <div className="text-xs font-medium text-gray-700 mb-3">
-                    {activeTab === 'prodaja' ? 'Prodaje za leto' : 'Najemi za leto' } (2025)
-                </div>
-                <div className="space-y-2">
-                    {colorScale.map((item, index) => (
-                        <div key={index} className="flex items-center space-x-2">
-                            <div 
-                                className={`w-4 h-3 rounded flex-shrink-0 ${
-                                    item.color === 'rgba(255, 255, 255, 0.8)' 
-                                        ? 'border-2 border-gray-300' 
-                                        : 'border border-gray-300'
-                                }`}
-                                style={{ backgroundColor: item.color }}
-                            ></div>
-                            <span className="text-xs text-gray-600 min-w-0">
-                                {item.label}
-                            </span>
-                        </div>
-                    ))}
-                </div>
-                {stats && (
-                    <div className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-200">
-                        Občin z podatki: {stats.count} | Povprečje: {stats.avg}
-                    </div>
-                )}
-            </div>
-        );
-    };
+                layerManager.current?.cleanup();
+                map.current.remove();
+                map.current = null;
+            }
+        };
+    }, []);
 
     return (
         <div className="relative w-full h-full">
@@ -844,54 +812,47 @@ export default function StatisticsZemljevid({
                 }}
             />
 
-            {/* Hover predogled za občine */}
-            {hoveredRegion && !selectedMunicipality && !selectedObcina && (
-                <div className="absolute bottom-4 right-4 z-20 bg-white/95 backdrop-blur-sm rounded-lg shadow-md border border-gray-200 px-3 py-2">
-                    <div className="flex items-center space-x-2">
-                        <span className="text-xs text-gray-500 font-medium">
-                            {hoveredRegion.type}:
-                        </span>
-                        <span className="text-sm font-medium text-gray-700">
-                            {hoveredRegion.name}
-                        </span>
+            {/* Toggle gumb za prikaz */}
+            {!selectedMunicipality && !selectedObcina && (
+                <div className="absolute top-4 right-4 z-20 bg-white/95 backdrop-blur-sm rounded-lg shadow-md border border-gray-200 p-2">
+                    <div className="flex space-x-1">
+                        <button
+                            onClick={() => setViewMode('posli')}
+                            className={`px-3 py-2 text-xs font-medium rounded transition-colors ${viewMode === 'posli'
+                                    ? 'text-white shadow-sm'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                            style={viewMode === 'posli' ? {
+                                backgroundColor: activeTab === 'prodaja' ? 'rgba(37, 99, 235, 0.8)' : 'rgba(5, 150, 105, 0.8)'
+                            } : {}}
+                        >
+                            Število poslov
+                        </button>
+                        <button
+                            onClick={() => setViewMode('cene')}
+                            className={`px-3 py-2 text-xs font-medium rounded transition-colors ${viewMode === 'cene'
+                                    ? 'text-white shadow-sm'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                            style={viewMode === 'cene' ? {
+                                backgroundColor: activeTab === 'prodaja' ? 'rgba(37, 99, 235, 0.8)' : 'rgba(5, 150, 105, 0.8)'
+                            } : {}}
+                        >
+                            Cene/m²
+                        </button>
                     </div>
-                    {hoveredRegion.posli !== undefined && (
-                        <div className="flex items-center space-x-2 mt-1">
-                            <span className="text-xs text-gray-500">
-                                {hoveredRegion.activeTab === 'prodaja' ? 'Prodaje' : 'Najemi'}:
-                            </span>
-                            <span className="text-sm font-semibold text-gray-800">
-                                {hoveredRegion.posli}
-                            </span>
-                        </div>
-                    )}
                 </div>
             )}
 
-            {/* Hover predogled za katastrske občine */}
-            {hoveredMunicipality && selectedObcina && !selectedMunicipality && 
-             obcinaHasKatastre(selectedObcina.name) && (
-                <div className="absolute bottom-16 right-4 z-20 bg-white/95 backdrop-blur-sm rounded-lg shadow-md border border-gray-200 px-3 py-2">
-                    <div className="flex items-center space-x-2">
-                        <span className="text-xs text-gray-500 font-medium">
-                            {hoveredMunicipality.type}:
-                        </span>
-                        <span className="text-sm font-medium text-gray-700">
-                            {hoveredMunicipality.name}
-                        </span>
-                    </div>
-                    {hoveredMunicipality.posli !== undefined && (
-                        <div className="flex items-center space-x-2 mt-1">
-                            <span className="text-xs text-gray-500">
-                                {hoveredMunicipality.activeTab === 'prodaja' ? 'Prodaje' : 'Najemi'}:
-                            </span>
-                            <span className="text-sm font-semibold text-gray-800">
-                                {hoveredMunicipality.posli}
-                            </span>
-                        </div>
-                    )}
-                </div>
+            {/* Hover predogledi */}
+            {hoveredRegion && !selectedMunicipality && !selectedObcina && (
+                <HoverPreview region={hoveredRegion} />
             )}
+
+            {hoveredMunicipality && selectedObcina && !selectedMunicipality &&
+                obcinaHasKatastre(selectedObcina.name) && (
+                    <HoverPreview region={hoveredMunicipality} position="bottom-16 right-4" />
+                )}
 
             {/* Indikator izbrane regije */}
             {(selectedMunicipality || selectedObcina) && (
@@ -914,7 +875,7 @@ export default function StatisticsZemljevid({
                         </div>
                         <button
                             onClick={handleReset}
-                            className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
+                            className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0 ml-2"
                         >
                             ✕
                         </button>
@@ -922,7 +883,7 @@ export default function StatisticsZemljevid({
                 </div>
             )}
 
-            {/* Legenda za barvno shemo */}
+            {/* Legenda */}
             <PercentileLegenda />
         </div>
     );

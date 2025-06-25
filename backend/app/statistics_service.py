@@ -336,6 +336,182 @@ class StatisticsService:
                 "message": f"Database error: {str(e)} (Type: {type(e).__name__})"
             }
 
+    def get_all_obcine_povprecne_cene_m2_zadnjih_12m(self, vkljuci_katastrske: bool = True) -> Dict[str, Any]:
+        """
+        Pridobi povprečne cene na m² za zadnjih 12 mesecev za VSE občine + VSE katastrske občine
+        Izračuna tehtano povprečje cen za hiše in stanovanja glede na število poslov
+        Frontend bo filtriral katere se prikažejo
+        """
+        try:
+            with self.engine.connect() as conn:
+                # Osnovni query za občine - zadnjih 12 mesecev
+                query_obcine = """
+                SELECT 
+                    ime_regije,
+                    tip_posla,
+                    vrsta_nepremicnine,
+                    'obcina' as tip_regije_oznaka,
+                    AVG(povprecna_cena_m2) as povprecna_cena_m2,
+                    SUM(stevilo_poslov) as skupaj_poslov
+                FROM stats.statistike_cache 
+                WHERE tip_obdobja = 'zadnjih12m'
+                    AND tip_regije = 'obcina'
+                    AND povprecna_cena_m2 IS NOT NULL
+                    AND stevilo_poslov > 0
+                GROUP BY ime_regije, tip_posla, vrsta_nepremicnine
+                """
+                
+                result_obcine = conn.execute(text(query_obcine))
+                rows_obcine = result_obcine.fetchall()
+                
+                # Organizacija podatkov po občinah
+                obcine_data = {}
+                
+                for row in rows_obcine:
+                    obcina_name = row.ime_regije
+                    tip_posla = row.tip_posla
+                    vrsta_nep = row.vrsta_nepremicnine
+                    cena_m2 = float(row.povprecna_cena_m2) if row.povprecna_cena_m2 else 0
+                    stevilo_poslov = row.skupaj_poslov or 0
+                    
+                    if obcina_name not in obcine_data:
+                        obcine_data[obcina_name] = {
+                            "name": obcina_name,
+                            "prodaja": {
+                                "stanovanje": {"cena_m2": 0, "stevilo_poslov": 0},
+                                "hisa": {"cena_m2": 0, "stevilo_poslov": 0},
+                                "skupna_povprecna_cena_m2": 0,
+                                "skupaj_poslov": 0
+                            },
+                            "najem": {
+                                "stanovanje": {"cena_m2": 0, "stevilo_poslov": 0},
+                                "hisa": {"cena_m2": 0, "stevilo_poslov": 0},
+                                "skupna_povprecna_cena_m2": 0,
+                                "skupaj_poslov": 0
+                            }
+                        }
+                    
+                    # Shrani podatke po vrstah nepremičnin
+                    if tip_posla in obcine_data[obcina_name] and vrsta_nep in obcine_data[obcina_name][tip_posla]:
+                        obcine_data[obcina_name][tip_posla][vrsta_nep]["cena_m2"] = cena_m2
+                        obcine_data[obcina_name][tip_posla][vrsta_nep]["stevilo_poslov"] = stevilo_poslov
+                        obcine_data[obcina_name][tip_posla]["skupaj_poslov"] += stevilo_poslov
+                
+                # Izračunaj tehtano povprečje za vsako občino
+                for obcina_name, obcina_data in obcine_data.items():
+                    for tip_posla in ["prodaja", "najem"]:
+                        stanovanje_cena = obcina_data[tip_posla]["stanovanje"]["cena_m2"]
+                        stanovanje_posli = obcina_data[tip_posla]["stanovanje"]["stevilo_poslov"]
+                        hisa_cena = obcina_data[tip_posla]["hisa"]["cena_m2"]
+                        hisa_posli = obcina_data[tip_posla]["hisa"]["stevilo_poslov"]
+                        
+                        skupaj_poslov = stanovanje_posli + hisa_posli
+                        
+                        if skupaj_poslov > 0:
+                            # Tehtano povprečje
+                            skupna_cena_m2 = (
+                                (stanovanje_cena * stanovanje_posli + hisa_cena * hisa_posli) / skupaj_poslov
+                            )
+                            obcine_data[obcina_name][tip_posla]["skupna_povprecna_cena_m2"] = round(skupna_cena_m2, 2)
+
+                # Inicializiraj result
+                result = {
+                    "status": "success",
+                    "obdobje": "zadnjih_12_mesecev",
+                    "vkljucene_katastrske": vkljuci_katastrske,
+                    "obcine_cene": obcine_data,
+                    "katastrske_obcine_cene": {},
+                    "skupaj_regij": len(obcine_data)
+                }
+                
+                # Dodaj VSE katastrske občine če je zahtevano
+                if vkljuci_katastrske:
+                    query_katastrske = """
+                    SELECT 
+                        ime_regije,
+                        tip_posla,
+                        vrsta_nepremicnine,
+                        'katastrska_obcina' as tip_regije_oznaka,
+                        AVG(povprecna_cena_m2) as povprecna_cena_m2,
+                        SUM(stevilo_poslov) as skupaj_poslov
+                    FROM stats.statistike_cache 
+                    WHERE tip_obdobja = 'zadnjih12m'
+                        AND tip_regije = 'katastrska_obcina'
+                        AND povprecna_cena_m2 IS NOT NULL
+                        AND stevilo_poslov > 0
+                    GROUP BY ime_regije, tip_posla, vrsta_nepremicnine
+                    ORDER BY ime_regije, tip_posla, vrsta_nepremicnine
+                    """
+                    
+                    try:
+                        result_katastrske = conn.execute(text(query_katastrske))
+                        rows_katastrske = result_katastrske.fetchall()
+                        
+                        katastrske_data = {}
+                        
+                        for row in rows_katastrske:
+                            kataster_name = row.ime_regije
+                            tip_posla = row.tip_posla
+                            vrsta_nep = row.vrsta_nepremicnine
+                            cena_m2 = float(row.povprecna_cena_m2) if row.povprecna_cena_m2 else 0
+                            stevilo_poslov = row.skupaj_poslov or 0
+                            
+                            if kataster_name not in katastrske_data:
+                                katastrske_data[kataster_name] = {
+                                    "name": kataster_name,
+                                    "prodaja": {
+                                        "stanovanje": {"cena_m2": 0, "stevilo_poslov": 0},
+                                        "hisa": {"cena_m2": 0, "stevilo_poslov": 0},
+                                        "skupna_povprecna_cena_m2": 0,
+                                        "skupaj_poslov": 0
+                                    },
+                                    "najem": {
+                                        "stanovanje": {"cena_m2": 0, "stevilo_poslov": 0},
+                                        "hisa": {"cena_m2": 0, "stevilo_poslov": 0},
+                                        "skupna_povprecna_cena_m2": 0,
+                                        "skupaj_poslov": 0
+                                    }
+                                }
+                            
+                            # Shrani podatke po vrstah nepremičnin
+                            if tip_posla in katastrske_data[kataster_name] and vrsta_nep in katastrske_data[kataster_name][tip_posla]:
+                                katastrske_data[kataster_name][tip_posla][vrsta_nep]["cena_m2"] = cena_m2
+                                katastrske_data[kataster_name][tip_posla][vrsta_nep]["stevilo_poslov"] = stevilo_poslov
+                                katastrske_data[kataster_name][tip_posla]["skupaj_poslov"] += stevilo_poslov
+                        
+                        # Izračunaj tehtano povprečje za vsako katastrsko občino
+                        for kataster_name, kataster_data in katastrske_data.items():
+                            for tip_posla in ["prodaja", "najem"]:
+                                stanovanje_cena = kataster_data[tip_posla]["stanovanje"]["cena_m2"]
+                                stanovanje_posli = kataster_data[tip_posla]["stanovanje"]["stevilo_poslov"]
+                                hisa_cena = kataster_data[tip_posla]["hisa"]["cena_m2"]
+                                hisa_posli = kataster_data[tip_posla]["hisa"]["stevilo_poslov"]
+                                
+                                skupaj_poslov = stanovanje_posli + hisa_posli
+                                
+                                if skupaj_poslov > 0:
+                                    # Tehtano povprečje
+                                    skupna_cena_m2 = (
+                                        (stanovanje_cena * stanovanje_posli + hisa_cena * hisa_posli) / skupaj_poslov
+                                    )
+                                    katastrske_data[kataster_name][tip_posla]["skupna_povprecna_cena_m2"] = round(skupna_cena_m2, 2)
+
+                        result["katastrske_obcine_cene"] = katastrske_data
+                        result["skupaj_regij"] = len(obcine_data) + len(katastrske_data)
+                        
+                    except Exception as e:
+                        print(f"Error processing katastrske občine: {str(e)}")
+                        # Nadaljuj brez katastrskih občin
+                        pass
+                
+                return result
+            
+        except Exception as e:
+            return {
+                "status": "error", 
+                "message": f"Database error: {str(e)} (Type: {type(e).__name__})"
+            }
+
     # POMOŽNE METODE
     
     def _refresh_materialized_views(self):

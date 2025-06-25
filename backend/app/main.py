@@ -1,7 +1,19 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes import fill_deduplicated_tables, ingest_data, ingest_energetske_izkaznice, posodobi_statistike, splosne_statistike, vse_obcine_posli_zadnjih_12m, vse_statistike, get_del_stavbe_geojson, get_cluster_del_stavbe, get_del_stavbe_details
+from .routes import (
+    fill_deduplicated_tables, 
+    ingest_data, 
+    ingest_energetske_izkaznice, 
+    posodobi_statistike, 
+    splosne_statistike, 
+    vse_obcine_posli_zadnjih_12m,
+    vse_obcine_cene_m2_zadnjih_12m,  # Nova funkcija
+    vse_statistike, 
+    get_del_stavbe_geojson, 
+    get_cluster_del_stavbe, 
+    get_del_stavbe_details
+)
 
 app = FastAPI(
     title="Domogled API",
@@ -35,7 +47,8 @@ app.post("/api/statistike/posodobi")(posodobi_statistike)
 
 app.get("/api/statistike/vse/{tip_regije}/{regija}")(vse_statistike)
 app.get("/api/statistike/splosne/{tip_regije}/{regija}")(splosne_statistike)
-app.get("/api/statistike/vse-obcine-posli-2025")(vse_obcine_posli_zadnjih_12m)  
+app.get("/api/statistike/vse-obcine-posli-zadnjih-12m")(vse_obcine_posli_zadnjih_12m)
+app.get("/api/statistike/vse-obcine-cene-m2-zadnjih-12m")(vse_obcine_cene_m2_zadnjih_12m)  
 
 app.get("/properties/geojson")(get_del_stavbe_geojson)
 app.get("/property-details/{deduplicated_id}")(get_del_stavbe_details)

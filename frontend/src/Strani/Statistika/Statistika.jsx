@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import PropTypes from 'prop-types';
 import StatisticsZemljevid from "./StatisticsZemljevid.jsx";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import {API_CONFIG} from '../Zemljevid/MapConstants.jsx';
+import { API_CONFIG } from '../Zemljevid/MapConstants.jsx';
 
 
 // ========================================
@@ -12,7 +12,7 @@ import {API_CONFIG} from '../Zemljevid/MapConstants.jsx';
 // Univerzalna tooltip komponenta
 const UniversalTooltip = ({ active, payload, label, formatter, suffix = '' }) => {
     if (!active || !payload?.length) return null;
-    
+
     return (
         <div className="bg-white p-3 border border-gray-300 rounded-lg shadow-lg">
             <p className="font-semibold">Leto: {label}</p>
@@ -42,17 +42,18 @@ UniversalTooltip.propTypes = {
 };
 
 // Komponenta za preklop tipa grafika
-const ChartTypeSwitcher = ({ chartType, setChartType, chartTypeKey }) => (
+const ChartTypeSwitcher = ({ chartType, setChartType, chartTypeKey, activeTab }) => (
     <div className="flex space-x-2">
         {['stanovanje', 'hisa'].map(type => (
             <button
                 key={type}
                 onClick={() => setChartType(prev => ({ ...prev, [chartTypeKey]: type }))}
-                className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-                    chartType[chartTypeKey] === type
-                        ? (type === 'stanovanje' ? 'bg-blue-100 text-blue-700 border border-blue-300' : 'bg-green-100 text-green-700 border border-green-300')
+                className={`px-3 py-1 text-xs font-medium rounded transition-colors ${chartType[chartTypeKey] === type
+                        ? (type === 'stanovanje'
+                            ? (activeTab === 'prodaja' ? 'bg-blue-100 text-blue-700 border border-blue-300' : 'bg-emerald-100 text-emerald-700 border border-emerald-300')
+                            : (activeTab === 'prodaja' ? 'bg-blue-200 text-blue-800 border border-blue-400' : 'bg-emerald-200 text-emerald-800 border border-emerald-400'))
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+                    }`}
             >
                 {type === 'stanovanje' ? 'Stanovanje' : 'Hiša'}
             </button>
@@ -63,82 +64,108 @@ const ChartTypeSwitcher = ({ chartType, setChartType, chartTypeKey }) => (
 ChartTypeSwitcher.propTypes = {
     chartType: PropTypes.object.isRequired,
     setChartType: PropTypes.func.isRequired,
-    chartTypeKey: PropTypes.string.isRequired
+    chartTypeKey: PropTypes.string.isRequired,
+    activeTab: PropTypes.string.isRequired
 };
 
-// Komponenta za statistične kartice
-const StatCard = ({ label, value, formatter = 'default' }) => {
-    const formatValue = (val) => {
-        if (!val) return 'N/A';
-        switch (formatter) {
-            case 'currency': return `€${Math.round(val)}`;
-            case 'currency_large': return `€${Math.round(val).toLocaleString()}`;
-            case 'area': return `${Math.round(val)} m²`;
-            case 'years': return `${val} let`;
-            default: return val;
-        }
-    };
-
-    return (
-        <div className="bg-white rounded-2xl p-4 shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
-            <div className="text-xs text-gray-500 mb-2">{label}</div>
-            <div className="text-xl font-bold text-gray-800">{formatValue(value)}</div>
-        </div>
-    );
-};
-
-StatCard.propTypes = {
-    label: PropTypes.string.isRequired,
-    value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    formatter: PropTypes.oneOf(['default', 'currency', 'currency_large', 'area', 'years'])
-};
-
-// Komponenta za mrežo nepremičnin
+// NOVA MINIMAL PROPERTY GRID KOMPONENTA
 const PropertyGrid = ({ data, activeTab, propertyType }) => {
     if (!data) return null;
 
     const getValue = (source, key) => data[source]?.[key];
-
+    const isApartment = propertyType === 'stanovanje';
+    
     return (
-        <div>
-            <h4 className="text-lg font-bold text-gray-800 mb-4">
-                {propertyType === 'stanovanje' ? 'Stanovanja' : 'Hiše'} - {activeTab}
-            </h4>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                {/* Cena/m² */}
-                <StatCard
-                    label="Cena/m²"
-                    value={getValue('cene', 'povprecna_cena_m2')}
-                    formatter="currency"
-                />
+        <div className="bg-white border border-gray-200 hover:border-gray-300 transition-colors">
+            {/* Minimal Header */}
+            <div className="p-4 border-b border-gray-100">
+                <div className="flex items-center space-x-3">
+                    <div className={`
+                        w-10 h-10 flex items-center justify-center
+                        ${activeTab === 'prodaja' 
+                            ? 'bg-blue-100 text-blue-600' 
+                            : 'bg-emerald-100 text-emerald-600'
+                        }
+                    `}>
+                        {isApartment ? (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                        ) : (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                            </svg>
+                        )}
+                    </div>
+                    <h4 className="text-lg font-semibold text-gray-900">
+                        {propertyType === 'stanovanje' ? 'Stanovanje' : 'Hiša'}
+                    </h4>
+                </div>
+            </div>
 
-                {/* Skupna cena */}
-                <StatCard
-                    label="Skupna cena"
-                    value={getValue('cene', 'povprecna_skupna_cena')}
-                    formatter="currency_large"
-                />
-
-                {/* Velikost */}
-                <StatCard
-                    label="Velikost"
-                    value={getValue('lastnosti', 'povprecna_velikost_m2')}
-                    formatter="area"
-                />
-
-                {/* Posli/Najem */}
-                <StatCard
-                    label={activeTab === 'najem' ? 'V najemu' : 'Št. poslov'}
-                    value={getValue('aktivnost', activeTab === 'najem' ? 'aktivna_v_letu' : 'stevilo_poslov')}
-                    formatter="default"
-                />
-
-                {/* Starost */}
-                <StatCard
-                    label="Starost"
-                    value={getValue('lastnosti', 'povprecna_starost_stavbe')}
-                    formatter="years"
-                />
+            {/* Stats in clean grid */}
+            <div className="p-4">
+                <div className="space-y-4">
+                    {/* Price section */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+                                Cena na m²
+                            </div>
+                            <div className="text-xl font-bold text-gray-900 mt-1">
+                                {getValue('cene', 'povprecna_cena_m2') 
+                                    ? `€${Math.round(getValue('cene', 'povprecna_cena_m2'))}`
+                                    : 'N/A'
+                                }
+                            </div>
+                        </div>
+                        <div>
+                            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+                                Skupna cena
+                            </div>
+                            <div className="text-xl font-bold text-gray-900 mt-1">
+                                {getValue('cene', 'povprecna_skupna_cena') 
+                                    ? `€${Math.round(getValue('cene', 'povprecna_skupna_cena')).toLocaleString()}`
+                                    : 'N/A'
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* Other stats */}
+                    <div className="grid grid-cols-3 gap-4 pt-2 border-t border-gray-100">
+                        <div>
+                            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+                                Velikost
+                            </div>
+                            <div className="text-lg font-semibold text-gray-800 mt-1">
+                                {getValue('lastnosti', 'povprecna_velikost_m2') 
+                                    ? `${Math.round(getValue('lastnosti', 'povprecna_velikost_m2'))} m²`
+                                    : 'N/A'
+                                }
+                            </div>
+                        </div>
+                        <div>
+                            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+                                {activeTab === 'najem' ? 'Oddano' : 'Prodano'}
+                            </div>
+                            <div className="text-lg font-semibold text-gray-800 mt-1">
+                                {getValue('aktivnost', activeTab === 'najem' ? 'aktivna_v_letu' : 'stevilo_poslov') || 'N/A'}
+                            </div>
+                        </div>
+                        <div>
+                            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+                                Starost
+                            </div>
+                            <div className="text-lg font-semibold text-gray-800 mt-1">
+                                {getValue('lastnosti', 'povprecna_starost_stavbe')
+                                    ? `${Math.round(getValue('lastnosti', 'povprecna_starost_stavbe'))} let`
+                                    : 'N/A'
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
@@ -151,15 +178,16 @@ PropertyGrid.propTypes = {
 };
 
 // Ovojnica za grafikone
-const ChartWrapper = ({ title, children, showSwitcher = false, chartType, setChartType, chartTypeKey }) => (
+const ChartWrapper = ({ title, children, showSwitcher = false, chartType, setChartType, chartTypeKey, activeTab }) => (
     <div className="bg-white border border-gray-200 rounded-lg p-4">
         <div className="flex justify-between items-center mb-4">
             <h4 className="font-semibold text-gray-800">{title}</h4>
             {showSwitcher && (
-                <ChartTypeSwitcher 
-                    chartType={chartType} 
-                    setChartType={setChartType} 
-                    chartTypeKey={chartTypeKey} 
+                <ChartTypeSwitcher
+                    chartType={chartType}
+                    setChartType={setChartType}
+                    chartTypeKey={chartTypeKey}
+                    activeTab={activeTab}
                 />
             )}
         </div>
@@ -177,7 +205,8 @@ ChartWrapper.propTypes = {
     showSwitcher: PropTypes.bool,
     chartType: PropTypes.object,
     setChartType: PropTypes.func,
-    chartTypeKey: PropTypes.string
+    chartTypeKey: PropTypes.string,
+    activeTab: PropTypes.string
 };
 
 // ========================================
@@ -195,8 +224,6 @@ const prepareUniversalChartData = (statisticsData, activeTab, chartType, dataTyp
     return typeData.map(d => ({
         leto: d.leto,
         povprecna: d[dataType]?.[valueKeys.povprecna] || null,
-        p10: d[dataType]?.[valueKeys.p10] || null,
-        p90: d[dataType]?.[valueKeys.p90] || null,
     })).sort((a, b) => a.leto - b.leto);
 };
 
@@ -204,7 +231,7 @@ const prepareActivityChartData = (statisticsData, activeTab) => {
     const mergeData = (stanovanja, hise) => {
         const dataMap = new Map();
         const field = activeTab === 'najem' ? 'aktivna_v_letu' : 'stevilo_poslov';
-        
+
         [...stanovanja, ...hise].forEach(d => {
             if (!dataMap.has(d.leto)) {
                 dataMap.set(d.leto, { leto: d.leto, stanovanja: 0, hise: 0 });
@@ -212,7 +239,7 @@ const prepareActivityChartData = (statisticsData, activeTab) => {
             const type = stanovanja.includes(d) ? 'stanovanja' : 'hise';
             dataMap.get(d.leto)[type] = d.aktivnost?.[field] || 0;
         });
-        
+
         return Array.from(dataMap.values()).sort((a, b) => a.leto - b.leto);
     };
 
@@ -232,7 +259,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
     const [activeTab, setActiveTab] = useState('prodaja');
     const [chartType, setChartType] = useState({
         price: 'stanovanje',
-        totalPrice: 'stanovanje', 
+        totalPrice: 'stanovanje',
         size: 'stanovanje'
     });
     const [apiState, setApiState] = useState({
@@ -255,53 +282,64 @@ export default function Statistika({ selectedRegionFromNavigation }) {
             }
 
             const data = await response.json();
-            setApiState({ 
-                data: data.status === 'success' ? data.statistike : null, 
-                loading: false, 
-                error: data.status !== 'success' ? (data.message || 'Napaka') : null 
+            setApiState({
+                data: data.status === 'success' ? data.statistike : null,
+                loading: false,
+                error: data.status !== 'success' ? (data.message || 'Napaka') : null
             });
         } catch (err) {
             setApiState({ data: null, loading: false, error: err.message });
         }
     }, []);
 
+    // Funkcija za nalaganje statistik Slovenije
+    const fetchSloveniaStatistics = useCallback(() => {
+        fetchStatistics('SLOVENIJA', 'slovenija');
+    }, [fetchStatistics]);
+
     // Funkcije za izbiro katastrov
     const handleMunicipalitySelect = useCallback((municipalityData) => {
-    setSelectedMunicipality(municipalityData);
-    
-    // NE resetiraj selectedObcina če je preserveObcina = true
-    if (!municipalityData?.preserveObcina) {
-        setSelectedObcina(null);
-    }
-    
-    if (municipalityData) {
-        let name = municipalityData.name;
-        if (name.includes('(') && name.includes(')')) {
-            name = name.split('(')[0].trim();
+        setSelectedMunicipality(municipalityData);
+
+        // NE resetiraj selectedObcina če je preserveObcina = true
+        if (!municipalityData?.preserveObcina) {
+            setSelectedObcina(null);
         }
-        fetchStatistics(name, 'katastrska_obcina');
-    } else {
-        setApiState({ data: null, loading: false, error: null });
-    }
-}, [fetchStatistics]);
+
+        if (municipalityData) {
+            let name = municipalityData.name;
+            if (name.includes('(') && name.includes(')')) {
+                name = name.split('(')[0].trim();
+            }
+            fetchStatistics(name, 'katastrska_obcina');
+        } else {
+            // Če ni izbrane občine, naloži statistike za Slovenijo
+            fetchSloveniaStatistics();
+        }
+    }, [fetchStatistics, fetchSloveniaStatistics]);
 
     const handleObcinaSelect = useCallback((obcinaData) => {
         setSelectedObcina(obcinaData);
         setSelectedMunicipality(null);
-        
+
         if (obcinaData) {
             fetchStatistics(obcinaData.name, 'obcina');
         } else {
-            setApiState({ data: null, loading: false, error: null });
+            // Če ni izbrane občine, naloži statistike za Slovenijo
+            fetchSloveniaStatistics();
         }
-    }, [fetchStatistics]);
+    }, [fetchStatistics, fetchSloveniaStatistics]);
 
     // Samodejno nalaganje iz navigacije
     useEffect(() => {
-        if (!selectedRegionFromNavigation) return;
-        
+        if (!selectedRegionFromNavigation) {
+            // Če ni podane regije iz navigacije, naloži statistike za Slovenijo
+            fetchSloveniaStatistics();
+            return;
+        }
+
         const { type, name, sifko, obcinaId } = selectedRegionFromNavigation;
-        
+
         if (type === 'katastrska_obcina') {
             setSelectedMunicipality({ name: `${name} (${sifko})`, sifko });
             setSelectedObcina(null);
@@ -311,30 +349,45 @@ export default function Statistika({ selectedRegionFromNavigation }) {
             setSelectedMunicipality(null);
             fetchStatistics(name, 'obcina');
         }
-    }, [selectedRegionFromNavigation, fetchStatistics]);
+    }, [selectedRegionFromNavigation, fetchStatistics, fetchSloveniaStatistics]);
+
+    // Naloži statistike za Slovenijo ob prvem nalaganju, če ni nobene regije izbrane
+    useEffect(() => {
+        if (!selectedMunicipality && !selectedObcina && !selectedRegionFromNavigation) {
+            fetchSloveniaStatistics();
+        }
+    }, [selectedMunicipality, selectedObcina, selectedRegionFromNavigation, fetchSloveniaStatistics]);
 
     // Priprava podatkov za grafikone
     const chartData = {
         price: prepareUniversalChartData(apiState.data, activeTab, chartType.price, 'cene', {
-            povprecna: 'povprecna_cena_m2',
-            p10: 'percentil_10_cena_m2',
-            p90: 'percentil_90_cena_m2'
+            povprecna: 'povprecna_cena_m2'
         }),
         totalPrice: prepareUniversalChartData(apiState.data, activeTab, chartType.totalPrice, 'cene', {
-            povprecna: 'povprecna_skupna_cena',
-            p10: 'percentil_10_skupna_cena', 
-            p90: 'percentil_90_skupna_cena'
+            povprecna: 'povprecna_skupna_cena'
         }),
         size: prepareUniversalChartData(apiState.data, activeTab, chartType.size, 'lastnosti', {
-            povprecna: 'povprecna_velikost_m2',
-            p10: 'percentil_10_velikost_m2',
-            p90: 'percentil_90_velikost_m2'
+            povprecna: 'povprecna_velikost_m2'
         }),
         activity: prepareActivityChartData(apiState.data, activeTab)
     };
 
     const hasData = chartData.price.length > 0 || chartData.activity.length > 0;
     const selectedRegion = selectedMunicipality || selectedObcina;
+
+    // Določi naslov glede na izbrano regijo
+    const getRegionTitle = () => {
+        if (selectedRegion) {
+            return selectedRegion.name;
+        }
+        return 'Slovenija';
+    };
+
+    const getRegionType = () => {
+        if (selectedMunicipality) return 'Kataster';
+        if (selectedObcina) return 'Občina';
+        return 'Država';
+    };
 
     return (
         <div className="min-h-screen bg-gray-100 lg:pt-16 lg:pb-8 lg:px-16">
@@ -361,11 +414,10 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                     <button
                                         key={tab}
                                         onClick={() => setActiveTab(tab)}
-                                        className={`pb-2 px-4 text-sm font-medium transition-colors relative ${
-                                            activeTab === tab
+                                        className={`pb-2 px-4 text-sm font-medium transition-colors relative ${activeTab === tab
                                                 ? 'text-black border-b-2 border-black'
                                                 : 'text-gray-400 border-b-2 border-transparent hover:text-gray-600'
-                                        }`}
+                                            }`}
                                     >
                                         {tab === 'prodaja' ? 'Prodaja' : 'Najem'}
                                     </button>
@@ -374,51 +426,34 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                         </div>
 
                         {/* Vsebina */}
-                        {!selectedRegion ? (
-                            <div className="h-full flex items-center justify-center text-gray-500 py-12">
-                                <div className="text-center">
-                                    <div className="text-6xl mb-4">{activeTab === 'najem' ? '📈' : '📊'}</div>
-                                    <h3 className="text-lg font-medium mb-2">Izberi občino ali kataster</h3>
-                                    <p className="text-sm">
-                                        Klikni na zemljevid za prikaz statistik za {activeTab === 'najem' ? 'najem' : 'prodajo'}
-                                    </p>
-                                    <p className="text-xs text-gray-400 mt-2">
-                                        Občine so pobarvane glede na število {activeTab === 'najem' ? 'najemov' : 'prodaj'}
-                                    </p>
-                                </div>
+                        <div className="h-full">
+                            {/* Glava */}
+                            <div className="bg-white text-black p-4 border-b border-gray-200 text-center">
+                                <h2 className="text-xl font-bold">Statistični podatki za {getRegionTitle()}</h2>
+                                <p className="text-gray-600 text-sm">
+                                    {getRegionType()} - Podatki za {activeTab === 'najem' ? 'najem' : 'prodajo'}
+                                    {!selectedRegion && (
+                                        <span className="ml-2 text-blue-600">(Klikni na zemljevid za podrobnosti o občini ali katastru)</span>
+                                    )}
+                                </p>
                             </div>
-                        ) : (
-                            <div className="h-full">
-                                {/* Glava */}
-                                <div className="bg-white text-black p-4 border-b border-gray-200">
-                                    <h2 className="text-xl font-bold">Statistike za {selectedRegion.name}</h2>
-                                    <p className="text-gray-600 text-sm">
-                                        {selectedMunicipality ? 'Kataster' : 'Občina'} - Podatki za {activeTab === 'najem' ? 'najem' : 'prodajo'}
-                                    </p>
-                                </div>
 
-                                <div className="p-6">
-                                    {apiState.loading ? (
-                                        <div className="text-center py-8">
-                                            <div className="text-lg text-gray-600">Nalagam statistike...</div>
-                                        </div>
-                                    ) : apiState.error ? (
-                                        <div className="text-center py-8">
-                                            <div className="text-lg text-red-600 mb-2">Napaka pri nalaganju statistik</div>
-                                            <div className="text-sm text-gray-500">{apiState.error}</div>
-                                        </div>
-                                    ) : apiState.data ? (
-                                        <div className="space-y-6">
-                                            {/* Informacije o regiji */}
-                                            <div className="bg-gray-50 p-4 rounded-lg">
-                                                <h3 className="text-lg font-semibold mb-2">
-                                                    {activeTab === 'prodaja' ? '📊 PRODAJA' : '📈 NAJEM'} - {selectedRegion.name}
-                                                </h3>
-                                                <p className="text-gray-600 text-sm">Podatki za zadnjih 12 mesecev</p>
-                                            </div>
+                            <div className="pt-10 px-6 pb-6">
+                                {apiState.loading ? (
+                                    <div className="text-center py-8">
+                                        <div className="text-lg text-gray-600">Nalagam statistike...</div>
+                                    </div>
+                                ) : apiState.error ? (
+                                    <div className="text-center py-8">
+                                        <div className="text-lg text-red-600 mb-2">Napaka pri nalaganju statistik</div>
+                                        <div className="text-sm text-gray-500">{apiState.error}</div>
+                                    </div>
+                                ) : apiState.data ? (
+                                    <div className="space-y-10">
 
-                                            {/* Mreže nepremičnin */}
-                                            <div className="space-y-6">
+                                        {/* Mreže nepremičnin z MINIMAL DESIGN */}
+                                        <div className="flex justify-center">
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-6xl w-full">
                                                 {apiState.data[activeTab]?.stanovanje?.zadnjih12m && (
                                                     <PropertyGrid
                                                         data={apiState.data[activeTab].stanovanje.zadnjih12m}
@@ -435,112 +470,139 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                                     />
                                                 )}
                                             </div>
-
-                                            {/* Prikaži sporočilo če ni podatkov */}
-                                            {!apiState.data[activeTab]?.stanovanje?.zadnjih12m && !apiState.data[activeTab]?.hisa?.zadnjih12m && (
-                                                <div className="text-center py-8 text-gray-500">
-                                                    Ni podatkov za {activeTab} v tej regiji
-                                                </div>
-                                            )}
-
-                                            {/* Grafikoni */}
-                                            {hasData && (
-                                                <div className="space-y-4">
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                        {/* Grafikon cene na m² */}
-                                                        {chartData.price.length > 0 && (
-                                                            <ChartWrapper
-                                                                title="Povprečna cena/m² po letih"
-                                                                showSwitcher={true}
-                                                                chartType={chartType}
-                                                                setChartType={setChartType}
-                                                                chartTypeKey="price"
-                                                            >
-                                                                <LineChart data={chartData.price}>
-                                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                                                    <XAxis dataKey="leto" stroke="#666" tick={{ fontSize: 11 }} />
-                                                                    <YAxis stroke="#666" tick={{ fontSize: 11 }} tickFormatter={(value) => `€${value}`} />
-                                                                    <Tooltip content={<UniversalTooltip formatter={formatters.currency} />} />
-                                                                    <Legend />
-                                                                    <Line type="monotone" dataKey="povprecna" stroke={chartType.price === 'stanovanje' ? "#3b82f6" : "#10b981"} strokeWidth={3} name="Povprečna" />
-                                                                    <Line type="monotone" dataKey="p10" stroke={chartType.price === 'stanovanje' ? "#93c5fd" : "#6ee7b7"} strokeWidth={2} strokeDasharray="5 5" name="10. percentil" />
-                                                                    <Line type="monotone" dataKey="p90" stroke={chartType.price === 'stanovanje' ? "#1e40af" : "#047857"} strokeWidth={2} strokeDasharray="5 5" name="90. percentil" />
-                                                                </LineChart>
-                                                            </ChartWrapper>
-                                                        )}
-
-                                                        {/* Grafikon celotne cene */}
-                                                        {chartData.totalPrice.length > 0 && (
-                                                            <ChartWrapper
-                                                                title="Povprečna celotna cena po letih"
-                                                                showSwitcher={true}
-                                                                chartType={chartType}
-                                                                setChartType={setChartType}
-                                                                chartTypeKey="totalPrice"
-                                                            >
-                                                                <LineChart data={chartData.totalPrice}>
-                                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                                                    <XAxis dataKey="leto" stroke="#666" tick={{ fontSize: 11 }} />
-                                                                    <YAxis stroke="#666" tick={{ fontSize: 11 }} tickFormatter={(value) => `€${(value / 1000).toFixed(0)}k`} />
-                                                                    <Tooltip content={<UniversalTooltip formatter={formatters.currencyLarge} />} />
-                                                                    <Legend />
-                                                                    <Line type="monotone" dataKey="povprecna" stroke={chartType.totalPrice === 'stanovanje' ? "#3b82f6" : "#10b981"} strokeWidth={3} name="Povprečna" />
-                                                                    <Line type="monotone" dataKey="p10" stroke={chartType.totalPrice === 'stanovanje' ? "#93c5fd" : "#6ee7b7"} strokeWidth={2} strokeDasharray="5 5" name="10. percentil" />
-                                                                    <Line type="monotone" dataKey="p90" stroke={chartType.totalPrice === 'stanovanje' ? "#1e40af" : "#047857"} strokeWidth={2} strokeDasharray="5 5" name="90. percentil" />
-                                                                </LineChart>
-                                                            </ChartWrapper>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                        {/* Grafikon aktivnosti */}
-                                                        {chartData.activity.length > 0 && (
-                                                            <ChartWrapper title={`Število ${activeTab === 'najem' ? 'najemov' : 'prodaj'} po letih`}>
-                                                                <LineChart data={chartData.activity}>
-                                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                                                    <XAxis dataKey="leto" stroke="#666" tick={{ fontSize: 11 }} />
-                                                                    <YAxis stroke="#666" tick={{ fontSize: 11 }} />
-                                                                    <Tooltip content={<UniversalTooltip />} />
-                                                                    <Legend />
-                                                                    <Line type="monotone" dataKey="stanovanja" stroke="#3b82f6" strokeWidth={3} name="Stanovanja" />
-                                                                    <Line type="monotone" dataKey="hise" stroke="#10b981" strokeWidth={3} name="Hiše" />
-                                                                </LineChart>
-                                                            </ChartWrapper>
-                                                        )}
-
-                                                        {/* Grafikon velikosti */}
-                                                        {chartData.size.length > 0 && (
-                                                            <ChartWrapper
-                                                                title="Povprečna velikost po letih"
-                                                                showSwitcher={true}
-                                                                chartType={chartType}
-                                                                setChartType={setChartType}
-                                                                chartTypeKey="size"
-                                                            >
-                                                                <LineChart data={chartData.size}>
-                                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                                                    <XAxis dataKey="leto" stroke="#666" tick={{ fontSize: 11 }} />
-                                                                    <YAxis stroke="#666" tick={{ fontSize: 11 }} tickFormatter={(value) => `${value} m²`} />
-                                                                    <Tooltip content={<UniversalTooltip formatter={formatters.area} />} />
-                                                                    <Legend />
-                                                                    <Line type="monotone" dataKey="povprecna" stroke={chartType.size === 'stanovanje' ? "#3b82f6" : "#10b981"} strokeWidth={3} name="Povprečna" />
-                                                                    <Line type="monotone" dataKey="p10" stroke={chartType.size === 'stanovanje' ? "#93c5fd" : "#6ee7b7"} strokeWidth={2} strokeDasharray="5 5" name="10. percentil" />
-                                                                    <Line type="monotone" dataKey="p90" stroke={chartType.size === 'stanovanje' ? "#1e40af" : "#047857"} strokeWidth={2} strokeDasharray="5 5" name="90. percentil" />
-                                                                </LineChart>
-                                                            </ChartWrapper>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )}
                                         </div>
-                                    ) : (
-                                        <div className="text-center py-8 text-gray-500">
-                                            Ni podatkov za {activeTab} v tej regiji
-                                        </div>
-                                    )}
-                                </div>
+
+                                        {/* Prikaži sporočilo če ni podatkov */}
+                                        {!apiState.data[activeTab]?.stanovanje?.zadnjih12m && !apiState.data[activeTab]?.hisa?.zadnjih12m && (
+                                            <div className="text-center py-8 text-gray-500">
+                                                Ni podatkov za {activeTab} v tej regiji
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8 text-gray-500">
+                                        Ni podatkov za {activeTab} v tej regiji
+                                    </div>
+                                )}
                             </div>
-                        )}
+
+                            {/* NOVA SEKCIJA - Nepremičninski trendi */}
+                            {hasData && apiState.data && (
+                                <div className="bg-white text-black p-4 border-b border-gray-200 text-center">
+                                    <h2 className="text-xl font-bold">Nepremičninski trendi za {getRegionTitle()}</h2>
+                                    <p className="text-gray-600 text-sm">
+                                        Analiza gibanja cen in aktivnosti na trgu {activeTab === 'najem' ? 'najema' : 'prodaje'} v obdobju zadnjih let
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Grafikoni */}
+                            {hasData && apiState.data && (
+                                <div className="pt-10 px-6 pb-6">
+                                    <div className="space-y-10">
+                                        {/* Prvi red grafov - centiriran */}
+                                        <div className="flex justify-center">
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-6xl w-full">
+                                                {/* Grafikon cene na m² */}
+                                                {chartData.price.length > 0 && (
+                                                    <ChartWrapper
+                                                        title="Povprečna cena/m² po letih"
+                                                        showSwitcher={true}
+                                                        chartType={chartType}
+                                                        setChartType={setChartType}
+                                                        chartTypeKey="price"
+                                                        activeTab={activeTab}
+                                                    >
+                                                        <LineChart data={chartData.price}>
+                                                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                                            <XAxis dataKey="leto" stroke="#666" tick={{ fontSize: 11 }} />
+                                                            <YAxis stroke="#666" tick={{ fontSize: 11 }} tickFormatter={(value) => `€${value}`} />
+                                                            <Tooltip content={<UniversalTooltip formatter={formatters.currency} />} />
+                                                            <Legend />
+                                                            <Line type="monotone" dataKey="povprecna" stroke={
+                                                                chartType.price === 'stanovanje'
+                                                                    ? (activeTab === 'prodaja' ? 'rgba(147, 197, 253, 0.8)' : 'rgba(110, 231, 183, 0.8)')
+                                                                    : (activeTab === 'prodaja' ? 'rgba(37, 99, 235, 0.8)' : 'rgba(5, 150, 105, 0.8)')
+                                                            } strokeWidth={3} name="Povprečna" />
+                                                        </LineChart>
+                                                    </ChartWrapper>
+                                                )}
+
+                                                {/* Grafikon celotne cene */}
+                                                {chartData.totalPrice.length > 0 && (
+                                                    <ChartWrapper
+                                                        title="Povprečna celotna cena po letih"
+                                                        showSwitcher={true}
+                                                        chartType={chartType}
+                                                        setChartType={setChartType}
+                                                        chartTypeKey="totalPrice"
+                                                        activeTab={activeTab}
+                                                    >
+                                                        <LineChart data={chartData.totalPrice}>
+                                                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                                            <XAxis dataKey="leto" stroke="#666" tick={{ fontSize: 11 }} />
+                                                            <YAxis stroke="#666" tick={{ fontSize: 11 }} tickFormatter={(value) => `€${(value / 1000).toFixed(0)}k`} />
+                                                            <Tooltip content={<UniversalTooltip formatter={formatters.currencyLarge} />} />
+                                                            <Legend />
+                                                            <Line type="monotone" dataKey="povprecna" stroke={
+                                                                chartType.totalPrice === 'stanovanje'
+                                                                    ? (activeTab === 'prodaja' ? 'rgba(147, 197, 253, 0.8)' : 'rgba(110, 231, 183, 0.8)')
+                                                                    : (activeTab === 'prodaja' ? 'rgba(37, 99, 235, 0.8)' : 'rgba(5, 150, 105, 0.8)')
+                                                            } strokeWidth={3} name="Povprečna" />
+                                                        </LineChart>
+                                                    </ChartWrapper>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Drugi red grafov - centiriran */}
+                                        <div className="flex justify-center">
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-6xl w-full">
+                                                {/* Grafikon aktivnosti */}
+                                                {chartData.activity.length > 0 && (
+                                                    <ChartWrapper title={`Število ${activeTab === 'najem' ? 'najemov' : 'prodaj'} po letih`}>
+                                                        <LineChart data={chartData.activity}>
+                                                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                                            <XAxis dataKey="leto" stroke="#666" tick={{ fontSize: 11 }} />
+                                                            <YAxis stroke="#666" tick={{ fontSize: 11 }} />
+                                                            <Tooltip content={<UniversalTooltip />} />
+                                                            <Legend />
+                                                            <Line type="monotone" dataKey="stanovanja" stroke={activeTab === 'prodaja' ? 'rgba(147, 197, 253, 0.8)' : 'rgba(110, 231, 183, 0.8)'} strokeWidth={3} name="Stanovanja" />
+                                                            <Line type="monotone" dataKey="hise" stroke={activeTab === 'prodaja' ? 'rgba(37, 99, 235, 0.8)' : 'rgba(5, 150, 105, 0.8)'} strokeWidth={3} name="Hiše" />
+                                                        </LineChart>
+                                                    </ChartWrapper>
+                                                )}
+
+                                                {/* Grafikon velikosti */}
+                                                {chartData.size.length > 0 && (
+                                                    <ChartWrapper
+                                                        title="Povprečna velikost po letih"
+                                                        showSwitcher={true}
+                                                        chartType={chartType}
+                                                        setChartType={setChartType}
+                                                        chartTypeKey="size"
+                                                        activeTab={activeTab}
+                                                    >
+                                                        <LineChart data={chartData.size}>
+                                                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                                            <XAxis dataKey="leto" stroke="#666" tick={{ fontSize: 11 }} />
+                                                            <YAxis stroke="#666" tick={{ fontSize: 11 }} tickFormatter={(value) => `${value} m²`} />
+                                                            <Tooltip content={<UniversalTooltip formatter={formatters.area} />} />
+                                                            <Legend />
+                                                            <Line type="monotone" dataKey="povprecna" stroke={
+                                                                chartType.size === 'stanovanje'
+                                                                    ? (activeTab === 'prodaja' ? 'rgba(147, 197, 253, 0.8)' : 'rgba(110, 231, 183, 0.8)')
+                                                                    : (activeTab === 'prodaja' ? 'rgba(37, 99, 235, 0.8)' : 'rgba(5, 150, 105, 0.8)')
+                                                            } strokeWidth={3} name="Povprečna" />
+                                                        </LineChart>
+                                                    </ChartWrapper>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

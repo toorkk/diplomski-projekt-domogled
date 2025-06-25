@@ -456,3 +456,29 @@ def vse_obcine_posli_zadnjih_12m(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DB napaka: {str(e)}")
+
+
+def vse_obcine_cene_m2_zadnjih_12m(
+    vkljuci_katastrske: bool = Query(
+        default=True, 
+        description="Ali naj vključi tudi katastrske občine"
+    )
+):
+    """
+    Pridobi povprečne cene na m² za zadnjih 12 mesecev za VSE občine + opcijsko katastrske občine
+    Vrne tehtano povprečje cen za hiše in stanovanja glede na število poslov
+    """
+    try:
+        # Pokliči novo metodo za cene
+        rezultat = stats_service.get_all_obcine_povprecne_cene_m2_zadnjih_12m(vkljuci_katastrske=vkljuci_katastrske)
+        
+        if rezultat["status"] == "error":
+            raise HTTPException(status_code=404, detail=rezultat["message"])
+        
+        return JSONResponse(
+            status_code=200,
+            content=rezultat
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"DB napaka: {str(e)}")
