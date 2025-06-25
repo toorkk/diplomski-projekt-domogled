@@ -10,7 +10,8 @@ export default function StatistikePanel({
     dataSourceType,
     activeFilters,
     onGoToStatistics,
-    onClose
+    onClose,
+    activeTab = 'prodaja' // Dodamo activeTab prop
 }) {
     const [isOpen, setIsOpen] = useState(false);
     
@@ -67,6 +68,7 @@ export default function StatistikePanel({
                         activeFilters={activeFilters}
                         dataSourceType={dataSourceType}
                         isDesktop={true}
+                        activeTab={activeTab}
                     />
                 </div>
             </div>
@@ -155,6 +157,7 @@ export default function StatistikePanel({
                                 activeFilters={activeFilters}
                                 dataSourceType={dataSourceType}
                                 isDesktop={false}
+                                activeTab={activeTab}
                             />
                         </div>
                     </div>
@@ -172,7 +175,8 @@ function StatistikeContent({
     hasActiveFilters, 
     activeFilters, 
     dataSourceType, 
-    isDesktop 
+    isDesktop,
+    activeTab = 'prodaja' 
 }) {
     if (statisticsLoading) {
         return (
@@ -212,12 +216,14 @@ function StatistikeContent({
                     data={stats.stanovanja} 
                     tipPosla={stats.tipPosla}
                     isDesktop={isDesktop}
+                    activeTab={activeTab}
                 />
                 <PropertyTypeBoks 
                     type="hise"
                     data={stats.hise} 
                     tipPosla={stats.tipPosla}
                     isDesktop={isDesktop}
+                    activeTab={activeTab}
                 />
             </div>
 
@@ -253,33 +259,67 @@ function StatistikeContent({
     );
 }
 
-function PropertyTypeBoks({ type, data, tipPosla, isDesktop }) {
+function PropertyTypeBoks({ type, data, tipPosla, isDesktop, activeTab }) {
+    // Definiramo barve glede na tip posla in vrsto nepremičnine
+    const getColors = (propertyType, transactionType) => {
+        // Preverimo oba možna načina označevanja najema
+        const isRental = transactionType === 'najem' || transactionType === 'najemnina';
+        
+        if (!isRental) { // prodaja
+            if (propertyType === 'hise') {
+                return {
+                    borderColor: 'border-blue-300',
+                    headerBg: 'rgba(37, 99, 235, 0.8)',  // temna modra za hiše
+                    contentBg: 'rgba(37, 99, 235, 0.1)',
+                };
+            } else { // najem
+                return {
+                    borderColor: 'border-blue-200',
+                    headerBg: 'rgba(147, 197, 253, 1)',  // svetlo modra za stanovanja
+                    contentBg: 'rgba(147, 197, 253, 0.1)',
+                };
+            }
+        } else {
+            if (propertyType === 'hise') {
+                return {
+                    borderColor: 'border-green-300',
+                    headerBg: 'rgba(5, 150, 105, 0.8)',   // temna zelena za hiše
+                    contentBg: 'rgba(5, 150, 105, 0.1)',
+                };
+            } else {
+                return {
+                    borderColor: 'border-green-200',
+                    headerBg: 'rgba(110, 231, 183, 1)', // svetlo zelena za stanovanja
+                    contentBg: 'rgba(110, 231, 183, 0.1)',
+                };
+            }
+        }
+    };
+
     const config = {
         stanovanja: {
             title: 'Stanovanja',
             icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
-            borderColor: 'border-blue-200',
-            headerBg: 'bg-blue-100',
-            contentBg: 'bg-blue-50',
         },
         hise: {
             title: 'Hiše',
             icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
-            borderColor: 'border-green-200',
-            headerBg: 'bg-green-100',
-            contentBg: 'bg-green-50',
         }
     };
 
-    const { title, icon, borderColor, headerBg, contentBg } = config[type];
+    const { title, icon } = config[type];
+    const colors = getColors(type, tipPosla); // Uporabljamo tipPosla namesto activeTab
 
     return (
-        <div className={`${borderColor} border rounded-lg overflow-hidden`}>
-            <div className={`${headerBg} px-3 py-2 flex items-center space-x-2`}>
-                <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className={`${colors.borderColor} border rounded-lg overflow-hidden`}>
+            <div 
+                className="px-3 py-2 flex items-center space-x-2"
+                style={{ backgroundColor: colors.headerBg }}
+            >
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={icon} />
                 </svg>
-                <h4 className="text-sm font-semibold text-black">{title}</h4>
+                <h4 className="text-sm font-semibold text-white">{title}</h4>
             </div>
             <div className="p-3">
                 {data && data.stevilo_poslov > 0 ? (
@@ -299,7 +339,10 @@ function PropertyTypeBoks({ type, data, tipPosla, isDesktop }) {
                                 </div>
                             </div>
                             {data.povprecna_cena_m2 && (
-                                <div className={`${contentBg} rounded p-2 text-xs mt-2`}>
+                                <div 
+                                    className="rounded p-2 text-xs mt-2"
+                                    style={{ backgroundColor: colors.contentBg }}
+                                >
                                     <div className="text-gray-600">Cena na m²</div>
                                     <div className="font-bold text-black">
                                         {Math.round(data.povprecna_cena_m2).toLocaleString('sl-SI')} € / m²
@@ -307,7 +350,10 @@ function PropertyTypeBoks({ type, data, tipPosla, isDesktop }) {
                                 </div>
                             )}
                             {data.povprecna_skupna_cena && (
-                                <div className={`${contentBg} rounded p-2 text-xs mt-2`}>
+                                <div 
+                                    className="rounded p-2 text-xs mt-2"
+                                    style={{ backgroundColor: colors.contentBg }}
+                                >
                                     <div className="text-gray-600">
                                         {tipPosla === 'prodaja' ? 'Povp. cena' : 'Povp. najemnina'}
                                     </div>

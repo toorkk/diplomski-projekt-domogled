@@ -27,11 +27,16 @@ export default function Switcher({ activeType, onChangeType }) {
     >
       <div className="flex items-center justify-center space-x-4">
         {/* Prodaja label */}
-        <span className={`${
-          isMobile ? 'text-sm' : 'text-base'
-        } font-medium transition-colors duration-200 ${
-          activeType === 'prodaja' ? 'text-blue-300' : 'text-gray-600'
-        }`}>
+        <span 
+          className={`${
+            isMobile ? 'text-sm' : 'text-base'
+          } font-medium transition-colors duration-200 ${
+            activeType === 'prodaja' ? '' : 'text-gray-600'
+          }`}
+          style={{
+            color: activeType === 'prodaja' ? 'rgba(37, 99, 235, 0.8)' : undefined
+          }}
+        >
           Prodaja
         </span>
 
@@ -42,7 +47,7 @@ export default function Switcher({ activeType, onChangeType }) {
             isMobile ? 'h-5 w-9' : 'h-6 w-11'
           }`}
           style={{
-            backgroundColor: activeType === 'prodaja' ? '#8ec5ff' : '#00d492'
+            backgroundColor: activeType === 'prodaja' ? 'rgba(37, 99, 235, 0.8)' : '#00d492'
           }}
           aria-pressed={activeType !== 'prodaja'}
           aria-label="Preklopi med prodajo in najemom"

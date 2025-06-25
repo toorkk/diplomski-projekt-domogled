@@ -216,7 +216,8 @@ ChartWrapper.propTypes = {
 const formatters = {
     currency: (value) => `€${Math.round(value)}`,
     currencyLarge: (value) => `€${Math.round(value).toLocaleString()}`,
-    area: (value) => `${Math.round(value)} m²`
+    area: (value) => `${Math.round(value)} m²`,
+    age: (value) => `${Math.round(value)} let`
 };
 
 const prepareUniversalChartData = (statisticsData, activeTab, chartType, dataType, valueKeys) => {
@@ -260,7 +261,8 @@ export default function Statistika({ selectedRegionFromNavigation }) {
     const [chartType, setChartType] = useState({
         price: 'stanovanje',
         totalPrice: 'stanovanje',
-        size: 'stanovanje'
+        size: 'stanovanje',
+        age: 'stanovanje'
     });
     const [apiState, setApiState] = useState({
         data: null,
@@ -368,6 +370,9 @@ export default function Statistika({ selectedRegionFromNavigation }) {
         }),
         size: prepareUniversalChartData(apiState.data, activeTab, chartType.size, 'lastnosti', {
             povprecna: 'povprecna_velikost_m2'
+        }),
+        age: prepareUniversalChartData(apiState.data, activeTab, chartType.age, 'lastnosti', {
+            povprecna: 'povprecna_starost_stavbe'
         }),
         activity: prepareActivityChartData(apiState.data, activeTab)
     };
@@ -491,7 +496,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                 <div className="bg-white text-black p-4 border-b border-gray-200 text-center">
                                     <h2 className="text-xl font-bold">Nepremičninski trendi za {getRegionTitle()}</h2>
                                     <p className="text-gray-600 text-sm">
-                                        Analiza gibanja cen in aktivnosti na trgu {activeTab === 'najem' ? 'najema' : 'prodaje'} v obdobju zadnjih let
+                                        Analiza gibanja cen, starosti in aktivnosti na trgu {activeTab === 'najem' ? 'najema' : 'prodaje'} v obdobju zadnjih let
                                     </p>
                                 </div>
                             )}
@@ -523,7 +528,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                                                 chartType.price === 'stanovanje'
                                                                     ? (activeTab === 'prodaja' ? 'rgba(147, 197, 253, 0.8)' : 'rgba(110, 231, 183, 0.8)')
                                                                     : (activeTab === 'prodaja' ? 'rgba(37, 99, 235, 0.8)' : 'rgba(5, 150, 105, 0.8)')
-                                                            } strokeWidth={3} name="Povprečna" />
+                                                            } strokeWidth={3} name="Povprečna vrednost" />
                                                         </LineChart>
                                                     </ChartWrapper>
                                                 )}
@@ -548,7 +553,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                                                 chartType.totalPrice === 'stanovanje'
                                                                     ? (activeTab === 'prodaja' ? 'rgba(147, 197, 253, 0.8)' : 'rgba(110, 231, 183, 0.8)')
                                                                     : (activeTab === 'prodaja' ? 'rgba(37, 99, 235, 0.8)' : 'rgba(5, 150, 105, 0.8)')
-                                                            } strokeWidth={3} name="Povprečna" />
+                                                            } strokeWidth={3} name="Povprečna vrednost" />
                                                         </LineChart>
                                                     </ChartWrapper>
                                                 )}
@@ -593,7 +598,37 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                                                 chartType.size === 'stanovanje'
                                                                     ? (activeTab === 'prodaja' ? 'rgba(147, 197, 253, 0.8)' : 'rgba(110, 231, 183, 0.8)')
                                                                     : (activeTab === 'prodaja' ? 'rgba(37, 99, 235, 0.8)' : 'rgba(5, 150, 105, 0.8)')
-                                                            } strokeWidth={3} name="Povprečna" />
+                                                            } strokeWidth={3} name="Povprečna vrednost" />
+                                                        </LineChart>
+                                                    </ChartWrapper>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Tretji red grafov - graf starosti */}
+                                        <div className="flex justify-center">
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-6xl w-full">
+                                                {/* Grafikon starosti nepremičnin */}
+                                                {chartData.age.length > 0 && (
+                                                    <ChartWrapper
+                                                        title="Povprečna starost nepremičnin po letih"
+                                                        showSwitcher={true}
+                                                        chartType={chartType}
+                                                        setChartType={setChartType}
+                                                        chartTypeKey="age"
+                                                        activeTab={activeTab}
+                                                    >
+                                                        <LineChart data={chartData.age}>
+                                                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                                            <XAxis dataKey="leto" stroke="#666" tick={{ fontSize: 11 }} />
+                                                            <YAxis stroke="#666" tick={{ fontSize: 11 }} tickFormatter={(value) => `${value} let`} />
+                                                            <Tooltip content={<UniversalTooltip formatter={formatters.age} />} />
+                                                            <Legend />
+                                                            <Line type="monotone" dataKey="povprecna" stroke={
+                                                                chartType.age === 'stanovanje'
+                                                                    ? (activeTab === 'prodaja' ? 'rgba(147, 197, 253, 0.8)' : 'rgba(110, 231, 183, 0.8)')
+                                                                    : (activeTab === 'prodaja' ? 'rgba(37, 99, 235, 0.8)' : 'rgba(5, 150, 105, 0.8)')
+                                                            } strokeWidth={3} name="Povprečna vrednost" />
                                                         </LineChart>
                                                     </ChartWrapper>
                                                 )}

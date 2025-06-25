@@ -116,13 +116,51 @@ class PopupManager {
             const wasExpanded = await this.clusterExpander.handleClusterClick(lngLat, clusterProperties);
             
             if (!wasExpanded) {
-
-                this._showClusterInfo(lngLat, clusterProperties);
+                // Namesto prikaza cluster info-ja, se samo približaj
+                this._zoomToCluster(lngLat, clusterProperties);
             }
         } catch (error) {
             console.error('Error handling cluster click:', error);
-            this._showClusterInfo(lngLat, clusterProperties);
+            // V primeru napake se tudi samo približaj
+            this._zoomToCluster(lngLat, clusterProperties);
         }
+    }
+
+    _zoomToCluster(lngLat, clusterProperties) {
+        console.log(`PopupManager: Zooming to cluster at`, lngLat);
+        
+        // Določi zoom level glede na velikost cluster-ja z večjimi vrednostmi
+        const pointCount = clusterProperties.point_count || 1;
+        let targetZoom = this.map.getZoom() + 3; // Povečal osnovno vrednost iz +2 na +3
+        
+        // Prilagodi zoom glede na število točk v cluster-ju - večje razlike
+        if (pointCount > 100) {
+            targetZoom = this.map.getZoom() + 2; // Povečal iz +1 na +2
+        } else if (pointCount > 50) {
+            targetZoom = this.map.getZoom() + 3; // Povečal iz +1.5 na +3
+        } else if (pointCount > 20) { // Nova kategorija
+            targetZoom = this.map.getZoom() + 4;
+        } else if (pointCount > 10) {
+            targetZoom = this.map.getZoom() + 5; // Povečal iz +2 na +5
+        } else if (pointCount > 5) { // Nova kategorija
+            targetZoom = this.map.getZoom() + 6;
+        } else {
+            targetZoom = this.map.getZoom() + 7; // Povečal iz +3 na +7
+        }
+        
+        // Omejimo maksimalni zoom
+        const maxZoom = this.map.getMaxZoom() || 20; // Povečal iz 18 na 20
+        targetZoom = Math.min(targetZoom, maxZoom);
+        
+        console.log(`PopupManager: Zooming from ${this.map.getZoom()} to ${targetZoom} (cluster size: ${pointCount})`);
+        
+        // Animiraj zoom do cluster-ja
+        this.map.flyTo({
+            center: [lngLat.lng, lngLat.lat],
+            zoom: targetZoom,
+            duration: 1200, // Povečal iz 1000 na 1200ms za bolj smooth animacijo
+            essential: true
+        });
     }
 
     _showPropertyPopup(lngLat, properties) {
@@ -161,27 +199,6 @@ class PopupManager {
                 });
             }
         }, TIMEOUTS.POPUP_SETUP);
-    }
-
-    _showClusterInfo(lngLat, clusterProperties) {
-        const content = `
-            <div class="cluster-popup">
-                <h3>Cluster ${clusterProperties.cluster_id}</h3>
-                <p>Nepremičnin: ${clusterProperties.point_count}</p>
-                <p>Tip: ${clusterProperties.cluster_type || 'Unknown'}</p>
-            </div>
-        `;
-
-        this._closeCurrentPopup();
-
-        this.currentPopup = new maplibregl.Popup({
-            closeButton: true,
-            closeOnClick: true,
-            maxWidth: UI_CONFIG.POPUP.MAX_WIDTH
-        })
-            .setLngLat(lngLat)
-            .setHTML(content)
-            .addTo(this.map);
     }
 
     _closeCurrentPopup() {

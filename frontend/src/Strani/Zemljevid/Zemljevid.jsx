@@ -297,7 +297,7 @@ export default function Zemljevid({ onNavigateToStatistics }) {
     }, [fetchPropertiesForCurrentView]);
 
     // ===========================================
-    // KATASTER IN OBČINE HANDLERJI
+    // KATASTER IN OBČINE HANDLERJI - BREZ ZOOMANJA
     // ===========================================
 
     const handleMunicipalityClick = useCallback((municipalityFeature) => {
@@ -306,7 +306,7 @@ export default function Zemljevid({ onNavigateToStatistics }) {
         const sifko = municipalityFeature.properties.SIFKO;
         const municipalityName = getMunicipalityName(municipalityFeature);
 
-        console.log('Municipality clicked for zoom only:', municipalityName, 'SIFKO:', sifko);
+        console.log('Municipality clicked (selection only):', municipalityName, 'SIFKO:', sifko);
 
         // Odstrani kataster hover ko izberes
         setHoveredMunicipality(null);
@@ -328,12 +328,7 @@ export default function Zemljevid({ onNavigateToStatistics }) {
             fetchAndSetStatistics('katastrska_obcina', katastrName, dataSourceTypeRef.current);
         }
 
-        // Zoom na kataster
-        map.current.fitBounds(bounds, {
-            padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
-            duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION,
-            essential: true
-        });
+        // ODSTRANJENO: Zoom na kataster - sedaj se samo izbere brez zoomanja
 
     }, [fetchAndSetStatistics]);
 
@@ -348,7 +343,7 @@ export default function Zemljevid({ onNavigateToStatistics }) {
             return;
         }
 
-        console.log('Občina clicked:', obcinaName, 'ID:', obcinaId);
+        console.log('Občina clicked (selection only):', obcinaName, 'ID:', obcinaId);
 
         // Pocisti občina hover ko jo izberes
         setHoveredRegion(null);
@@ -370,11 +365,8 @@ export default function Zemljevid({ onNavigateToStatistics }) {
         // Pridobi statistike za občino
         fetchAndSetStatistics('obcina', obcinaName, dataSourceTypeRef.current);
 
-        map.current.fitBounds(bounds, {
-            padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
-            duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION,
-            essential: true
-        });
+        // ODSTRANJENO: Zoom na občino - sedaj se samo izbere brez zoomanja
+
     }, [selectedObcina, fetchAndSetStatistics]);
 
     const handleSearch = useCallback((searchResult) => {
@@ -413,6 +405,7 @@ export default function Zemljevid({ onNavigateToStatistics }) {
             layerManager.current.updateMunicipalityHover(null);
         }
 
+        // OPCIJSKO: Lahko obdržimo zoom reset ali ga odstranimo
         map.current.flyTo({
             center: MAP_CONFIG.INITIAL_CENTER,
             zoom: MAP_CONFIG.INITIAL_ZOOM,
@@ -813,6 +806,7 @@ export default function Zemljevid({ onNavigateToStatistics }) {
                 activeFilters={activeFilters}
                 onGoToStatistics={handleGoToStatistics}
                 onClose={handleMunicipalityReset}
+                activeTab={dataSourceType}
             />
 
             {/* UI komponente */}

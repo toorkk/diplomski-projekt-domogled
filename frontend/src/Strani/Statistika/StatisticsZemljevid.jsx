@@ -4,7 +4,6 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import debounce from "lodash/debounce";
 import { API_CONFIG } from '../Zemljevid/MapConstants.jsx';
 
-
 import LayerManager from "./StatisticsLayerManager.jsx";
 import {
     MAP_CONFIG,
@@ -45,6 +44,10 @@ export default function StatisticsZemljevid({
     const [hoveredRegion, setHoveredRegion] = useState(null);
     const [hoveredMunicipality, setHoveredMunicipality] = useState(null);
     const [viewMode, setViewMode] = useState('posli');
+    
+    // Nova stanja za cursor tooltip
+    const [cursorTooltip, setCursorTooltip] = useState(null);
+    const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
     // Podatki za barvanje
     const [obcinePosliData, setObcinePosliData] = useState(null);
@@ -162,7 +165,7 @@ export default function StatisticsZemljevid({
 
     // Unified barvanje za občine in katastre
     const updateRegionColors = useCallback((
-        regionType, // 'obcine' ali 'municipalities'
+        regionType,
         activeTabParam = activeTab,
         viewModeParam = viewMode
     ) => {
@@ -171,7 +174,6 @@ export default function StatisticsZemljevid({
 
         if (!map.current || !map.current.getLayer(layerId)) return;
 
-        // Izberi pravi podatkovni set
         const dataSource = viewModeParam === 'cene'
             ? (isObcine ? obcineCeneData : katastrskeCeneData)
             : (isObcine ? obcinePosliData : katastrskePosliData);
@@ -201,7 +203,6 @@ export default function StatisticsZemljevid({
             }
         });
 
-        // Izračun statistik
         if (isObcine) {
             const sortedValues = allValues.sort((a, b) => a - b);
             const stats = {
@@ -216,7 +217,6 @@ export default function StatisticsZemljevid({
             window.currentViewMode = viewModeParam;
         }
 
-        // Ustvarjanje color expression
         const colorExpression = ['case'];
 
         nameMapping.forEach((apiName, geojsonName) => {
@@ -233,7 +233,6 @@ export default function StatisticsZemljevid({
 
         colorExpression.push(COLOR_MAPPING_CONFIG.DEFAULT_FALLBACK);
 
-        // Aplikacija na mapo
         if (isObcine) {
             map.current.setFilter(layerId, null);
             map.current.setPaintProperty(layerId, 'fill-color', colorExpression);
@@ -246,6 +245,11 @@ export default function StatisticsZemljevid({
             }
         }
     }, [obcinePosliData, obcineCeneData, katastrskePosliData, katastrskeCeneData, activeTab, viewMode]);
+
+    // Handler za mouse position tracking
+    const handleMouseMove = useCallback((e) => {
+        setMousePosition({ x: e.clientX, y: e.clientY });
+    }, []);
 
     // Unified hover setup
     const createHoverHandlers = useCallback((regionType) => {
@@ -265,7 +269,6 @@ export default function StatisticsZemljevid({
                     type: isObcine ? 'Občina' : 'Kataster'
                 };
 
-                // Dodaj podatke
                 const dataSource = viewMode === 'cene'
                     ? (isObcine ? obcineCeneData : katastrskeCeneData)
                     : (isObcine ? obcinePosliData : katastrskePosliData);
@@ -290,6 +293,10 @@ export default function StatisticsZemljevid({
                     }
                 }
 
+                // Nastavi cursor tooltip za vsa hover stanja
+                setCursorTooltip(hoverInfo);
+
+                // Nastavi klasične hover komponente
                 if (isObcine) {
                     setHoveredRegion(hoverInfo);
                     layerManager.current?.updateObcinaHover(hoveredId);
@@ -316,6 +323,8 @@ export default function StatisticsZemljevid({
                 map.current.getCanvas().style.cursor = '';
                 debouncedUpdate.cancel();
 
+                setCursorTooltip(null);
+
                 if (isObcine) {
                     setHoveredRegion(null);
                     layerManager.current?.updateObcinaHover(null);
@@ -327,6 +336,8 @@ export default function StatisticsZemljevid({
             click: (e) => {
                 if (e.features?.[0]) {
                     debouncedUpdate.cancel();
+                    setCursorTooltip(null);
+                    
                     if (isObcine) {
                         setHoveredRegion(null);
                         layerManager.current?.updateObcinaHover(null);
@@ -477,6 +488,7 @@ export default function StatisticsZemljevid({
     const handleReset = useCallback(() => {
         setHoveredRegion(null);
         setHoveredMunicipality(null);
+        setCursorTooltip(null);
 
         if (layerManager.current) {
             layerManager.current.updateObcinaHover(null);
@@ -619,28 +631,42 @@ export default function StatisticsZemljevid({
         );
     };
 
-    const HoverPreview = ({ region, position = "bottom-4 right-4" }) => (
-        <div className={`absolute ${position} z-20 bg-white/95 backdrop-blur-sm rounded-lg shadow-md border border-gray-200 px-3 py-2`}>
-            <div className="flex items-center space-x-2">
-                <span className="text-xs text-gray-500 font-medium">{region.type}:</span>
-                <span className="text-sm font-medium text-gray-700">{region.name}</span>
-            </div>
-            {region.value !== undefined && (
-                <div className="flex items-center space-x-2 mt-1">
-                    <span className="text-xs text-gray-500">
-                        {region.viewMode === 'cene' ? 'Cena/m²' :
-                            (region.activeTab === 'prodaja' ? 'Prodaje' : 'Najemi')}:
-                    </span>
-                    <span className="text-sm font-semibold text-gray-800">
-                        {region.viewMode === 'cene'
-                            ? `${Math.round(region.value)}€/m²`
-                            : region.value
-                        }
-                    </span>
+    // Cursor Tooltip komponenta - sledi miški
+    const CursorTooltip = ({ tooltip, position }) => {
+        if (!tooltip) return null;
+
+        return (
+            <div 
+                className="fixed z-50 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 px-3 py-2 pointer-events-none text-sm"
+                style={{
+                    left: position.x + 15,
+                    top: position.y - 10,
+                    transform: 'translateY(-100%)'
+                }}
+            >
+                <div className="flex items-center space-x-2">
+                    <span className="text-xs text-gray-500 font-medium">{tooltip.type}:</span>
+                    <span className="font-medium text-gray-700">{tooltip.name}</span>
                 </div>
-            )}
-        </div>
-    );
+                {tooltip.value !== undefined && (
+                    <div className="flex items-center space-x-2 mt-1">
+                        <span className="text-xs text-gray-500">
+                            {tooltip.viewMode === 'cene' ? 'Cena/m²' :
+                                (tooltip.activeTab === 'prodaja' ? 'Prodaje' : 'Najemi')}:
+                        </span>
+                        <span className="font-semibold text-gray-800">
+                            {tooltip.viewMode === 'cene'
+                                ? `${Math.round(tooltip.value)}€/m²`
+                                : tooltip.value
+                            }
+                        </span>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+
 
     // Effects
     useEffect(() => {
@@ -798,6 +824,17 @@ export default function StatisticsZemljevid({
         };
     }, []);
 
+    // Dodaj mouse move listener za tracking mouse pozicije
+    useEffect(() => {
+        const container = mapContainer.current;
+        if (container) {
+            container.addEventListener('mousemove', handleMouseMove);
+            return () => {
+                container.removeEventListener('mousemove', handleMouseMove);
+            };
+        }
+    }, [handleMouseMove]);
+
     return (
         <div className="relative w-full h-full">
             <div
@@ -811,6 +848,9 @@ export default function StatisticsZemljevid({
                     zIndex: 0
                 }}
             />
+
+            {/* Cursor Tooltip - sledi miški */}
+            <CursorTooltip tooltip={cursorTooltip} position={mousePosition} />
 
             {/* Toggle gumb za prikaz */}
             {!selectedMunicipality && !selectedObcina && (
@@ -826,7 +866,7 @@ export default function StatisticsZemljevid({
                                 backgroundColor: activeTab === 'prodaja' ? 'rgba(37, 99, 235, 0.8)' : 'rgba(5, 150, 105, 0.8)'
                             } : {}}
                         >
-                            Število poslov
+                           {activeTab === 'prodaja' ? 'Število prodaj' : 'Število najemov'}
                         </button>
                         <button
                             onClick={() => setViewMode('cene')}
@@ -844,17 +884,7 @@ export default function StatisticsZemljevid({
                 </div>
             )}
 
-            {/* Hover predogledi */}
-            {hoveredRegion && !selectedMunicipality && !selectedObcina && (
-                <HoverPreview region={hoveredRegion} />
-            )}
-
-            {hoveredMunicipality && selectedObcina && !selectedMunicipality &&
-                obcinaHasKatastre(selectedObcina.name) && (
-                    <HoverPreview region={hoveredMunicipality} position="bottom-16 right-4" />
-                )}
-
-            {/* Indikator izbrane regije */}
+            {/* Indikator izbrane regije - locked desno doli */}
             {(selectedMunicipality || selectedObcina) && (
                 <div className="absolute bottom-4 right-4 z-20 bg-white rounded-lg shadow-lg border border-gray-200 px-4 py-2 max-w-sm">
                     <div className="flex items-center justify-between space-x-2">
