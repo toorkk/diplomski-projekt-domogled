@@ -54,6 +54,7 @@ class NpDelStavbeDeduplicated(Base):
     stevilka_dela_stavbe = Column(Integer, nullable=False)
     dejanska_raba = Column(String(310), nullable=False)
     tip_rabe = Column(String(50))
+    vrsta_nepremicnine = Column(SmallInteger)
     
     obcina = Column(String(102))
     naselje = Column(String(103))
@@ -168,6 +169,7 @@ class KppDelStavbeDeduplicated(Base):
     stevilka_dela_stavbe = Column(Integer, nullable=False)
     dejanska_raba = Column(String(310), nullable=False)
     tip_rabe = Column(String(50))
+    vrsta_nepremicnine = Column(SmallInteger)
     
     obcina = Column(String(102))
     naselje = Column(String(103))

@@ -38,8 +38,12 @@ class DelStavbeService:
             ST_X(DeduplicatedModel.coordinates).label('lng'),
             ST_Y(DeduplicatedModel.coordinates).label('lat'),
             DeduplicatedModel.dejanska_raba,
-        ).filter(ST_Intersects(DeduplicatedModel.coordinates, bbox_geom))
-        
+        )
+
+        if zoom >= 8.6: 
+            base_query = base_query.filter(ST_Intersects(DeduplicatedModel.coordinates, bbox_geom))   
+
+
         base_query = apply_del_stavbe_filters(base_query, DeduplicatedModel, filters, data_source)
         
         # Dodaj data_source specifične podatke
@@ -289,6 +293,9 @@ class DelStavbeService:
 
         vsi_posli = db.query(PoselModel).filter(
             PoselModel.posel_id.in_(dedup_del_stavbe[0].povezani_posel_ids)
+        ).order_by(
+            PoselModel.datum_sklenitve.desc().nulls_last(),
+            PoselModel.datum_uveljavitve.desc().nulls_last()
         ).all()
         
         representative_del_stavbe = db.query(DelStavbeModel).filter(
@@ -350,7 +357,7 @@ class DelStavbeService:
             DeduplicatedModel.sifra_ko,
             DeduplicatedModel.stevilka_stavbe,
             DeduplicatedModel.stevilka_dela_stavbe,
-            DeduplicatedModel.dejanska_raba,
+            DeduplicatedModel.vrsta_nepremicnine,
             DeduplicatedModel.obcina,
             DeduplicatedModel.naselje,
             DeduplicatedModel.ulica,
@@ -364,6 +371,7 @@ class DelStavbeService:
             DeduplicatedModel.energetske_izkaznice,
             DeduplicatedModel.energijski_razred,
             DeduplicatedModel.povezani_posel_ids,
+            DeduplicatedModel.povezani_del_stavbe_ids,
             ST_X(DeduplicatedModel.coordinates).label('lng'),
             ST_Y(DeduplicatedModel.coordinates).label('lat')
         )
@@ -433,7 +441,7 @@ class DelStavbeService:
                 "sifra_ko": del_stavbe.sifra_ko,
                 "stevilka_stavbe": del_stavbe.stevilka_stavbe,
                 "stevilka_dela_stavbe": del_stavbe.stevilka_dela_stavbe,
-                "dejanska_raba": del_stavbe.dejanska_raba,
+                "vrsta_nepremicnine": del_stavbe.vrsta_nepremicnine,
                 
                 "obcina": del_stavbe.obcina,
                 "naselje": del_stavbe.naselje,
@@ -442,8 +450,8 @@ class DelStavbeService:
                 "dodatek_hs": del_stavbe.dodatek_hs,
                 "stev_stanovanja": del_stavbe.stev_stanovanja,
                 
-                "povrsina_uradna": float(del_stavbe.povrsina_uradna) if del_stavbe.povrsina_uradna else None,
-                "povrsina_uporabna": float(del_stavbe.povrsina_uporabna) if del_stavbe.povrsina_uporabna else None,
+                "povrsina_uradna": del_stavbe.povrsina_uradna,
+                "povrsina_uporabna": del_stavbe.povrsina_uporabna,
                 **del_stavbe_dodatno,
                 
                 "leto_izgradnje_stavbe": del_stavbe.leto_izgradnje_stavbe,

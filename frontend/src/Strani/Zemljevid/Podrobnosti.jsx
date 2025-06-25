@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { getDaBoljNe, getNeBoljDa, getVrstaDelaStavbe, getGradebnaFaza, getStopnjaDDV, getCasNajemanja, getTrznostPosla, getVrstaAkta, getVrstaNajemnegaPosla, getVrstaProdajnegaPosla, getEnergyClassColor, getColorClasses, getNaslov, getNaslovDodatek, getCeloStDelaStavbe } from './PodrobnostiHelper.jsx';
+import { useState, useEffect, useRef } from 'react';
+import { getDaBoljNe, getNeBoljDa, getVrstaDelaStavbe, getGradebnaFaza, getStopnjaDDV, getCasNajemanja, getTrznostPosla, getVrstaAkta, getVrstaNajemnegaPosla, getVrstaProdajnegaPosla, getEnergyClassColor, getColorClasses, getNaslov, getCeloStDelaStavbe } from './PodrobnostiHelper.jsx';
 import { API_CONFIG } from './MapConstants.jsx';
 
 export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) {
@@ -11,9 +11,7 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
 
   const poselRefs = useRef({});
 
-
   useEffect(() => {
-
     const fetchPropertyDetails = async () => {
       setLoading(true);
       try {
@@ -24,32 +22,14 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
         }
 
         const data = await response.json();
-        setProperty(data.properties); // pridobi dele stavb
-        setError(null);
 
-        // Če je več energetskih izkaznic, avtomatsko izberi najnovejšo
-        if (data.properties.energetske_izkaznice && data.properties.energetske_izkaznice.length > 0) {
-          // Najdi najnovejšo (največji datum_izdelave)
-          const sortedByDate = [...data.properties.energetske_izkaznice].sort((a, b) => {
-            if (!a.datum_izdelave) return 1;
-            if (!b.datum_izdelave) return -1;
-            return new Date(b.datum_izdelave) - new Date(a.datum_izdelave);
-          });
-          const latestIndex = data.properties.energetske_izkaznice.findIndex(
-            ei => ei.id === sortedByDate[0].id
-          );
-          setSelectedEnergyIndex(latestIndex);
-        }
-
-        // Avtomatsko izberi najnovejši posel
+        // izbere najnovejši posel
         if (data.properties.povezani_posli && data.properties.povezani_posli.length > 0) {
-          const sortedPosli = [...data.properties.povezani_posli].sort((a, b) => {
-            if (!a.datum_sklenitve) return 1;
-            if (!b.datum_sklenitve) return -1;
-            return new Date(b.datum_sklenitve) - new Date(a.datum_sklenitve);
-          });
-          selectPosel(sortedPosli[0].posel_id);
+          selectPosel(data.properties.povezani_posli[0].posel_id);
         }
+
+        setProperty(data.properties); // nastavi dele stavb
+
       } catch (err) {
         console.error('Napaka pri nalaganju podrobnosti nepremičnine:', err);
         setError('Prišlo je do napake pri nalaganju podatkov. Poskusite ponovno.');
@@ -61,64 +41,32 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
     fetchPropertyDetails();
   }, [propertyId, dataSource]);
 
-  const formatPrice = (price) => {
-    if (!price) return null;
-    return Math.round(price).toLocaleString('sl-SI');
-  };
-
-  // Funkcije za berljive datume
-  const formatirajDatum = (dateString) => {
-    if (!dateString) return 'Neznano';
-
-    const date = new Date(dateString);
-
-    return date.toLocaleDateString('sl-SI', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  const formatRentalPeriod = (startDate, endDate) => {
-    if (!startDate && !endDate) return 'Neznano obdobje';
-    if (!startDate) return `Do ${formatirajDatum(endDate)}`;
-    if (!endDate) return `Od ${formatirajDatum(startDate)}`;
-
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    return `${formatirajDatum(startDate)} – ${formatirajDatum(endDate)}`;
-  };
-
-  const getLatestPriceInfo = (posel) => {
+  const getZadnjaCenaInfo = (posel) => {
     if (dataSource === 'kpp') {
       // KPP
       const cena = posel.cena;
       return {
-        hasPrice: !!cena,
-        priceText: cena ? `€${cena.toLocaleString('sl-SI')}` : null,
-        priceLabel: 'Prodajna cena:',
-        vatInfo: posel.vkljuceno_ddv ?
+        hasCena: !!cena,
+        cenaText: cena ? `€${cena.toLocaleString('sl-SI')}` : null,
+        cenaLabel: 'Prodajna cena:',
+        ddvInfo: posel.vkljuceno_ddv ?
           `z DDV${posel.stopnja_ddv ? ` (${posel.stopnja_ddv}%)` : ' (% neznan)'}` :
           'brez DDV'
+
       };
     } else {
       // NP
       const najemnina = posel.najemnina;
       return {
-        hasPrice: !!najemnina,
-        priceText: najemnina ? `€${najemnina.toLocaleString('sl-SI')}/mesec` : null,
-        priceLabel: 'Najemnina:',
-        vatInfo: posel.vkljuceno_ddv ?
+        hasCena: !!najemnina,
+        cenaText: najemnina ? `€${najemnina.toLocaleString('sl-SI')}/mesec` : null,
+        cenaLabel: 'Najemnina:',
+        ddvInfo: posel.vkljuceno_ddv ?
           `z DDV${posel.stopnja_ddv ? ` (${posel.stopnja_ddv}%)` : ''}` :
           'brez DDV',
-        costsInfo: posel.vkljuceno_stroski ? 'stroški vključeni' : 'stroški niso vključeni'
+        stroskiInfo: posel.vkljuceno_stroski ? 'stroški vključeni' : 'stroški niso vključeni'
       };
     }
-  };
-
-  const getPriceLabel = () => {
-    return dataSource === 'kpp' ? 'Cena' : 'Najemnina';
   };
 
   const selectPosel = (poselId) => {
@@ -167,64 +115,136 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
     return property.povezani_posli.find(posel => posel.posel_id === selectedPoselId);
   };
 
+  const formatPrice = (price) => {
+    if (!price) return null;
+    return Math.round(price).toLocaleString('sl-SI');
+  };
+
+  const formatirajDatum = (dateString) => {
+    if (!dateString) return 'Neznano';
+
+    const date = new Date(dateString);
+
+    return date.toLocaleDateString('sl-SI', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const formatRentalPeriod = (startDate, endDate) => {
+    if (!startDate && !endDate) return 'Neznano obdobje';
+    if (!startDate) return `Do ${formatirajDatum(endDate)}`;
+    if (!endDate) return `Od ${formatirajDatum(startDate)}`;
+
+    return `${formatirajDatum(startDate)} – ${formatirajDatum(endDate)}`;
+  };
+
   const colors = getColorClasses(dataSource);
   const representativeProperty = getRepresentativeProperty();
   const selectedPosel = getSelectedPosel();
   const connectedParts = selectedPosel ? getConnectedBuildingParts(selectedPosel.posel_id) : [];
-
   // Filtriraj povezane dele stavb, ki niso glavni del stavbe
   const filteredConnectedParts = connectedParts.filter(part =>
-    part.stevilka_dela_stavbe !== representativeProperty?.stevilka_dela_stavbe
+    part.stevilka_dela_stavbe !== representativeProperty?.stevilka_dela_stavbe ||
+    part.dejanska_raba !== representativeProperty?.dejanska_raba
   );
-
   const DetailRow = ({ label, value, className = '' }) => {
-    const isInvalid =
-      value === undefined ||
-      value === null ||
-      value === '' ||
-      (typeof value === 'string' &&
-        (value.toLowerCase().includes('null') || value.toLowerCase().includes('undefined')));
-
-    if (isInvalid) return null;
+    const displayValue = value || 'N/A';
 
     return (
-      <div className="flex justify-between"> {/* Sprememba tukaj */}
-        <div className="text-gray-600">{label}:</div>
-        <div className={`font-medium text-gray-800 ${className}`}>{value}</div>
+      <div className="flex justify-between items-center">
+        <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">{label}:</div>
+        <div className={`text-sm font-semibold text-gray-800 ${className}`}>{displayValue}</div>
       </div>
     );
   };
 
+  const EnergetskaIzkaznicaContainer = () => {
+    if (!property?.energetske_izkaznice || property.energetske_izkaznice.length === 0) {
+      return (
+        <div className="bg-white border border-gray-300 rounded-lg p-3">
+          <h4 className="text-lg font-semibold text-gray-800 mb-3">Energetska izkaznica</h4>
+          <div className="text-center py-4 text-gray-500 text-sm">
+            Za ta del stavbe ni na voljo energetske izkaznice
+          </div>
+        </div>
+      );
+    }
 
+    const selectedEI = property.energetske_izkaznice?.[selectedEnergyIndex];
+    return (
+      <div className="bg-white border border-gray-300 rounded-lg p-3">
+        <h4 className="text-lg font-semibold text-gray-800 mb-3">Energetska izkaznica {selectedEI.ei_id ? ': ' + selectedEI.ei_id : ''}</h4>
+        <div className="space-y-2">
+          {property?.energetske_izkaznice?.length > 1 && (
+            <div className="mb-3">
+              <select
+                value={selectedEnergyIndex}
+                onChange={(e) => setSelectedEnergyIndex(parseInt(e.target.value))}
+                className="w-full p-2 border border-gray-300 rounded-md bg-white text-sm"
+              >
+                {property.energetske_izkaznice.map((ei, index) => (
+                  <option key={ei.id} value={index}>
+                    {ei.ei_id} - {ei.datum_izdelave ?
+                      new Date(ei.datum_izdelave).toLocaleDateString('sl-SI') :
+                      'Neznan datum'}
+                    {ei.energijski_razred && ` (${ei.energijski_razred})`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {selectedEI && (
+            <div className="bg-gray-50 p-2 rounded text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex justify-between items-center">
+                  <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Razred:</div>
+                  <div className={`font-medium px-2 py-1 rounded text-center min-w-[50px] text-sm ${getEnergyClassColor(selectedEI.energijski_razred)}`}>
+                    {selectedEI.energijski_razred || 'N/A'}
+                  </div>
+                </div>
+                <DetailRow label="Prim. energija" value={selectedEI.primarna_energija ? `${Math.round(selectedEI.primarna_energija)} kWh/m²a` : null} />
+                <DetailRow label="CO₂ emisije" value={selectedEI.emisije_co2 ? `${Math.round(selectedEI.emisije_co2)} kg/m²a` : null} />
+                <DetailRow label="Izdelano" value={selectedEI.datum_izdelave ? new Date(selectedEI.datum_izdelave).toLocaleDateString('sl-SI') : null} />
+                <DetailRow label="Velja do" value={selectedEI.velja_do ? new Date(selectedEI.velja_do).toLocaleDateString('sl-SI') : null} />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  //glavni return
   return (
     <div className="fixed inset-x-0 top-29 bottom-3 z-50 flex justify-center">
       <div className="absolute inset-0"></div>
       <div className="relative rounded-lg shadow-xl w-full max-w-7xl h-full overflow-hidden border border-gray-200 flex flex-col">
+
+        {/* Header */}
         <div className="relative backdrop-blur">
           <div className={`absolute inset-0 ${colors.headerBg} opacity-80`}></div>
-          <div className={`relative ${colors.headerText} p-6 border-b border-gray-200`}>
+          <div className={`relative ${colors.headerText} p-4 border-b border-gray-200`}>
             <div className="flex justify-between items-start">
               <div className="flex-1">
-                <h2 className="text-2xl font-bold">
-                  {loading ? 'Nalaganje...' : getNaslov(representativeProperty) || 'Nepremičnina'}
+                <h2 className="text-2xl font-semibold">
+                  {loading ? 'Nalaganje...' : getNaslov(representativeProperty)}
                 </h2>
-                {!loading && representativeProperty && (
-                  <>
-                    <div className="mt-2 text-gray-700 text-lg">
-                      {getNaslovDodatek(representativeProperty)}
-                    </div>
-                    <div className="mt-2 text-gray-700 text-lg">
-                      {getCeloStDelaStavbe(representativeProperty)}
-                    </div>
-                  </>
+                {!loading && (
+                  <div className="mt-1 text-gray-800 font-semibold text-lg pt-2">
+                    {getCeloStDelaStavbe(representativeProperty)}
+                    {representativeProperty.stev_stanovanja && `, št. stanovanja: ${representativeProperty.stev_stanovanja}`}
+                  </div>
                 )}
               </div>
 
               <button
                 onClick={onClose}
-                className="text-gray-600 hover:bg-gray-200 rounded-full w-10 h-10 flex items-center justify-center transition-colors ml-4"
+                className="text-gray-600 hover:bg-gray-200 rounded-full w-8 h-8 flex items-center justify-center transition-colors ml-4 flex-shrink-0"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -232,7 +252,7 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
           </div>
         </div>
 
-        <div className="flex flex-1 bg-white min-h-0">
+        <div className="flex flex-1 bg-gray-50 min-h-0">
           {loading ? (
             <div className="flex items-center justify-center w-full h-full">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 m-80 border-gray-600"></div>
@@ -241,276 +261,176 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
             <div className="text-red-500 text-center py-8 w-full">{error}</div>
           ) : (
             <>
-              <div className="flex-1 p-3 overflow-y-auto min-h-0">
-                <div className="space-y-3">
+              <div className="flex-1 p-4 overflow-y-auto min-h-0">
+                <div className="max-w-5xl mx-auto space-y-4">
 
-                  <div className="w-full">
-                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                      <h3 className="font-bold text-lg text-gray-800 mb-3">Podrobne informacije</h3>
-                      <div className="space-y-4">
+                  {/* Osnove podatki v kompaktni mreži */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-                        <div>
-                          <h4 className="font-semibold text-gray-800 mb-2 text-md">Dimenzije</h4>
-                          <div className="grid grid-cols-2 gap-y-2 gap-x-8 text-sm">
-
-                            <DetailRow label="Površina" value={representativeProperty.povrsina_uradna && `${representativeProperty.povrsina_uradna} m²`} />
-                            <DetailRow label="Uporabna površina" value={representativeProperty.povrsina_uporabna && `${representativeProperty.povrsina_uporabna} m²`} />
+                    {/* Dimenzije */}
+                    <div className="bg-white border border-gray-300 rounded-lg p-3">
+                      <h4 className="text-lg font-semibold text-gray-800 mb-3">Dimenzije</h4>
+                      <div className="bg-gray-50 p-2 rounded text-sm">
+                        <div className="grid grid-cols-2 gap-4">
+                          <DetailRow label="Površina" value={representativeProperty.povrsina_uradna ? `${representativeProperty.povrsina_uradna} m²` : null} />
+                          <DetailRow label="Uporabna pov. " value={representativeProperty.povrsina_uporabna ? `${representativeProperty.povrsina_uporabna} m²` : null} />
+                          {representativeProperty.stevilo_sob && (
                             <DetailRow label="Število sob" value={representativeProperty.stevilo_sob} />
-                            <DetailRow label="Število sob" value={representativeProperty.stevilo_sob} />
+                          )}
+                          {representativeProperty.nadstropje && (
                             <DetailRow label="Nadstropje" value={representativeProperty.nadstropje} />
-                            <DetailRow label="Lega v stavbi" value={representativeProperty.lega_v_stavbi} />
-
-                            {dataSource === 'np' && (
-                              <DetailRow label="Opremljenost" value={getDaBoljNe(representativeProperty.opremljenost)} />
-                            )}
-                          </div>
+                          )}
+                          <DetailRow label="Lega v stavbi" value={representativeProperty.lega_v_stavbi} />
                         </div>
+                      </div>
+                    </div>
 
-                        <div>
-                          <h4 className="font-semibold text-gray-800 mb-2 text-md">Tip nepremičnine</h4>
-                          <div className="grid grid-cols-2 gap-y-2 gap-x-8 text-sm">
-                            <DetailRow label="Vrsta" value={getVrstaDelaStavbe(representativeProperty.vrsta_nepremicnine)} />
-                            <DetailRow label="Dejanska raba" value={representativeProperty.dejanska_raba} />
+                    {/* Tip nepremičnine */}
+                    <div className="bg-white border border-gray-300 rounded-lg p-3">
+                      <h4 className="text-lg font-semibold text-gray-800 mb-3">Tip nepremičnine</h4>
+                      <div className="bg-gray-50 p-2 rounded text-sm space-y-4">
+                        <div className="grid grid-cols-2 gap-6">
+                          <DetailRow label="Vrsta" value={getVrstaDelaStavbe(representativeProperty.vrsta_nepremicnine)} />
+                          {dataSource === 'kpp' && (
                             <DetailRow label="Prodani delež" value={representativeProperty.prodani_delez} />
-                          </div>
-                        </div>
-
-                        <div>
-                          <h4 className="font-semibold text-gray-800 mb-2 text-md">Prostori</h4>
-                          {representativeProperty.prostori && representativeProperty.prostori !== '-' && (
-                            <div className="mb-2">
-                              <div className="font-medium text-gray-800 text-sm leading-relaxed bg-white p-2 rounded border border-gray-200">
-                                {representativeProperty.prostori}
-                              </div>
-                            </div>
+                          )}
+                          {dataSource === 'np' && (
+                            <DetailRow label="Opremljenost" value={getDaBoljNe(representativeProperty.opremljenost)} />
                           )}
                         </div>
-
-                        <div>
-                          <h4 className="font-semibold text-gray-800 mb-2 text-md">Podatki o stavbi</h4>
-                          <div className="grid grid-cols-2 gap-y-2 gap-x-8 text-sm">
-                            <DetailRow label="Leto izgradnje" value={representativeProperty.leto_izgradnje_stavbe} />
-                            <DetailRow label="Stavba dokončana" value={getNeBoljDa(representativeProperty.stavba_je_dokoncana)} />
-                            <DetailRow label="Novogradnja" value={getDaBoljNe(representativeProperty.novogradnja)} />
-                            <DetailRow label="Gradbena faza" value={getGradebnaFaza(representativeProperty.gradbena_faza)} />
-                            <DetailRow label="Leto podatka" value={representativeProperty.leto} />
-                          </div>
-                        </div>
-
-                        {(representativeProperty.pogodbena_cena || representativeProperty.stopnja_ddv) && (
-                          <div>
-                            <h4 className="font-semibold text-gray-800 mb-2 text-md">Finančni podatki</h4>
-                            <div className="grid grid-cols-2 gap-y-2 gap-x-8 text-sm">
-                              <DetailRow label="Pogodbena cena" value={`${formatPrice(representativeProperty.pogodbena_cena)} €`} />
-                              <DetailRow label="Stopnja DDV" value={getStopnjaDDV(representativeProperty.stopnja_ddv)} />
-                            </div>
-                          </div>
-                        )}
-
-                        {(representativeProperty.opombe) && (
-                          <div>
-                            <h4 className="font-semibold text-gray-800 mb-2 text-md">Opombe</h4>
-
-                            {representativeProperty.opombe && (
-                              <div className="mb-2">
-                                <div className="font-medium text-gray-800 text-sm leading-relaxed bg-white p-2 rounded border border-gray-200">
-                                  {representativeProperty.opombe}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
+                        <DetailRow label="Dejanska raba" value={representativeProperty.dejanska_raba} />
                       </div>
                     </div>
+
+                    {/* Prostori opis */}
+                    <div className="bg-white border border-gray-300 rounded-lg p-3">
+                      <h4 className="text-lg font-semibold text-gray-800 mb-3">Opis prostorov</h4>
+                      {representativeProperty.prostori && representativeProperty.prostori !== '-' && (
+
+                        <div className="bg-gray-50 p-2 rounded text-sm text-gray-800 leading-relaxed">{representativeProperty.prostori}</div>
+                      )}
+                      {(!representativeProperty.prostori || representativeProperty.prostori == '-') &&
+                        <div className="text-center py-4 text-gray-500 text-sm">
+                          Opis ni podan
+                        </div>
+                      }
+                    </div>
+
+                    {/* Druga vrstica */}
+
+                    {/* Podatki o stavbi */}
+                    <div className="bg-white border border-gray-300 rounded-lg p-3">
+                      <h4 className="text-lg font-semibold text-gray-800 mb-3">Podatki o stavbi</h4>
+                      <div className="bg-gray-50 p-2 rounded text-sm">
+                        <div className="grid grid-cols-2 gap-6">
+                          <DetailRow label="Leto izgradnje" value={representativeProperty.leto_izgradnje_stavbe} />
+                          <DetailRow label="Novogradnja" value={getDaBoljNe(representativeProperty.novogradnja)} />
+                          <DetailRow label="Stavba dokončana" value={getNeBoljDa(representativeProperty.stavba_je_dokoncana)} />
+                          {representativeProperty.stavba_je_dokoncana == 0 ? <DetailRow label="Gradbena faza" value={getGradebnaFaza(representativeProperty.gradbena_faza)} /> : ''}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Finančni podatki */}
+                    {(representativeProperty.pogodbena_cena || representativeProperty.stopnja_ddv) && (
+                      <div className="bg-white border border-gray-300 rounded-lg p-3">
+                        <h4 className="text-lg font-semibold text-gray-800 mb-3">Finančni podatki</h4>
+                        <div className="bg-gray-50 p-2 rounded text-sm">
+                          <div className="grid grid-cols-2 gap-2">
+                            <DetailRow label="Pogodbena cena" value={representativeProperty.pogodbena_cena ? `€${formatPrice(representativeProperty.pogodbena_cena)}` : null} />
+                            <DetailRow label="Stopnja DDV" value={getStopnjaDDV(representativeProperty.stopnja_ddv)} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  {!loading && property?.energetske_izkaznice && property.energetske_izkaznice.length > 0 && (
-                    <div className="w-full">
-                      <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                        <h3 className="font-bold text-lg text-gray-800 mb-3">Energetska izkaznica</h3>
+                  {/* Energetska izkaznica */}
+                  <EnergetskaIzkaznicaContainer />
 
-                        {property?.energetske_izkaznice?.length > 1 && (
-                          <div className="mb-3">
-                            <label className="block text-sm font-medium text-gray-600 mb-2">
-                              Izberi energetsko izkaznico ({property?.energetske_izkaznice?.length} na voljo):
-                            </label>
-                            <select
-                              value={selectedEnergyIndex}
-                              onChange={(e) => setSelectedEnergyIndex(parseInt(e.target.value))}
-                              className="w-full p-2 border border-gray-300 rounded-md bg-white text-sm"
-                            >
-                              {property.energetske_izkaznice.map((ei, index) => (
-                                <option key={ei.id} value={index}>
-                                  {ei.ei_id} - {ei.datum_izdelave ?
-                                    new Date(ei.datum_izdelave).toLocaleDateString('sl-SI') :
-                                    'Ni datuma'}
-                                  {ei.energijski_razred && ` (${ei.energijski_razred})`}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-
-                        {(() => {
-                          const selectedEI = property.energetske_izkaznice[selectedEnergyIndex];
-                          if (!selectedEI) return null;
-
-                          return (
-                            <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm items-center">
-                              <DetailRow label="Id" value={selectedEI.ei_id} />
-                              <div className="flex justify-between items-center">
-                                <div className="text-gray-600">Energijski razred:</div>
-                                <div className={`font-medium px-2 py-1 rounded text-center min-w-[60px] flex items-center justify-center ${getEnergyClassColor(selectedEI.energijski_razred)}`}>
-                                  {selectedEI.energijski_razred}
-                                </div>
-                              </div>
-                              <DetailRow label="Datum izdelave" value={new Date(selectedEI.datum_izdelave).toLocaleDateString('sl-SI')} />
-                              <DetailRow label="Velja do" value={new Date(selectedEI.velja_do).toLocaleDateString('sl-SI')} />
-                              <DetailRow label="Primarna energija" value={`${Math.round(selectedEI.primarna_energija)} kWh/m²a`} />
-                              <DetailRow label="Emisije CO₂" value={`${Math.round(selectedEI.emisije_co2)} kg/m²a`} />
-                              <DetailRow label="Kond. površina" value={`${selectedEI.kondicionirana_povrsina} m²`} />
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  )}
-
-                  {!loading && (!property?.energetske_izkaznice || property.energetske_izkaznice.length === 0) && (
-                    <div className="w-full">
-                      <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                        <div className="text-center py-2 text-gray-500 text-sm">
-                          Za ta del stavbe ni na voljo energetske izkaznice
+                  {/* Opombe */}
+                  {representativeProperty.opombe && (
+                    <div className="bg-white border border-gray-300 rounded-lg p-3">
+                      <h4 className="text-lg font-semibold text-gray-800 mb-3">Opombe</h4>
+                      <div className="bg-gray-50 p-2 rounded text-sm">
+                        <div className="text-sm text-gray-800 leading-relaxed">
+                          {representativeProperty.opombe}
                         </div>
                       </div>
                     </div>
                   )}
 
+                  {/* Dodatni deli stavb */}
                   {selectedPosel && filteredConnectedParts.length > 0 && (
-                    <div>
-                      <h3 className="font-bold text-lg text-gray-800 mb-4">
-                        Dodatni deli stavb vključeni v posel ({filteredConnectedParts.length})
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="bg-white border border-gray-300 rounded-lg p-3">
+                      <h4 className="text-lg font-semibold text-gray-800 mb-3">Dodatni deli stavb vključeni v posel ({filteredConnectedParts.length})</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                         {filteredConnectedParts.map((part) => (
-                          <div key={part.del_stavbe_id} className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                            <div className="space-y-2">
-                              <div className="font-medium text-gray-800 border-b border-gray-300 pb-2">
-                                Del stavbe {part.stevilka_dela_stavbe}
-                              </div>
-
-                              <div className="grid grid-cols-1 gap-y-1 gap-x-2 text-sm">
-                                <DetailRow label="Površina" value={part.povrsina_uradna && `${part.povrsina_uradna} m²`} />
-                                <DetailRow label="Uporabna površina" value={part.povrsina_uporabna && `${part.povrsina_uporabna} m²`} />
-                                <DetailRow label="Število sob" value={part.stevilo_sob > 0 ? part.stevilo_sob : null} />
-                                <DetailRow label="Nadstropje" value={part.nadstropje} />
-                                <DetailRow label="Lega" value={part.lega_v_stavbi} />
-                                <DetailRow label="Vrsta" value={getVrstaDelaStavbe(part.vrsta_nepremicnine)} />
+                          <div key={part.del_stavbe_id} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                            <div className="font-medium text-gray-900 text-sm mb-2 border-b border-gray-200 pb-1">
+                              Del stavbe {part.stevilka_dela_stavbe}
+                            </div>
+                            <div className="space-y-1 text-xs">
+                              <DetailRow label="Površina" value={part.povrsina_uradna ? `${part.povrsina_uradna} m²` : null} />
+                              <DetailRow label="Uporabna pov. " value={part.povrsina_uporabna ? `${part.povrsina_uporabna} m²` : null} />
+                              <DetailRow label="Število sob" value={part.stevilo_sob > 0 ? part.stevilo_sob : null} />
+                              <DetailRow label="Nadstropje" value={part.nadstropje} />
+                              <DetailRow label="Vrsta" value={getVrstaDelaStavbe(part.vrsta_nepremicnine)} />
+                              {dataSource === 'np' && (
                                 <DetailRow label="Opremljenost" value={getDaBoljNe(part.opremljenost)} />
-                                <DetailRow label="Prodani delež" value={part.prodani_delez} />
-                                <DetailRow label="Št. stanovanja" value={part.stev_stanovanja} />
-                                <DetailRow label="Leto izgradnje" value={part.leto_izgradnje_stavbe} />
-                                <DetailRow label="Stavba dokončana" value={getNeBoljDa(part.stavba_je_dokoncana)} />
-                                <DetailRow label="Novogradnja" value={getDaBoljNe(part.novogradnja)} />
-                                <DetailRow label="Gradbena faza" value={getGradebnaFaza(part.gradbena_faza)} />
-                                <DetailRow label="Št. stavbe" value={part.stevilka_stavbe} />
-                                <DetailRow label="Šifra KO" value={part.sifra_ko} />
-                                <DetailRow label="Ime KO" value={part.ime_ko} />
-                                <DetailRow label="Naselje" value={part.naselje} />
-                                <DetailRow label="Pogodbena cena" value={part.pogodbena_cena && `${formatPrice(part.pogodbena_cena)} €`} />
-                                <DetailRow label="Stopnja DDV" value={getStopnjaDDV(part.stopnja_ddv)} />
-                                <DetailRow label="Leto" value={part.leto} />
-                              </div>
-
-                              {part.dejanska_raba && (
-                                <div className="mt-2 pt-2 border-t border-gray-300">
-                                  <div className="text-gray-600 text-xs mb-1">Dejanska raba:</div>
-                                  <div className="text-gray-800 text-xs leading-tight">{part.dejanska_raba}</div>
-                                </div>
                               )}
-
-                              {part.prostori && part.prostori !== '-' && (
-                                <div className="mt-2 pt-2 border-t border-gray-300">
-                                  <div className="text-gray-600 text-xs mb-1">Prostori:</div>
-                                  <div className="text-gray-800 text-xs leading-tight">{part.prostori}</div>
-                                </div>
-                              )}
-
-                              {part.opombe && (
-                                <div className="mt-2 pt-2 border-t border-gray-300">
-                                  <div className="text-gray-600 text-xs mb-1">Opombe:</div>
-                                  <div className="text-gray-800 text-xs leading-tight">{part.opombe}</div>
-                                </div>
-                              )}
-
-                              {(part.ulica || part.hisna_stevilka || part.dodatek_hs) && (
-                                <div className="mt-2 pt-2 border-t border-gray-300">
-                                  <div className="text-gray-600 text-xs mb-1">Naslov:</div>
-                                  <div className="text-gray-800 text-xs">
-                                    {[part.ulica, part.hisna_stevilka, part.dodatek_hs].filter(Boolean).join(' ')}
-                                    {part.obcina && (
-                                      <div className="text-gray-600">{part.obcina}</div>
-                                    )}
-                                  </div>
-                                </div>
+                              <DetailRow label="Prodani delež" value={part.prodani_delez} />
+                              {part.pogodbena_cena && (
+                                <DetailRow label="Pogodbena cena" value={`€${formatPrice(part.pogodbena_cena)}`} />
                               )}
                             </div>
+
+                            {/* Dodatne informacije v manjših sekcijah */}
+                            {part.dejanska_raba && (
+                              <div className="mt-2 pt-2 border-t border-gray-300">
+                                <div className="text-xs text-gray-500 mb-1">Dejanska raba:</div>
+                                <div className="text-xs text-gray-800">{part.dejanska_raba}</div>
+                              </div>
+                            )}
+
+                            {part.prostori && part.prostori !== '-' && (
+                              <div className="mt-2 pt-2 border-t border-gray-300">
+                                <div className="text-xs text-gray-500 mb-1">Prostori:</div>
+                                <div className="text-xs text-gray-800">{part.prostori}</div>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  <div>
-                    <h3 className="font-bold text-lg text-gray-800 mb-4">Podobne nepremičnine</h3>
+                  {/* Podobne nepremičnine - placeholder */}
+                  <div className="bg-white border border-gray-300 rounded-lg p-3">
+                    <h4 className="text-lg font-semibold text-gray-800 mb-3">Podobne nepremičnine</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                        <div className="space-y-2">
-                          <div className="font-medium text-gray-800">Naslov: trg ob reki 3</div>
-                          <div className="grid grid-cols-2 gap-1 text-sm">
-                            <div className="text-gray-800">130m²</div>
-                            <div className="text-gray-800">133k €</div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-1 text-sm">
-                            <div className="text-gray-800">60km</div>
-                            <div className="text-gray-800">En. raz.: B</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                        <div className="space-y-2">
-                          <div className="font-medium text-gray-800">Naslov: trg ob reki 3</div>
-                          <div className="grid grid-cols-2 gap-1 text-sm">
-                            <div className="text-gray-800">130m²</div>
-                            <div className="text-gray-800">133k €</div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-1 text-sm">
-                            <div className="text-gray-800">60km</div>
-                            <div className="text-gray-800">En. raz.: B</div>
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                          <div className="space-y-2">
+                            <div className="font-medium text-gray-800 text-sm">Naslov: trg ob reki {i}</div>
+                            <div className="grid grid-cols-2 gap-1 text-xs">
+                              <div className="text-gray-800">130 m²</div>
+                              <div className="text-gray-800">€133.000</div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-1 text-xs">
+                              <div className="text-gray-800">Razdalja: 2 km</div>
+                              <div className="text-gray-800">Energijski razred: B</div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-
-                      <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                        <div className="space-y-2">
-                          <div className="font-medium text-gray-800">Naslov: trg ob reki 3</div>
-                          <div className="grid grid-cols-2 gap-1 text-sm">
-                            <div className="text-gray-800">130m²</div>
-                            <div className="text-gray-800">133k €</div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-1 text-sm">
-                            <div className="text-gray-800">60km</div>
-                            <div className="text-gray-800">En. raz.: B</div>
-                          </div>
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   </div>
+
                 </div>
               </div>
 
+              {/* Desni panel s posli - ohranem originalen izgled */}
               {property.povezani_posli && property.povezani_posli.length > 0 && (
                 <div className="w-96 bg-gray-50 border-l border-gray-200 overflow-y-auto min-h-0 flex flex-col">
                   <div className="p-3 bg-gray-100 border-b border-gray-200 sticky top-0">
@@ -520,33 +440,19 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
                   </div>
                   <div className="p-2 space-y-3 flex-1">
                     {property.povezani_posli
-                      .sort((a, b) => {
-                        if (dataSource === 'np') {
-                          // Za najemne posle razporedimo po datumu začetka najemanja
-                          if (!a.datum_zacetka_najemanja) return 1;
-                          if (!b.datum_zacetka_najemanja) return -1;
-                          return new Date(b.datum_zacetka_najemanja) - new Date(a.datum_zacetka_najemanja);
-                        } else if (dataSource === 'kpp') {
-                          // Za kupoprodajne posle razporedimo po datumu sklenitve
-                          if (!a.datum_sklenitve) return 1;
-                          if (!b.datum_sklenitve) return -1;
-                          return new Date(b.datum_sklenitve) - new Date(a.datum_sklenitve);
-                        }
-                        return 0;
-                      })
                       .map((posel) => {
                         const connectedPartsCount = getConnectedBuildingParts(posel.posel_id).length;
                         const isSelected = selectedPoselId === posel.posel_id;
-                        const priceInfo = getLatestPriceInfo(posel);
+                        const priceInfo = getZadnjaCenaInfo(posel);
 
                         return (
                           <div
                             key={posel.posel_id}
                             ref={el => poselRefs.current[posel.posel_id] = el}
                             onClick={() => selectPosel(posel.posel_id)}
-                            className={`rounded-lg cursor-pointer transition-colors ${isSelected
-                              ? 'bg-gray-100 border-2 border-gray-600 p-3'
-                              : 'bg-white hover:bg-gray-100 border border-gray-300 p-3 m-px mb-3'
+                            className={`rounded-lg cursor-pointer transition-colors bg-white ${isSelected
+                              ? ' border-2 border-gray-600 p-3'
+                              : ' hover:bg-gray-100 border border-gray-300 p-3 m-px mb-3'
                               }`}
                           >
                             <div className="space-y-3">
@@ -587,14 +493,17 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
                               <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
                                 <div className="text-center">
                                   <div className="text-gray-600 text-sm mb-1">
-                                    {priceInfo.priceLabel}
+                                    {priceInfo.cenaLabel}
                                   </div>
-                                  {priceInfo.hasPrice ?
+                                  {connectedPartsCount > 1 && (
+                                    <div className="text-gray-800 text-sm mb-1"> <span className="font-semibold text-black">{connectedPartsCount}</span> delov stavb</div>
+                                  )}
+                                  {priceInfo.hasCena ?
                                     <><div className="font-bold text-xl text-gray-800 mb-1">
-                                      {priceInfo.priceText}
+                                      {priceInfo.cenaText}
                                     </div><div className="text-sm text-gray-500">
-                                        {priceInfo.vatInfo}
-                                        {priceInfo.costsInfo ? ` • ${priceInfo.costsInfo}` : ''}
+                                        {priceInfo.ddvInfo}
+                                        {priceInfo.stroskiInfo ? ` • ${priceInfo.stroskiInfo}` : ''}
                                       </div></>
                                     :
                                     <div className="font-bold text-lg text-gray-600">Podatek ni na voljo</div>
@@ -621,14 +530,16 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
                                     label="Zadnja sprememba"
                                     value={posel.datum_zadnje_spremembe ? formatirajDatum(posel.datum_zadnje_spremembe) : null}
                                   />
+                                  <DetailRow label="Tržnost posla" value={getTrznostPosla(posel.trznost_posla)} />
                                   {dataSource === 'np' ? (
-                                    <DetailRow label="Vrsta posla" value={getVrstaNajemnegaPosla(posel.vrsta_posla)} />
+                                    <>
+                                      <DetailRow label="Vrsta akta" value={getVrstaAkta(posel.vrsta_akta)} />
+                                      <DetailRow label="Vrsta posla" value={getVrstaNajemnegaPosla(posel.vrsta_posla)} />
+                                    </>
                                   ) : (
                                     <DetailRow label="Vrsta posla" value={getVrstaProdajnegaPosla(posel.vrsta_posla)} />
                                   )}
-                                  <DetailRow label="Vrsta akta" value={getVrstaAkta(posel.vrsta_akta)} />
-                                  <DetailRow label="Tržnost posla" value={getTrznostPosla(posel.trznost_posla)} />
-                                  <DetailRow label="Delov stavb" value={getConnectedBuildingParts(posel.posel_id).length} />
+
                                 </div>
                               </div>
 

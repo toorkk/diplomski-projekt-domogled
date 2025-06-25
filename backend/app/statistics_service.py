@@ -24,7 +24,7 @@ class StatisticsService:
             logger.info("Posodabljam statistike za vse regije")
             
             # 1. Posodobi materialized views
-            self._refresh_materialized_views()
+            self._create_materialized_views()
             
             # 2. Počisti cache
             self._clear_cache()
@@ -514,8 +514,8 @@ class StatisticsService:
 
     # POMOŽNE METODE
     
-    def _refresh_materialized_views(self):
-        """Posodobi materialized views."""
+    def _create_materialized_views(self):
+        """Ustvari materialized views."""
         with self.engine.connect() as conn:
             trans = conn.begin()
             try:
@@ -527,8 +527,14 @@ class StatisticsService:
                 rental_mv_sql = get_sql_query('stats/create_mv_najemne_stats.sql')
                 conn.execute(text(rental_mv_sql))
                 
+                sales_mv_sql_12m = get_sql_query('stats/create_mv_prodajne_stats_12m.sql')
+                conn.execute(text(sales_mv_sql_12m))
+                
+                rental_mv_sql_12m = get_sql_query('stats/create_mv_najemne_stats_12m.sql')
+                conn.execute(text(rental_mv_sql_12m))
+                
                 trans.commit()
-                logger.info("Materialized views uspešno posodobljeni")
+                logger.info("Materialized views uspešno ustvarjeni")
                 
             except Exception as e:
                 trans.rollback()
@@ -556,8 +562,12 @@ class StatisticsService:
                 logger.info("Polnim cache z vsemi statistikami...")
                 
                 sales_sql = get_sql_query('stats/populate_statistike_cache.sql')
-                result = conn.execute(text(sales_sql))
-                logger.info(f"Vstavljena statistika: {result.rowcount} zapisov")
+                result_letno = conn.execute(text(sales_sql))
+
+                sales_sql_12m = get_sql_query('stats/populate_statistike_cache_12m.sql')
+                result_12m = conn.execute(text(sales_sql_12m))
+
+                logger.info(f"Vstavljena statistika: {result_letno.rowcount} letnih zapisov, {result_12m.rowcount} zadnjih 12 mesecev zapisov")
                 
                 trans.commit()
                 logger.info("Vsi cache podatki uspešno naloženi")

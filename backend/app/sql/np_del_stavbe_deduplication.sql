@@ -38,9 +38,14 @@ vsi_posel_ids_nepremicnine AS (
         vn.sifra_ko,
         vn.stevilka_stavbe, 
         vn.stevilka_dela_stavbe,
-        ARRAY_AGG(DISTINCT ds.posel_id ORDER BY ds.posel_id) as vsi_povezani_posel_ids
+        ARRAY_AGG(ds.posel_id ORDER BY 
+            p.datum_zacetka_najemanja DESC NULLS LAST,
+            p.datum_prenehanja_najemanja DESC NULLS LAST,
+            ds.posel_id DESC
+        ) as vsi_povezani_posel_ids
     FROM validne_nepremicnine vn
     INNER JOIN core.np_del_stavbe ds USING (sifra_ko, stevilka_stavbe, stevilka_dela_stavbe)
+    INNER JOIN core.np_posel p ON ds.posel_id = p.posel_id  -- ✅ DODANO
     GROUP BY vn.sifra_ko, vn.stevilka_stavbe, vn.stevilka_dela_stavbe
 ),
 

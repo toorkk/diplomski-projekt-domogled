@@ -1,41 +1,53 @@
-import {getEnergyClassColor, getColorClasses, getNaslovDodatek, getNaslov} from './PodrobnostiHelper.jsx';
+import {getEnergyClassColor, getColorClasses, getNaslovString, getNaslovDodatek, getNaslov, getVrstaDelaStavbe} from './PodrobnostiHelper.jsx';
 
-const getSurfaceInfo = (properties) => {
-    const povrsina = {
-        celotna: properties.povrsina_uradna ? `${properties.povrsina_uradna} m² (uradna)` : 'neznano',
-        uporabna: properties.povrsina_uporabna ? `${properties.povrsina_uporabna} m² (uporabna)` : 'neznano'
+const getPovrsinaInfo = (properties) => {
+    const parts = [];
+    const valueParts = [];
+    
+    if (properties.povrsina_uradna) {
+        parts.push('Površina');
+        valueParts.push(`${properties.povrsina_uradna} m²`);
+    }
+    
+    if (properties.povrsina_uporabna) {
+        parts.push('Uporabna');
+        valueParts.push(`${properties.povrsina_uporabna} m²`);
+    }
+    
+    return {
+        label: parts.join(' / '),
+        value: valueParts.join(' / ')
     };
-    return povrsina;
 };
 
-const buildVATInfo = (properties) => {
+const buildDDVInfo = (properties) => {
     if (!properties.zadnje_vkljuceno_ddv) return 'brez DDV';
     const percentage = properties.zadnja_stopnja_ddv ? ` (${properties.zadnja_stopnja_ddv}%)` : '';
     return `z DDV${percentage}`;
 };
 
-const getPriceData = (properties, dataSourceType) => {
+const getCenaData = (properties, dataSourceType) => {
     const isKPP = dataSourceType === 'prodaja' || properties.data_source === 'kpp';
     
     if (isKPP) {
         const cena = properties.zadnja_cena;
         return {
-            hasPrice: !!cena,
-            priceText: cena ? `€${cena.toLocaleString('sl-SI')}` : null,
-            priceLabel: 'Prodajna cena:',
-            vatInfo: buildVATInfo(properties)
+            hasCena: !!cena,
+            cenaText: cena ? `€${cena.toLocaleString('sl-SI')}` : null,
+            cenaLabel: 'Prodajna cena:',
+            ddvInfo: buildDDVInfo(properties)
         };
     }
     
     const najemnina = properties.zadnja_najemnina;
-    const costsInfo = properties.zadnje_vkljuceno_stroski ? 'stroški vključeni' : 'stroški niso vključeni';
+    const stroskiInfo = properties.zadnje_vkljuceno_stroski ? 'stroški vključeni' : 'stroški niso vključeni';
     
     return {
-        hasPrice: !!najemnina,
-        priceText: najemnina ? `€${najemnina.toLocaleString('sl-SI')}/mesec` : null,
-        priceLabel: 'Najemnina:',
-        vatInfo: buildVATInfo(properties),
-        costsInfo
+        hasCena: !!najemnina,
+        cenaText: najemnina ? `€${najemnina.toLocaleString('sl-SI')} / mesec` : null,
+        cenaLabel: 'Najemnina:',
+        ddvInfo: buildDDVInfo(properties),
+        stroskiInfo
     };
 };
 
@@ -60,20 +72,12 @@ const buildHeaderTags = (properties, contractCount, hasMultipleContracts) => {
 const buildPropertyGrid = (properties, povrsina) => {
     const rows = [];
     
-    // Površina vrstica
-    const surfaceLabel = properties.data_source === 'np' ? 'Površina / Uporabna:' : 'Površina:';
-    const surfaceValue = properties.data_source === 'np' ? `${povrsina.celotna} / ${povrsina.uporabna}` : povrsina.celotna;
-    rows.push(`
-        <div class="text-gray-600">${surfaceLabel}</div>
-        <div class="font-medium">${surfaceValue}</div>
-    `);
-    
-    // Ostale vrstice
     const propertyMappings = [
+        { key: 'obe_povrsini', label: povrsina.label , value: povrsina.value },
         { key: 'stevilo_sob', label: 'Število sob:', value: properties.stevilo_sob },
         { key: 'opremljenost', label: 'Opremljeno:', value: properties.opremljenost ? (properties.opremljenost == 1 ? 'Da' : 'Ne') : null },
         { key: 'leto_izgradnje_stavbe', label: 'Leto izgradnje:', value: properties.leto_izgradnje_stavbe },
-        { key: 'dejanska_raba', label: 'Tip objekta:', value: properties.dejanska_raba }
+        { key: 'vrsta_nepremicnine', label: 'Vrsta Nepremičnine:', value: getVrstaDelaStavbe(properties.vrsta_nepremicnine) }
     ];
     
     propertyMappings.forEach(({ key, label, value }) => {
@@ -91,13 +95,13 @@ const buildPropertyGrid = (properties, povrsina) => {
 const buildPriceSection = (priceInfo) => {
     const noPriceContent = '<div class="font-bold text-lg text-gray-600">Podatek ni na voljo</div>';
     
-    if (!priceInfo.hasPrice) return noPriceContent;
+    if (!priceInfo.hasCena) return noPriceContent;
     
-    const costsText = priceInfo.costsInfo ? ` • ${priceInfo.costsInfo}` : '';
+    const costsText = priceInfo.stroskiInfo ? ` • ${priceInfo.stroskiInfo}` : '';
     
     return `
-        <div class="font-bold text-xl text-gray-800 mb-1">${priceInfo.priceText}</div>
-        <div class="text-xs text-gray-500">${priceInfo.vatInfo}${costsText}</div>
+        <div class="font-bold text-xl text-gray-800 mb-1">${priceInfo.cenaText}</div>
+        <div class="text-xs text-gray-500">${priceInfo.ddvInfo}${costsText}</div>
     `;
 };
 
@@ -105,17 +109,19 @@ const IndividualPopup = ({ properties, dataSourceType = 'prodaja' }) => {
     const contractCount = properties.stevilo_poslov || 1;
     const hasMultipleContracts = properties.ima_vec_poslov || false;
     
-    const priceInfo = getPriceData(properties, dataSourceType);
+    const priceInfo = getCenaData(properties, dataSourceType);
     const naslovDodatek = getNaslovDodatek(properties);
-    const naslov = getNaslov(properties);
+    const naslov = getNaslovString(properties);
     const colors = getColorClasses(properties.data_source);
-    const povrsina = getSurfaceInfo(properties);
+    const povrsina = getPovrsinaInfo(properties);
     
     const titleText = naslov || properties.naselje || '';
     const headerTags = buildHeaderTags(properties, contractCount, hasMultipleContracts);
     const propertyGrid = buildPropertyGrid(properties, povrsina);
     const priceSection = buildPriceSection(priceInfo);
     const buttonText = hasMultipleContracts ? 'Prikaži vse posle' : 'Več podrobnosti';
+
+    
 
     return `
         <div class="font-sans rounded-lg overflow-hidden w-80">
@@ -136,7 +142,7 @@ const IndividualPopup = ({ properties, dataSourceType = 'prodaja' }) => {
                 
                 <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
                     <div class="text-center">
-                        <div class="text-gray-600 text-sm mb-1">${priceInfo.priceLabel}</div>
+                        <div class="text-gray-600 text-sm mb-1">${priceInfo.cenaLabel}</div>
                         ${priceSection}
                     </div>
                 </div>
