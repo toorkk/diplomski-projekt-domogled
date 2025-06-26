@@ -71,7 +71,7 @@ ST_Transform(ST_SetSRID(ST_MakePoint(d.e_centroid, d.n_centroid), 3794), 4326),
 d.leto
 FROM staging.np_del_stavbe d
 WHERE d.vrsta_oddanih_prostorov IS NOT NULL
-AND sifra_ko IS NOT NULL 
+AND sifra_ko IS NOT NULL
 AND stevilka_stavbe IS NOT NULL 
 AND stevilka_dela_stavbe IS NOT NULL 
 AND id_posla IS NOT NULL;
