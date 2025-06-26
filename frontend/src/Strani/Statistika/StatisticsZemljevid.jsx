@@ -44,7 +44,7 @@ export default function StatisticsZemljevid({
     const [hoveredRegion, setHoveredRegion] = useState(null);
     const [hoveredMunicipality, setHoveredMunicipality] = useState(null);
     const [viewMode, setViewMode] = useState('posli');
-    
+
     // Nova stanja za cursor tooltip
     const [cursorTooltip, setCursorTooltip] = useState(null);
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -238,6 +238,16 @@ export default function StatisticsZemljevid({
             map.current.setPaintProperty(layerId, 'fill-color', colorExpression);
             map.current.setPaintProperty(layerId, 'fill-opacity', 0.8);
             map.current.setLayoutProperty(layerId, 'visibility', 'visible');
+
+            // NOVO: Zagotovi da je layer viden tudi če je aktiven mask
+            if (selectedObcina) {
+                // Poskrbi da je fill layer pred mask layerjem
+                const maskLayerId = 'obcina-mask';
+                if (map.current.getLayer(maskLayerId)) {
+                    map.current.moveLayer(layerId, maskLayerId);
+                }
+            }
+
             setColoringLoaded(true);
         } else {
             if (colorExpression.length >= 3 && layerManager.current) {
@@ -337,7 +347,7 @@ export default function StatisticsZemljevid({
                 if (e.features?.[0]) {
                     debouncedUpdate.cancel();
                     setCursorTooltip(null);
-                    
+
                     if (isObcine) {
                         setHoveredRegion(null);
                         layerManager.current?.updateObcinaHover(null);
@@ -380,6 +390,9 @@ export default function StatisticsZemljevid({
 
         if (selectedObcina?.obcinaId === obcinaId) return;
 
+        const hasKatastre = obcinaHasKatastre(obcinaName);
+
+        // Shrani prejšnje stanje samo če ni izbrane občine
         if (!selectedObcina) {
             const currentCenter = map.current.getCenter();
             const currentZoom = map.current.getZoom();
@@ -390,8 +403,8 @@ export default function StatisticsZemljevid({
         }
 
         const bounds = calculateBoundsFromGeometry(obcinaFeature.geometry);
-        const hasKatastre = obcinaHasKatastre(obcinaName);
 
+        // Pokliči callback za izbiro občine
         onObcinaSelect?.({
             name: obcinaName,
             obcinaId: obcinaId,
@@ -406,14 +419,19 @@ export default function StatisticsZemljevid({
             }
         }
 
-        map.current.fitBounds(bounds, {
-            padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
-            duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION,
-            essential: true
-        });
+        // ZOOM IN MASK SAMO ČE IMA OBČINA KATASTRE
+        if (hasKatastre) {
+            map.current.fitBounds(bounds, {
+                padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
+                duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION,
+                essential: true
+            });
 
-        map.current.setMaxBounds(bounds);
-        addObcinaMask(obcinaId);
+            map.current.setMaxBounds(bounds);
+            addObcinaMask(obcinaId);
+        }
+        // Če občina nima katastrov, se samo izbere brez zoom-a in mask-a
+
     }, [selectedObcina, onObcinaSelect]);
 
     // Setup funkcije
@@ -441,21 +459,22 @@ export default function StatisticsZemljevid({
                 type: 'fill',
                 source: sourceId,
                 paint: {
-                    'fill-color': 'rgba(0, 0, 0, 0.6)',
+                    'fill-color': 'rgba(0, 0, 0, 0.4)', // Zmanjšana prosojnost iz 0.6 na 0.4
                     'fill-opacity': [
                         'case',
                         ['==', ['get', 'OB_ID'], obcinaId],
-                        0,
-                        1
+                        0, // Izbrana občina = brez mask-a
+                        0.6 // Ostale občine = delno prosojno (namesto 1)
                     ]
                 }
             }, LAYER_IDS.OBCINE.OUTLINE);
         } else {
+            // Če layer že obstaja, posodobi samo opacity
             map.current.setPaintProperty(overlayLayerId, 'fill-opacity', [
                 'case',
                 ['==', ['get', 'OB_ID'], obcinaId],
                 0,
-                1
+                0.6 // Ponovno nastavi na delno prosojnost
             ]);
         }
     };
@@ -496,37 +515,47 @@ export default function StatisticsZemljevid({
             layerManager.current.resetFilters();
         }
 
+        // Odstrani mask layer če obstaja
         const overlayLayerId = 'obcina-mask';
         if (map.current.getLayer(overlayLayerId)) {
             map.current.removeLayer(overlayLayerId);
         }
 
+        // Resetiraj max bounds
         map.current.setMaxBounds(null);
 
         if (layerManager.current) {
             layerManager.current.updateLayerVisibilityByZoom(previousMapState.zoom, false, null);
         }
 
+        // Posodobi barve regij
         updateRegionColors('obcine', activeTab, viewMode);
         updateRegionColors('municipalities', activeTab, viewMode);
 
-        const resetCenter = previousMapState.center && previousMapState.center.length === 2
-            ? previousMapState.center
-            : MAP_CONFIG.INITIAL_CENTER;
+        // ZOOM NAZAJ SAMO ČE JE BILA IZBRANA OBČINA Z KATASTRI
+        // (kar pomeni da je bil zoom izveden v handleObcinaClick)
+        const shouldResetZoom = selectedObcina && obcinaHasKatastre(selectedObcina.name);
 
-        const resetZoom = previousMapState.zoom && previousMapState.zoom > 0
-            ? previousMapState.zoom
-            : MAP_CONFIG.INITIAL_ZOOM;
+        if (shouldResetZoom) {
+            const resetCenter = previousMapState.center && previousMapState.center.length === 2
+                ? previousMapState.center
+                : MAP_CONFIG.INITIAL_CENTER;
 
-        map.current.flyTo({
-            center: resetCenter,
-            zoom: resetZoom,
-            duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION
-        });
+            const resetZoom = previousMapState.zoom && previousMapState.zoom > 0
+                ? previousMapState.zoom
+                : MAP_CONFIG.INITIAL_ZOOM;
+
+            map.current.flyTo({
+                center: resetCenter,
+                zoom: resetZoom,
+                duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION
+            });
+        }
+        // Če občina ni imela katastrov, ne resetiraj zoom-a
 
         onMunicipalitySelect?.(null);
         onObcinaSelect?.(null);
-    }, [onMunicipalitySelect, onObcinaSelect, activeTab, viewMode, updateRegionColors, previousMapState]);
+    }, [onMunicipalitySelect, onObcinaSelect, activeTab, viewMode, updateRegionColors, previousMapState, selectedObcina]);
 
     // Legenda komponenta
     const getColorScalePercentiles = (colorType = 'prodaja', percentileStats = null, viewModeParam = 'posli') => {
@@ -554,7 +583,8 @@ export default function StatisticsZemljevid({
     };
 
     const PercentileLegenda = () => {
-        if (!coloringLoaded || selectedObcina || selectedMunicipality) return null;
+        // POPRAVKA: Odstrani selectedObcina || selectedMunicipality pogoj
+        if (!coloringLoaded) return null;
 
         const getCurrentStats = () => {
             const dataSource = viewMode === 'cene' ? obcineCeneData : obcinePosliData;
@@ -594,7 +624,16 @@ export default function StatisticsZemljevid({
         const getLegendTitle = () => {
             const transaction = activeTab === 'prodaja' ? 'Prodaje' : 'Najemi';
             const metric = viewMode === 'cene' ? 'povprečne cene/m²' : 'število poslov';
-            return `${transaction} - ${metric} (zadnjih 12 mesecev)`;
+
+            // NOVO: Prikaži kontekst če je izbrana regija
+            let context = '';
+            if (selectedMunicipality) {
+                context = ` - ${selectedMunicipality.name}`;
+            } else if (selectedObcina) {
+                context = ` - ${selectedObcina.name}`;
+            }
+
+            return `${transaction} - ${metric} (zadnjih 12 mesecev)${context}`;
         };
 
         return (
@@ -607,8 +646,8 @@ export default function StatisticsZemljevid({
                         <div key={index} className="flex items-center space-x-2">
                             <div
                                 className={`w-4 h-3 rounded flex-shrink-0 ${item.color === 'rgba(255, 255, 255, 0.8)'
-                                        ? 'border-2 border-gray-300'
-                                        : 'border border-gray-300'
+                                    ? 'border-2 border-gray-300'
+                                    : 'border border-gray-300'
                                     }`}
                                 style={{ backgroundColor: item.color }}
                             ></div>
@@ -636,7 +675,7 @@ export default function StatisticsZemljevid({
         if (!tooltip) return null;
 
         return (
-            <div 
+            <div
                 className="fixed z-50 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 px-3 py-2 pointer-events-none text-sm"
                 style={{
                     left: position.x + 15,
@@ -853,36 +892,34 @@ export default function StatisticsZemljevid({
             <CursorTooltip tooltip={cursorTooltip} position={mousePosition} />
 
             {/* Toggle gumb za prikaz */}
-            {!selectedMunicipality && !selectedObcina && (
-                <div className="absolute top-4 right-4 z-20 bg-white/95 backdrop-blur-sm rounded-lg shadow-md border border-gray-200 p-2">
-                    <div className="flex space-x-1">
-                        <button
-                            onClick={() => setViewMode('posli')}
-                            className={`px-3 py-2 text-xs font-medium rounded transition-colors ${viewMode === 'posli'
-                                    ? 'text-white shadow-sm'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
-                            style={viewMode === 'posli' ? {
-                                backgroundColor: activeTab === 'prodaja' ? 'rgba(37, 99, 235, 0.8)' : 'rgba(5, 150, 105, 0.8)'
-                            } : {}}
-                        >
-                           {activeTab === 'prodaja' ? 'Število prodaj' : 'Število najemov'}
-                        </button>
-                        <button
-                            onClick={() => setViewMode('cene')}
-                            className={`px-3 py-2 text-xs font-medium rounded transition-colors ${viewMode === 'cene'
-                                    ? 'text-white shadow-sm'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
-                            style={viewMode === 'cene' ? {
-                                backgroundColor: activeTab === 'prodaja' ? 'rgba(37, 99, 235, 0.8)' : 'rgba(5, 150, 105, 0.8)'
-                            } : {}}
-                        >
-                            Cena/m²
-                        </button>
-                    </div>
+            <div className="absolute top-4 right-4 z-20 bg-white/95 backdrop-blur-sm rounded-lg shadow-md border border-gray-200 p-2">
+                <div className="flex space-x-1">
+                    <button
+                        onClick={() => setViewMode('posli')}
+                        className={`px-3 py-2 text-xs font-medium rounded transition-colors ${viewMode === 'posli'
+                            ? 'text-white shadow-sm'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                        style={viewMode === 'posli' ? {
+                            backgroundColor: activeTab === 'prodaja' ? 'rgba(37, 99, 235, 0.8)' : 'rgba(5, 150, 105, 0.8)'
+                        } : {}}
+                    >
+                        {activeTab === 'prodaja' ? 'Število prodaj' : 'Število najemov'}
+                    </button>
+                    <button
+                        onClick={() => setViewMode('cene')}
+                        className={`px-3 py-2 text-xs font-medium rounded transition-colors ${viewMode === 'cene'
+                            ? 'text-white shadow-sm'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                        style={viewMode === 'cene' ? {
+                            backgroundColor: activeTab === 'prodaja' ? 'rgba(37, 99, 235, 0.8)' : 'rgba(5, 150, 105, 0.8)'
+                        } : {}}
+                    >
+                        Cena/m²
+                    </button>
                 </div>
-            )}
+            </div>
 
             {/* Indikator izbrane regije - locked desno doli */}
             {(selectedMunicipality || selectedObcina) && (

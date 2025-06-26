@@ -81,7 +81,7 @@ class StatisticsLayerManager {
         // Shrani ime izbrane občine za filtriranje katastrov
         this.selectedObcinaName = selectedObcinaName;
 
-        // Nastavi prisilni prikaz flag če je izbrana občina z katastri
+        // Nastavi prisilni prikaz flag samo če je izbrana občina z katastri
         this.forceShowMunicipalities = this.obcinaHasKatastre(selectedObcinaName);
 
         // Posodobi obrobni stil za izbrano občino
@@ -107,12 +107,14 @@ class StatisticsLayerManager {
             ZOOM_STYLES.OBCINE.DEFAULT_OPACITY
         ]);
 
-        // Posodobi filter klikov - onemogoči klike na izbrano občino
-        if (selectedObcinaId) {
+        // NOVA LOGIKA: Filter klikov samo za občine z katastri
+        if (selectedObcinaId && this.obcinaHasKatastre(selectedObcinaName)) {
+            // Če ima občina katastre, onemogoči klike (kot prej)
             this.map.setFilter(LAYER_IDS.OBCINE.FILL, [
                 '!=', ['get', 'OB_ID'], selectedObcinaId
             ]);
         } else {
+            // Če občina nima katastrov ali ni izbrane občine, omogoči vse klike
             this.map.setFilter(LAYER_IDS.OBCINE.FILL, null);
         }
 
@@ -236,9 +238,14 @@ class StatisticsLayerManager {
             selectedObcinaName
         );
 
+        // POPRAVKA: Občine fill layer naj bo viden:
+        // 1. Pri nizkem zoom-u (kot prej)
+        // 2. Če je izbrana občina (ne glede na to ali ima katastre)
+        const shouldShowObcineFill = isLowZoom || !!this.selectedObcinaName;
+
         return {
             obcine: {
-                fill: isLowZoom,
+                fill: shouldShowObcineFill, // Spremenjeno - viden tudi za občine brez katastrov
                 outline: true, // Vedno vidne za kontekst
                 labels: isLowZoom
             },
@@ -331,7 +338,7 @@ class StatisticsLayerManager {
             // Preveri ali je colorExpression veljaven
             if (!colorExpression || !Array.isArray(colorExpression)) {
                 console.warn('Invalid color expression, using default color');
-                this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-color', 'rgba(255, 255, 255, 0.8)'); 
+                this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-color', 'rgba(255, 255, 255, 0.8)');
                 return;
             }
 
