@@ -12,7 +12,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
     max_povrsina: null
   });
 
-  const availableYears = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015, 2014, 2013];
+  const availableYears = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015, 2014, 2013, 2012, 2011, 2010, 2009, 2008];
 
   const getDefaultRanges = () => {
     if (dataSourceType === 'prodaja') {
@@ -129,9 +129,9 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
 
   const formatCenaLabel = (value) => {
     if (dataSourceType === 'prodaja') {
-      return value >= 1000 ? `€${(value / 1000).toFixed(0)}k` : `€${value}`;
+      return value >= 1000 ? `${(value / 1000).toFixed(0)}k €` : `${value} €`;
     } else {
-      return `€${value}`;
+      return `${value} €`;
     }
   };
 
@@ -219,7 +219,6 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   disabled={isLoading}
                 >
-                  <option value="">Vsa leta</option>
                   {availableYears.map(year => (
                     <option key={year} value={year}>{year}</option>
                   ))}
@@ -308,7 +307,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
                   </div>
                   {(filters.min_povrsina || filters.max_povrsina) && (
                     <div className="text-xs text-gray-500">
-                      {filters.min_povrsina || '0'} - {filters.max_povrsina || '∞'} m²
+                      {filters.min_povrsina || '0'} m² - {filters.max_povrsina || '∞'} m²
                     </div>
                   )}
                 </div>
@@ -415,7 +414,6 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     disabled={isLoading}
                   >
-                    <option value="">Vsa leta</option>
                     {availableYears.map(year => (
                       <option key={year} value={year}>{year}</option>
                     ))}

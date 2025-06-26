@@ -120,6 +120,9 @@ const IndividualPopup = ({ properties, dataSourceType = 'prodaja' }) => {
     const propertyGrid = buildPropertyGrid(properties, povrsina);
     const priceSection = buildPriceSection(priceInfo);
     const buttonText = hasMultipleContracts ? 'Prikaži vse posle' : 'Več podrobnosti';
+    const delovStavbCount = properties.zadnje_stevilo_delov_stavb > 1 ? 
+    `<div class="text-gray-800 text-sm mb-1"> <span class="font-semibold text-black">${properties.zadnje_stevilo_delov_stavb}</span> delov stavb</div>` 
+    : '';
 
     
 
@@ -143,6 +146,7 @@ const IndividualPopup = ({ properties, dataSourceType = 'prodaja' }) => {
                 <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
                     <div class="text-center">
                         <div class="text-gray-600 text-sm mb-1">${priceInfo.cenaLabel}</div>
+                        ${delovStavbCount}
                         ${priceSection}
                     </div>
                 </div>

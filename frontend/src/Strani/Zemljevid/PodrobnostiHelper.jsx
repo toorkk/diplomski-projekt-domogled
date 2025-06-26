@@ -28,7 +28,7 @@ const getVrstaDelaStavbe = (vrsta) => {
         '13': 'Kmetijski objekt',
         '14': 'Tehnični ali pomožni prostori',
         '15': 'Drugo',
-        '16': 'Stanovanjska soba ali sobe'
+        '16': 'Stanovanjska soba ali sobe' // ta je samo za najemne, ne obstaja v kpp
     };
     return vrstaMap[vrsta] || `Vrsta ${vrsta} - neznano`;
 };

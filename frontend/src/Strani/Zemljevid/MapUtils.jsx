@@ -34,7 +34,7 @@ export const createPriceExpression = (dataSourceType) => {
                 '€',
                 [
                     'number-format',
-                    ['/', ['get', 'zadnja_cena'], 1000],
+                    ['round', ['/', ['get', 'zadnja_cena'], 1000]],
                     { 'max-fraction-digits': 0 }
                 ],
                 'k'
@@ -50,7 +50,7 @@ export const createPriceExpression = (dataSourceType) => {
                 '€',
                 [
                     'number-format',
-                    ['get', 'zadnja_najemnina'],
+                    ['round', ['get', 'zadnja_najemnina']],
                     { 'max-fraction-digits': 0 }
                 ],
                 '/m'
@@ -172,7 +172,7 @@ export const formatStatistics = (statistics, dataSourceType) => {
             trenutno_v_najemu: hiseData.trenutno_v_najemu
         } : null,
         tipPosla,
-        hasData: (stanovanjaData && stanovanjaData.stevilo_poslov > 0) || (hiseData && hiseData.stevilo_poslov > 0)
+        hasData: (stanovanjaData && (stanovanjaData.stevilo_poslov > 0 || stanovanjaData.aktivna_v_letu > 0)) || (hiseData && (hiseData.stevilo_poslov > 0 || hiseData.aktivna_v_letu > 0))
     };
 };
 
@@ -225,18 +225,19 @@ export const formatFilterSummary = (filters, dataSourceType) => {
     if (filters.filter_leto) {
         parts.push(`Leto: ${filters.filter_leto}`);
     }
+    else parts.push(`Leto: 2025`);
     
     if (filters.min_cena || filters.max_cena) {
-        const currency = dataSourceType === 'prodaja' ? '€' : '€/m';
-        const min = filters.min_cena ? `${filters.min_cena}${currency}` : '0';
-        const max = filters.max_cena ? `${filters.max_cena}${currency}` : '∞';
-        parts.push(`Cena: ${min} - ${max}`);
+        const currency = dataSourceType === 'prodaja' ? ' €' : ' € / mes';
+        const min = filters.min_cena ? `${filters.min_cena}` : '0';
+        const max = filters.max_cena ? `${filters.max_cena}` : '∞';
+        parts.push(`Cena: ${min} - ${max} ${currency}`);
     }
     
     if (filters.min_povrsina || filters.max_povrsina) {
         const min = filters.min_povrsina || '0';
         const max = filters.max_povrsina || '∞';
-        parts.push(`Površina: ${min} - ${max} m²`);
+        parts.push(`Površina: ${min} m² - ${max} m²`);
     }
     
     return parts.join(', ');

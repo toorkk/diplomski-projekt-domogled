@@ -19,7 +19,7 @@ CREATE TABLE core.np_del_stavbe (
   opremljenost          SMALLINT,
 
   opombe                TEXT,
-  leto_izgradnje_stavbe INTEGER,
+  leto_izgradnje_stavbe SMALLINT,
   dejanska_raba         VARCHAR(100),
   tip_rabe                    VARCHAR(50),     -- bivalno, shrambeno, poslovno, podrtija, drugo
   lega_v_stavbi         VARCHAR(20),
@@ -29,7 +29,7 @@ CREATE TABLE core.np_del_stavbe (
 
   -- podatki so pretvorjeni iz slovenskega sistema (SRID 3794) v WGS84
   coordinates           GEOMETRY(Point, 4326),
-  leto                  INTEGER
+  leto                  SMALLINT
 );
 
 
@@ -49,7 +49,7 @@ CREATE TABLE core.kpp_del_stavbe (
     dodatek_hs                              VARCHAR(10),
     stev_stanovanja                         INTEGER,
     vrsta_nepremicnine                      SMALLINT,
-    leto_izgradnje_stavbe                   INTEGER,
+    leto_izgradnje_stavbe                   SMALLINT,
     stavba_je_dokoncana                     INTEGER,
     gradbena_faza                           INTEGER,
     novogradnja                             INTEGER,
@@ -66,7 +66,7 @@ CREATE TABLE core.kpp_del_stavbe (
     pogodbena_cena                          NUMERIC(20,2),
     stopnja_ddv                             NUMERIC(5,2),
     coordinates                             GEOMETRY(Point, 4326),  -- podatki so pretvorjeni iz slovenskega sistema (SRID 3794) v WGS84
-    leto                                    INTEGER
+    leto                                    SMALLINT
 );
 
 
@@ -96,7 +96,7 @@ CREATE TABLE core.np_posel (
   vrsta_akta                   SMALLINT, -- samo za najemne
   trznost_posla                SMALLINT, --od 2015 dalje
 
-  leto                         INTEGER
+  leto                         SMALLINT
 );
 
 
@@ -115,7 +115,7 @@ CREATE TABLE core.kpp_posel (
     datum_zadnje_spremembe  DATE,
     datum_zadnje_uveljavitve DATE,
     trznost_posla           SMALLINT, --od 2015 dalje
-    leto                    INTEGER
+    leto                    SMALLINT
 );
 
 
@@ -143,14 +143,15 @@ CREATE TABLE core.np_del_stavbe_deduplicated (
 
     povrsina_uradna             NUMERIC(10,2),
     povrsina_uporabna           NUMERIC(10,2),
-    leto_izgradnje_stavbe       INTEGER,
+    leto_izgradnje_stavbe       SMALLINT,
     opremljenost                SMALLINT,
 
     zadnja_najemnina            NUMERIC(20,2),
     zadnje_vkljuceno_stroski    BOOLEAN,
     zadnje_vkljuceno_ddv        BOOLEAN,
     zadnja_stopnja_ddv          NUMERIC(5,2),
-    zadnje_leto                 INTEGER,
+    zadnje_leto                 SMALLINT,
+    zadnje_stevilo_delov_stavb  SMALLINT,
 
     povezani_del_stavbe_ids     INTEGER[]       NOT NULL,
     povezani_posel_ids          INTEGER[]       NOT NULL,
@@ -187,13 +188,14 @@ CREATE TABLE core.kpp_del_stavbe_deduplicated (
 
     povrsina_uradna             NUMERIC(10,2),
     povrsina_uporabna           NUMERIC(10,2),
-    leto_izgradnje_stavbe       INTEGER,
-    stevilo_sob                 INTEGER,       -- ta podatek se vec ne vpisuje
+    leto_izgradnje_stavbe       SMALLINT,
+    stevilo_sob                 SMALLINT,       -- ta podatek se vec ne vpisuje
 
     zadnja_cena                 NUMERIC(20,2),
     zadnje_vkljuceno_ddv        BOOLEAN,
     zadnja_stopnja_ddv          NUMERIC(5,2),
-    zadnje_leto                 INTEGER,
+    zadnje_leto                 SMALLINT,
+    zadnje_stevilo_delov_stavb  SMALLINT,
 
     povezani_del_stavbe_ids     INTEGER[]       NOT NULL,
     povezani_posel_ids          INTEGER[]       NOT NULL,

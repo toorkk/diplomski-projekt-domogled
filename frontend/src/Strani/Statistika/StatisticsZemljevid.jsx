@@ -878,7 +878,7 @@ export default function StatisticsZemljevid({
                                 backgroundColor: activeTab === 'prodaja' ? 'rgba(37, 99, 235, 0.8)' : 'rgba(5, 150, 105, 0.8)'
                             } : {}}
                         >
-                            Cene/m²
+                            Cena/m²
                         </button>
                     </div>
                 </div>

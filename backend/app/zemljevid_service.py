@@ -289,6 +289,9 @@ class DelStavbeService:
         # Pridobi vse povezane del_stavbe zapise, povezane posle, reprezentativni (zadnji) del stavbe in energetske izkaznice
         vsi_povezani_deli_stavb = db.query(DelStavbeModel).filter(
             DelStavbeModel.del_stavbe_id.in_(dedup_del_stavbe[0].povezani_del_stavbe_ids)
+        ).order_by(
+            DelStavbeModel.stevilka_stavbe.asc().nulls_last(),
+            DelStavbeModel.stevilka_dela_stavbe.asc().nulls_last()
         ).all()
 
         vsi_posli = db.query(PoselModel).filter(
@@ -368,6 +371,7 @@ class DelStavbeService:
             DeduplicatedModel.povrsina_uporabna,
             DeduplicatedModel.leto_izgradnje_stavbe,
             DeduplicatedModel.zadnje_leto,
+            DeduplicatedModel.zadnje_stevilo_delov_stavb,
             DeduplicatedModel.energetske_izkaznice,
             DeduplicatedModel.energijski_razred,
             DeduplicatedModel.povezani_posel_ids,
@@ -459,6 +463,7 @@ class DelStavbeService:
                 "stevilo_poslov": stevilo_poslov,
                 "ima_vec_poslov": stevilo_poslov > 1,
                 "zadnje_leto": del_stavbe.zadnje_leto,
+                "zadnje_stevilo_delov_stavb": del_stavbe.zadnje_stevilo_delov_stavb,
                 
                 **zadnji_posel_info,
                 

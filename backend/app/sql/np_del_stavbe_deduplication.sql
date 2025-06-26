@@ -11,6 +11,7 @@ INSERT INTO core.np_del_stavbe_deduplicated (
     povrsina_uradna, povrsina_uporabna,
     leto_izgradnje_stavbe, opremljenost,
     zadnja_najemnina, zadnje_vkljuceno_stroski, zadnje_vkljuceno_ddv, zadnja_stopnja_ddv, zadnje_leto,
+    zadnje_stevilo_delov_stavb,
     povezani_del_stavbe_ids, povezani_posel_ids, najnovejsi_del_stavbe_id, coordinates
 )
 WITH 
@@ -23,7 +24,7 @@ validne_nepremicnine AS (
         stevilka_stavbe, 
         stevilka_dela_stavbe
     FROM core.np_del_stavbe
-    WHERE vrsta_nepremicnine IN (1, 2) -- stanovanja in hise
+    WHERE vrsta_nepremicnine IN (1, 2, 16) -- stanovanja in hise in sobe
       AND tip_rabe = 'bivalno' -- vzami samo bivalne (ker so stanovanja in hise ki so steti kot npr vrteci)
       -- AND coordinates IS NOT NULL
       AND sifra_ko IS NOT NULL
@@ -41,6 +42,7 @@ vsi_posel_ids_nepremicnine AS (
         ARRAY_AGG(ds.posel_id ORDER BY 
             p.datum_zacetka_najemanja DESC NULLS LAST,
             p.datum_prenehanja_najemanja DESC NULLS LAST,
+            p.datum_sklenitve DESC NULLS LAST,  -- kot backup
             ds.posel_id DESC
         ) as vsi_povezani_posel_ids
     FROM validne_nepremicnine vn
@@ -73,14 +75,17 @@ najnovejsi_zapisi AS (
         ds.posel_id as najnovejsi_posel_id
     FROM validne_nepremicnine vn
     INNER JOIN core.np_del_stavbe ds USING (sifra_ko, stevilka_stavbe, stevilka_dela_stavbe)
+    INNER JOIN core.np_posel p ON ds.posel_id = p.posel_id
     WHERE ds.coordinates IS NOT NULL
     ORDER BY 
         vn.sifra_ko, vn.stevilka_stavbe, vn.stevilka_dela_stavbe,
         -- Prioriteta za izbiro "najnovejše" vrstice:
-        CASE WHEN ds.vrsta_nepremicnine IN (1, 2) THEN 0 ELSE 1 END,  -- 1. vzami samo domove
+        CASE WHEN ds.vrsta_nepremicnine IN (1, 2, 16) THEN 0 ELSE 1 END,  -- 1. vzami samo domove
         CASE WHEN ds.tip_rabe = 'bivalno' THEN 0 ELSE 1 END,  -- 1.2 vzami samo bivalne prostore
-        ds.leto DESC,                                                                -- 2. najnovejše leto
-        ds.del_stavbe_id DESC                                                       -- 3. najnovejši ID
+        p.datum_zacetka_najemanja DESC NULLS LAST,
+        p.datum_prenehanja_najemanja DESC NULLS LAST,
+        p.datum_sklenitve DESC NULLS LAST,
+        ds.posel_id DESC
 ),
 
 -- KORAK 4: Najdi vse povezane dele stavb preko poslov
@@ -97,7 +102,7 @@ vsi_povezani_del_stavbe AS (
 ),
 
 -- KORAK 5: Najdi najnovejše podatke poslov
--- =========================================
+-- ===============================================================
 zadnji_podatki_posel AS (
     SELECT DISTINCT ON (vpn.sifra_ko, vpn.stevilka_stavbe, vpn.stevilka_dela_stavbe)
         vpn.sifra_ko, 
@@ -107,13 +112,19 @@ zadnji_podatki_posel AS (
         posel.vkljuceno_stroski as najnov_vkljuceno_stroski,
         posel.vkljuceno_ddv as najnov_vkljuceno_ddv,
         posel.stopnja_ddv as najnov_stopnja_ddv,
-        EXTRACT(YEAR FROM posel.datum_sklenitve) as najnov_leto_sklenitve
+        EXTRACT(YEAR FROM posel.datum_sklenitve) as najnov_leto_sklenitve,
+        -- Preštej dele stavb za najnovejši posel
+        (SELECT COUNT(DISTINCT ds_count.del_stavbe_id) 
+         FROM core.np_del_stavbe ds_count 
+         WHERE ds_count.posel_id = posel.posel_id) as zadnje_stevilo_delov_stavb
     FROM vsi_posel_ids_nepremicnine vpn
     INNER JOIN core.np_posel posel ON posel.posel_id = ANY(vpn.vsi_povezani_posel_ids) 
                                     AND posel.datum_sklenitve IS NOT NULL
     ORDER BY vpn.sifra_ko, vpn.stevilka_stavbe, vpn.stevilka_dela_stavbe,
-             posel.datum_sklenitve DESC,
-             posel.posel_id DESC
+            posel.datum_zacetka_najemanja DESC NULLS LAST,
+            posel.datum_prenehanja_najemanja DESC NULLS LAST,
+            posel.datum_sklenitve DESC NULLS LAST,  -- kot backup
+            posel.posel_id DESC
 ),
 
 -- KORAK 6: Identificiraj podvojene najnovejše posle
@@ -161,6 +172,7 @@ SELECT
     zpp.najnov_vkljuceno_ddv as zadnje_vkljuceno_ddv,
     zpp.najnov_stopnja_ddv as zadnja_stopnja_ddv, 
     zpp.najnov_leto_sklenitve as zadnje_leto,
+    zpp.zadnje_stevilo_delov_stavb,
     
     -- Povezave
     vpds.vsi_povezani_del_stavbe_ids as povezani_del_stavbe_ids,
