@@ -58,16 +58,20 @@ CASE
 END as leto_izgradnje_stavbe,  
 LOWER(TRIM(d.dejanska_raba_dela_stavbe)) as dejanska_raba,
 LOWER(TRIM(d.lega_dela_stavbe_v_stavbi)) as lega_v_stavbi,
-
-d.povrsina_dela_stavbe as povrsina_uradna,
-d.uporabna_povrsina_dela_stavbe as povrsina_uporabna,
+CASE 
+    WHEN d.povrsina_dela_stavbe  > 0 THEN d.povrsina_dela_stavbe 
+    ELSE NULL 
+END as povrsina_uradna,
+CASE 
+    WHEN d.uporabna_povrsina_dela_stavbe  > 0 THEN d.uporabna_povrsina_dela_stavbe 
+    ELSE NULL 
+END as povrsina_uporabna,
 d.prostori_dela_stavbe,
-
 ST_Transform(ST_SetSRID(ST_MakePoint(d.e_centroid, d.n_centroid), 3794), 4326),
 d.leto
 FROM staging.np_del_stavbe d
 WHERE d.vrsta_oddanih_prostorov IS NOT NULL
-AND sifra_ko IS NOT NULL 
+AND sifra_ko IS NOT NULL
 AND stevilka_stavbe IS NOT NULL 
 AND stevilka_dela_stavbe IS NOT NULL 
 AND id_posla IS NOT NULL;
