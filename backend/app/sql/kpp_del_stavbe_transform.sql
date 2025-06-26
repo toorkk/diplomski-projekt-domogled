@@ -65,11 +65,11 @@ SELECT
     LOWER(TRIM(lega_dela_stavbe_v_stavbi)) as lega_dela_stavbe_v_stavbi,
     stevilo_sob,
     CASE 
-        WHEN povrsina_uradna > 0 THEN povrsina_uradna
+        WHEN povrsina_dela_stavbe  > 0 THEN povrsina_dela_stavbe 
         ELSE NULL 
     END as povrsina_uradna,
     CASE 
-        WHEN povrsina_uporabna > 0 THEN povrsina_uporabna
+        WHEN uporabna_povrsina  > 0 THEN uporabna_povrsina 
         ELSE NULL 
     END as povrsina_uporabna,
     prostori_dela_stavbe,
