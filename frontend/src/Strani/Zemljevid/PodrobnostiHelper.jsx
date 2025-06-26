@@ -28,7 +28,7 @@ const getVrstaDelaStavbe = (vrsta) => {
         '13': 'Kmetijski objekt',
         '14': 'Tehnični ali pomožni prostori',
         '15': 'Drugo',
-        '16': 'Stanovanjska soba ali sobe'
+        '16': 'Stanovanjska soba ali sobe' // ta je samo za najemne, ne obstaja v kpp
     };
     return vrstaMap[vrsta] || `Vrsta ${vrsta} - neznano`;
 };
@@ -124,22 +124,42 @@ const getEnergyClassColor = (razred) => {
 const getColorClasses = (dataSource) => {
     const isNajem = dataSource === 'np';
     return {
-        headerBg: isNajem ? 'bg-emerald-400' : 'bg-blue-300',
+        headerBg: isNajem ? 'bg-emerald-400' : 'bg-blue-400',
         headerText: 'text-gray-800',
-        badgeBg: isNajem ? 'bg-emerald-400' : 'bg-blue-300',
-        buttonBg: isNajem ? 'bg-emerald-400' : 'bg-blue-300',
-        buttonHover: isNajem ? 'hover:bg-emerald-500' : 'hover:bg-blue-400'
+        badgeBg: isNajem ? 'bg-emerald-400' : 'bg-blue-400',
+        buttonBg: isNajem ? 'bg-emerald-400' : 'bg-blue-400',
+        buttonHover: isNajem ? 'hover:bg-emerald-00' : 'hover:bg-blue-600'
     };
 };
 
 const getNaslov = (delStavbe) => {
+    if (!delStavbe) return null;
+
+    const parts = [];
+    if (delStavbe.obcina) parts.push(`${delStavbe.obcina},`);
+    if (delStavbe.naselje && delStavbe.naselje !== delStavbe.obcina && !delStavbe.ulica?.includes(delStavbe.naselje) && !delStavbe.naselje?.includes(delStavbe.ulica)) parts.push(`${delStavbe.naselje},`);
+    if (delStavbe.ulica) parts.push(delStavbe.ulica);
+    if (delStavbe.hisna_stevilka) parts.push(delStavbe.hisna_stevilka);
+    if (delStavbe.dodatek_hs) parts.push(delStavbe.dodatek_hs);
+
+    if (!delStavbe.ulica && !delStavbe.hisna_stevilka && !delStavbe.dodatek_hs) parts.push('NEZNAN NASLOV')
+    
+    const addressText = parts.join(' ');
+    
+    return addressText
+};
+
+const getNaslovString = (delStavbe) => {
     if (!delStavbe) return '';
 
     const parts = [];
     if (delStavbe.ulica) parts.push(delStavbe.ulica);
     if (delStavbe.hisna_stevilka) parts.push(delStavbe.hisna_stevilka);
     if (delStavbe.dodatek_hs) parts.push(delStavbe.dodatek_hs);
-    return parts.join(' ');
+
+    const addressText = parts.length > 0 ? parts.join(' ') : 'NEZNAN NASLOV';
+    
+    return addressText;
 };
 
 const getNaslovDodatek = (delStavbe) => {
@@ -163,6 +183,49 @@ const getCeloStDelaStavbe = (delStavbe) => {
     return celoStDelaStavbe;
 };
 
+const sortPosli  = (posli, dataSource) => {
+    return posli.sort((a, b) => {
+
+        let sortingDatumA, sortingDatumB;
+
+        if (dataSource === 'np') {
+
+            if (a.datum_zacetka_najemanja === b.datum_zacetka_najemanja) {
+                sortingDatumA = a.datum_zakljucka_najema;
+                sortingDatumB = b.datum_zakljucka_najema;
+            } else {
+                sortingDatumA = a.datum_zacetka_najemanja;
+                sortingDatumB = b.datum_zacetka_najemanja;
+            }
+
+        } else {
+
+            if (a.datum_sklenitve === b.datum_sklenitve) {
+                sortingDatumA = a.datum_uveljavitve;
+                sortingDatumB = b.datum_uveljavitve;
+            } else {
+                sortingDatumA = a.datum_sklenitve;
+                sortingDatumB = b.datum_sklenitve;
+            }
+
+        }
+
+        if (!sortingDatumA && !sortingDatumB) return 0;
+        if (!sortingDatumA) return 1;
+        if (!sortingDatumB) return -1;
+
+        return new Date(sortingDatumB) - new Date(sortingDatumA);
+    });
+}
+
+const sortEnergetskeIzkaznice = (ei) => {
+    return ei.sort((a, b) => {
+        if (!a.datum_izdelave) return 1;
+        if (!b.datum_izdelave) return -1;
+        return new Date(b.datum_izdelave) - new Date(a.datum_izdelave);
+    });
+}
+
 export {
     getTrznostPosla,
     getVrstaDelaStavbe,
@@ -178,5 +241,8 @@ export {
     getColorClasses,
     getNaslov,
     getNaslovDodatek,
-    getCeloStDelaStavbe
+    getCeloStDelaStavbe,
+    sortPosli  as sortPosli,
+    sortEnergetskeIzkaznice,
+    getNaslovString
 };

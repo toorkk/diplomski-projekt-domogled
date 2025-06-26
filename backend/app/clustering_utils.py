@@ -90,10 +90,11 @@ def apply_del_stavbe_filters(query, DeduplicatedModel, filters: dict, data_sourc
     Dodaj filtre queryju
     """
     if not filters:
-        return query
+        filters = {}
     
-    if filters.get('filter_leto'):
-        query = query.filter(DeduplicatedModel.zadnje_leto >= filters['filter_leto'])
+    # Nastavi privzeto leto če ni podano
+    filter_leto = filters.get('filter_leto', 2025)
+    query = query.filter(DeduplicatedModel.zadnje_leto >= filter_leto)
     
     if data_source.lower() == "np":
         if filters.get('min_cena'):

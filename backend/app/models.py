@@ -54,6 +54,7 @@ class NpDelStavbeDeduplicated(Base):
     stevilka_dela_stavbe = Column(Integer, nullable=False)
     dejanska_raba = Column(String(310), nullable=False)
     tip_rabe = Column(String(50))
+    vrsta_nepremicnine = Column(SmallInteger)
     
     obcina = Column(String(102))
     naselje = Column(String(103))
@@ -71,8 +72,9 @@ class NpDelStavbeDeduplicated(Base):
     zadnje_vkljuceno_stroski = Column(Boolean)
     zadnje_vkljuceno_ddv = Column(Boolean)
     zadnja_stopnja_ddv = Column(Numeric(5, 2))
-    zadnje_leto = Column(Integer)
-    
+    zadnje_leto = Column(SmallInteger)
+    zadnje_stevilo_delov_stavb = Column(SmallInteger)
+
     povezani_del_stavbe_ids = Column(ARRAY(Integer), nullable=False)
     povezani_posel_ids = Column(ARRAY(Integer), nullable=False)
     najnovejsi_del_stavbe_id = Column(Integer, nullable=False)
@@ -168,6 +170,7 @@ class KppDelStavbeDeduplicated(Base):
     stevilka_dela_stavbe = Column(Integer, nullable=False)
     dejanska_raba = Column(String(310), nullable=False)
     tip_rabe = Column(String(50))
+    vrsta_nepremicnine = Column(SmallInteger)
     
     obcina = Column(String(102))
     naselje = Column(String(103))
@@ -184,7 +187,8 @@ class KppDelStavbeDeduplicated(Base):
     zadnja_cena = Column(Numeric(20, 2))
     zadnje_vkljuceno_ddv = Column(Boolean)
     zadnja_stopnja_ddv = Column(Numeric(5, 2))
-    zadnje_leto = Column(Integer)
+    zadnje_leto = Column(SmallInteger)
+    zadnje_stevilo_delov_stavb = Column(SmallInteger)
     
     povezani_del_stavbe_ids = Column(ARRAY(Integer), nullable=False)
     povezani_posel_ids = Column(ARRAY(Integer), nullable=False)

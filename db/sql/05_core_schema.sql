@@ -19,7 +19,7 @@ CREATE TABLE core.np_del_stavbe (
   opremljenost          SMALLINT,
 
   opombe                TEXT,
-  leto_izgradnje_stavbe INTEGER,
+  leto_izgradnje_stavbe SMALLINT,
   dejanska_raba         VARCHAR(100),
   tip_rabe                    VARCHAR(50),     -- bivalno, shrambeno, poslovno, podrtija, drugo
   lega_v_stavbi         VARCHAR(20),
@@ -29,7 +29,7 @@ CREATE TABLE core.np_del_stavbe (
 
   -- podatki so pretvorjeni iz slovenskega sistema (SRID 3794) v WGS84
   coordinates           GEOMETRY(Point, 4326),
-  leto                  INTEGER
+  leto                  SMALLINT
 );
 
 
@@ -49,7 +49,7 @@ CREATE TABLE core.kpp_del_stavbe (
     dodatek_hs                              VARCHAR(10),
     stev_stanovanja                         INTEGER,
     vrsta_nepremicnine                      SMALLINT,
-    leto_izgradnje_stavbe                   INTEGER,
+    leto_izgradnje_stavbe                   SMALLINT,
     stavba_je_dokoncana                     INTEGER,
     gradbena_faza                           INTEGER,
     novogradnja                             INTEGER,
@@ -66,7 +66,7 @@ CREATE TABLE core.kpp_del_stavbe (
     pogodbena_cena                          NUMERIC(20,2),
     stopnja_ddv                             NUMERIC(5,2),
     coordinates                             GEOMETRY(Point, 4326),  -- podatki so pretvorjeni iz slovenskega sistema (SRID 3794) v WGS84
-    leto                                    INTEGER
+    leto                                    SMALLINT
 );
 
 
@@ -96,7 +96,7 @@ CREATE TABLE core.np_posel (
   vrsta_akta                   SMALLINT, -- samo za najemne
   trznost_posla                SMALLINT, --od 2015 dalje
 
-  leto                         INTEGER
+  leto                         SMALLINT
 );
 
 
@@ -115,7 +115,7 @@ CREATE TABLE core.kpp_posel (
     datum_zadnje_spremembe  DATE,
     datum_zadnje_uveljavitve DATE,
     trznost_posla           SMALLINT, --od 2015 dalje
-    leto                    INTEGER
+    leto                    SMALLINT
 );
 
 
@@ -143,14 +143,15 @@ CREATE TABLE core.np_del_stavbe_deduplicated (
 
     povrsina_uradna             NUMERIC(10,2),
     povrsina_uporabna           NUMERIC(10,2),
-    leto_izgradnje_stavbe       INTEGER,
+    leto_izgradnje_stavbe       SMALLINT,
     opremljenost                SMALLINT,
 
     zadnja_najemnina            NUMERIC(20,2),
     zadnje_vkljuceno_stroski    BOOLEAN,
     zadnje_vkljuceno_ddv        BOOLEAN,
     zadnja_stopnja_ddv          NUMERIC(5,2),
-    zadnje_leto                 INTEGER,
+    zadnje_leto                 SMALLINT,
+    zadnje_stevilo_delov_stavb  SMALLINT,
 
     povezani_del_stavbe_ids     INTEGER[]       NOT NULL,
     povezani_posel_ids          INTEGER[]       NOT NULL,
@@ -187,13 +188,14 @@ CREATE TABLE core.kpp_del_stavbe_deduplicated (
 
     povrsina_uradna             NUMERIC(10,2),
     povrsina_uporabna           NUMERIC(10,2),
-    leto_izgradnje_stavbe       INTEGER,
-    stevilo_sob                 INTEGER,       -- ta podatek se vec ne vpisuje
+    leto_izgradnje_stavbe       SMALLINT,
+    stevilo_sob                 SMALLINT,       -- ta podatek se vec ne vpisuje
 
     zadnja_cena                 NUMERIC(20,2),
     zadnje_vkljuceno_ddv        BOOLEAN,
     zadnja_stopnja_ddv          NUMERIC(5,2),
-    zadnje_leto                 INTEGER,
+    zadnje_leto                 SMALLINT,
+    zadnje_stevilo_delov_stavb  SMALLINT,
 
     povezani_del_stavbe_ids     INTEGER[]       NOT NULL,
     povezani_posel_ids          INTEGER[]       NOT NULL,
@@ -231,66 +233,79 @@ CREATE TABLE core.energetska_izkaznica (
 
 
 
+-- NP DEL STAVBE
 DROP INDEX IF EXISTS core.idx_np_del_stavbe_coordinates;
 DROP INDEX IF EXISTS core.idx_np_del_stavbe_ko_stavba;
 DROP INDEX IF EXISTS core.idx_np_del_stavbe_posel_id;
+DROP INDEX IF EXISTS core.idx_np_del_stavbe_nepremicnina_tip;
+DROP INDEX IF EXISTS core.idx_np_del_stavbe_posel_leto;
 
-CREATE INDEX idx_np_del_stavbe_coordinates  ON core.np_del_stavbe USING GIST(coordinates);
-CREATE INDEX idx_np_del_stavbe_ko_stavba    ON core.np_del_stavbe(sifra_ko, stevilka_stavbe);
-CREATE INDEX idx_np_del_stavbe_posel_id     ON core.np_del_stavbe(posel_id);
+CREATE INDEX idx_np_del_stavbe_coordinates  ON core.np_del_stavbe USING GIST (coordinates);
+CREATE INDEX idx_np_del_stavbe_ko_stavba    ON core.np_del_stavbe (sifra_ko, stevilka_stavbe);
+CREATE INDEX idx_np_del_stavbe_posel_id     ON core.np_del_stavbe (posel_id);
+
+CREATE INDEX idx_np_del_stavbe_nepremicnina_tip ON core.np_del_stavbe (sifra_ko, stevilka_stavbe, stevilka_dela_stavbe) 
+WHERE vrsta_nepremicnine IN (1, 2) AND coordinates IS NOT NULL;
+
+CREATE INDEX idx_np_del_stavbe_posel_leto ON core.np_del_stavbe (
+    posel_id, 
+    leto DESC, 
+    del_stavbe_id DESC
+);
 
 
+-- KPP DEL STAVBE
 DROP INDEX IF EXISTS core.idx_kpp_del_stavbe_coordinates;
 DROP INDEX IF EXISTS core.idx_kpp_del_stavbe_ko_stavba;
 DROP INDEX IF EXISTS core.idx_kpp_del_stavbe_posel_id;
+DROP INDEX IF EXISTS core.idx_kpp_del_stavbe_nepremicnina_tip;
+DROP INDEX IF EXISTS core.idx_kpp_del_stavbe_posel_leto;
 
-CREATE INDEX idx_kpp_del_stavbe_coordinates ON core.kpp_del_stavbe USING GIST(coordinates);
-CREATE INDEX idx_kpp_del_stavbe_ko_stavba   ON core.kpp_del_stavbe(sifra_ko, stevilka_stavbe);
-CREATE INDEX idx_kpp_del_stavbe_posel_id    ON core.kpp_del_stavbe(posel_id);
+CREATE INDEX idx_kpp_del_stavbe_coordinates ON core.kpp_del_stavbe USING GIST (coordinates);
+CREATE INDEX idx_kpp_del_stavbe_ko_stavba   ON core.kpp_del_stavbe (sifra_ko, stevilka_stavbe);
+CREATE INDEX idx_kpp_del_stavbe_posel_id    ON core.kpp_del_stavbe (posel_id);
+
+CREATE INDEX idx_kpp_del_stavbe_nepremicnina_tip ON core.kpp_del_stavbe (sifra_ko, stevilka_stavbe, stevilka_dela_stavbe) 
+WHERE vrsta_nepremicnine IN (1, 2) AND coordinates IS NOT NULL;
+
+CREATE INDEX idx_kpp_del_stavbe_posel_leto ON core.kpp_del_stavbe (
+    posel_id, 
+    leto DESC, 
+    del_stavbe_id DESC
+);
 
 
+-- NP DEDUPLICIRANI
 DROP INDEX IF EXISTS core.idx_np_del_stavbe_deduplicated_building;
 DROP INDEX IF EXISTS core.idx_np_del_stavbe_deduplicated_coords;
 DROP INDEX IF EXISTS core.idx_np_del_stavbe_deduplicated_related_ids;
+DROP INDEX IF EXISTS core.idx_np_del_stavbe_deduplicated_obcina;
+DROP INDEX IF EXISTS core.idx_np_del_stavbe_deduplicated_filters;
+DROP INDEX IF EXISTS core.idx_np_del_stavbe_deduplicated_leto_desc;
 
-CREATE INDEX idx_np_del_stavbe_deduplicated_building        ON core.np_del_stavbe_deduplicated (sifra_ko, stevilka_stavbe);
+CREATE INDEX idx_np_del_stavbe_deduplicated_building        ON core.np_del_stavbe_deduplicated (obcina, sifra_ko, stevilka_stavbe);
 CREATE INDEX idx_np_del_stavbe_deduplicated_coords          ON core.np_del_stavbe_deduplicated USING GIST (coordinates);
 CREATE INDEX idx_np_del_stavbe_deduplicated_related_ids     ON core.np_del_stavbe_deduplicated USING GIN (povezani_del_stavbe_ids);
+CREATE INDEX idx_np_del_stavbe_deduplicated_obcina          ON core.np_del_stavbe_deduplicated (obcina);
+CREATE INDEX idx_np_del_stavbe_deduplicated_filters         ON core.np_del_stavbe_deduplicated (zadnje_leto DESC, zadnja_najemnina DESC, povrsina_uradna);
+CREATE INDEX idx_np_del_stavbe_deduplicated_leto_desc       ON core.np_del_stavbe_deduplicated (zadnje_leto DESC);
 
-
+-- KPP DEDUPLICIRANI
 DROP INDEX IF EXISTS core.idx_kpp_del_stavbe_deduplicated_building;
 DROP INDEX IF EXISTS core.idx_kpp_del_stavbe_deduplicated_coords;
 DROP INDEX IF EXISTS core.idx_kpp_del_stavbe_deduplicated_related_ids;
+DROP INDEX IF EXISTS core.idx_kpp_del_stavbe_deduplicated_obcina;
+DROP INDEX IF EXISTS core.idx_kpp_del_stavbe_deduplicated_filters;
+DROP INDEX IF EXISTS core.idx_np_del_stavbe_deduplicated_leto_desc;
 
-CREATE INDEX idx_kpp_del_stavbe_deduplicated_building       ON core.kpp_del_stavbe_deduplicated (sifra_ko, stevilka_stavbe);
+CREATE INDEX idx_kpp_del_stavbe_deduplicated_building       ON core.kpp_del_stavbe_deduplicated (obcina, sifra_ko, stevilka_stavbe);
 CREATE INDEX idx_kpp_del_stavbe_deduplicated_coords         ON core.kpp_del_stavbe_deduplicated USING GIST (coordinates);
 CREATE INDEX idx_kpp_del_stavbe_deduplicated_related_ids    ON core.kpp_del_stavbe_deduplicated USING GIN (povezani_del_stavbe_ids);
+CREATE INDEX idx_kpp_del_stavbe_deduplicated_obcina         ON core.kpp_del_stavbe_deduplicated (obcina);
+CREATE INDEX idx_kpp_del_stavbe_deduplicated_filters        ON core.kpp_del_stavbe_deduplicated (zadnje_leto DESC, zadnja_cena DESC, povrsina_uradna);
+CREATE INDEX idx_np_del_stavbe_deduplicated_leto_desc       ON core.np_del_stavbe_deduplicated (zadnje_leto DESC);
 
-
+-- ENERGETSKE IZKAZNICE
 DROP INDEX IF EXISTS core.idx_energetska_izkaznica_ko_stavba;
 
 CREATE INDEX idx_energetska_izkaznica_ko_stavba ON core.energetska_izkaznica(sifra_ko, stevilka_stavbe, stevilka_dela_stavbe);
-
-
--- dodatni indeksi za deduplication
-CREATE INDEX IF NOT EXISTS idx_np_del_stavbe_nepremicnina_tip 
-ON core.np_del_stavbe (sifra_ko, stevilka_stavbe, stevilka_dela_stavbe) 
-WHERE vrsta_nepremicnine IN (1, 2) AND coordinates IS NOT NULL;
-
-CREATE INDEX IF NOT EXISTS idx_np_del_stavbe_posel_leto 
-ON core.np_del_stavbe (posel_id, leto DESC, del_stavbe_id DESC);
-
-CREATE INDEX IF NOT EXISTS idx_np_posel_datum_sort 
-ON core.np_posel (datum_sklenitve DESC NULLS LAST, posel_id DESC) 
-WHERE datum_sklenitve IS NOT NULL;
-
-CREATE INDEX IF NOT EXISTS idx_kpp_del_stavbe_nepremicnina_tip 
-ON core.kpp_del_stavbe (sifra_ko, stevilka_stavbe, stevilka_dela_stavbe) 
-WHERE vrsta_nepremicnine IN (1, 2) AND coordinates IS NOT NULL;
-
-CREATE INDEX IF NOT EXISTS idx_kpp_del_stavbe_posel_leto 
-ON core.kpp_del_stavbe (posel_id, leto DESC, del_stavbe_id DESC);
-
-CREATE INDEX IF NOT EXISTS idx_kpp_posel_datum_sort 
-ON core.kpp_posel (datum_sklenitve DESC NULLS LAST, posel_id DESC) 
-WHERE datum_sklenitve IS NOT NULL;

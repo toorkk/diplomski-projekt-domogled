@@ -14,7 +14,7 @@ export default function StatistikePanel({
     activeTab = 'prodaja' // Dodamo activeTab prop
 }) {
     const [isOpen, setIsOpen] = useState(false);
-    
+
     // Če ni nobena regija izbrana, ne prikaži nič
     if (!selectedMunicipality && !selectedObcina) {
         return null;
@@ -27,8 +27,8 @@ export default function StatistikePanel({
         ? formatStatistics(municipalityStatistics, dataSourceType)
         : formatStatistics(obcinaStatistics, dataSourceType);
 
-    const regionName = selectedMunicipality 
-        ? selectedMunicipality.name 
+    const regionName = selectedMunicipality
+        ? selectedMunicipality.name
         : selectedObcina.name;
 
     const regionType = selectedMunicipality ? 'Kataster' : 'Občina';
@@ -79,7 +79,7 @@ export default function StatistikePanel({
     return (
         <>
             {/* Gumb za odpiranje statistik - vedno viden ko je panel zaprt */}
-            <div 
+            <div
                 onClick={() => setIsOpen(true)}
                 className="fixed bottom-4 z-10 left-1/2 transform -translate-x-1/2 bg-white shadow-lg border border-gray-200 hover:bg-gray-50 transition-all duration-300 flex items-center justify-between px-4 py-3 cursor-pointer"
                 style={{
@@ -94,7 +94,7 @@ export default function StatistikePanel({
                         <div className="text-sm font-semibold text-gray-800 truncate">{regionName}</div>
                     </div>
                 </div>
-                
+
                 <div className="flex items-center space-x-2 flex-shrink-0">
                     {statisticsLoading ? (
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
@@ -167,15 +167,15 @@ export default function StatistikePanel({
 }
 
 // komponenta za prikaz statistik
-function StatistikeContent({ 
-    stats, 
-    statisticsLoading, 
-    onGoToStatistics, 
-    hasActiveFilters, 
-    activeFilters, 
-    dataSourceType, 
+function StatistikeContent({
+    stats,
+    statisticsLoading,
+    onGoToStatistics,
+    hasActiveFilters,
+    activeFilters,
+    dataSourceType,
     isDesktop,
-    activeTab = 'prodaja' 
+    activeTab = 'prodaja'
 }) {
     if (statisticsLoading) {
         return (
@@ -188,43 +188,44 @@ function StatistikeContent({
         );
     }
 
-    if (!stats || !stats.hasData) {
-        return (
-            <div className={`text-center ${isDesktop ? 'py-2' : 'py-6'}`}>
-                <div className="text-gray-400">
-                    <svg className={`mx-auto mb-${isDesktop ? '1' : '2'} ${isDesktop ? 'w-5 h-5' : 'w-8 h-8'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <div className={isDesktop ? 'text-sm' : 'text-sm'}>Ni podatkov za zadnjih 12 mesecev</div>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className="space-y-4">
-            {/* Obdobje */}
+
+            {(!stats || !stats.hasData) &&
+                <div className={`text-center ${isDesktop ? 'py-2' : 'py-6'}`}>
+                    <div className="text-gray-400">
+                        <svg className={`mx-auto mb-${isDesktop ? '1' : '2'} ${isDesktop ? 'w-5 h-5' : 'w-8 h-8'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <div className={isDesktop ? 'text-sm' : 'text-sm'}>Ni podatkov za zadnjih 12 mesecev</div>
+                    </div>
+                </div>
+            }
+
+            {/* Statistike */}
+            {(stats && stats.hasData) && 
+            <>
             <div className="text-sm text-gray-700 bg-gray-50 px-2 py-2 rounded-md text-center">
                 Podatki za zadnjih 12 mesecev
             </div>
-
-            {/* Statistike */}
             <div className={isDesktop ? 'grid grid-cols-2 gap-3' : 'space-y-3'}>
-                <PropertyTypeBoks 
+                <PropertyTypeBoks
                     type="stanovanja"
-                    data={stats.stanovanja} 
+                    data={stats.stanovanja}
                     tipPosla={stats.tipPosla}
                     isDesktop={isDesktop}
                     activeTab={activeTab}
                 />
-                <PropertyTypeBoks 
+                <PropertyTypeBoks
                     type="hise"
-                    data={stats.hise} 
+                    data={stats.hise}
                     tipPosla={stats.tipPosla}
                     isDesktop={isDesktop}
                     activeTab={activeTab}
                 />
             </div>
+            </>
+            }
 
             {/* Gumb za statistike */}
             <button
@@ -239,7 +240,6 @@ function StatistikeContent({
             </button>
 
             {/* Filtri */}
-            {hasActiveFilters && (
                 <div className={`${isDesktop ? 'mt-4 ' : ''}pt-3 border-t border-gray-100`}>
                     <div className="text-xs text-gray-500">
                         <div className="flex items-center space-x-1 mb-1">
@@ -253,7 +253,6 @@ function StatistikeContent({
                         </div>
                     </div>
                 </div>
-            )}
         </div>
     );
 }
@@ -263,7 +262,7 @@ function PropertyTypeBoks({ type, data, tipPosla, isDesktop, activeTab }) {
     const getColors = (propertyType, transactionType) => {
         // Preverimo oba možna načina označevanja najema
         const isRental = transactionType === 'najem' || transactionType === 'najemnina';
-        
+
         if (!isRental) { // prodaja
             if (propertyType === 'hise') {
                 return {
@@ -311,7 +310,7 @@ function PropertyTypeBoks({ type, data, tipPosla, isDesktop, activeTab }) {
 
     return (
         <div className={`${colors.borderColor} border rounded-lg overflow-hidden`}>
-            <div 
+            <div
                 className="px-3 py-2 flex items-center space-x-2"
                 style={{ backgroundColor: colors.headerBg }}
             >
@@ -321,7 +320,7 @@ function PropertyTypeBoks({ type, data, tipPosla, isDesktop, activeTab }) {
                 <h4 className="text-sm font-semibold text-white">{title}</h4>
             </div>
             <div className="p-3">
-                {data && data.stevilo_poslov > 0 ? (
+                {data && (data.stevilo_poslov > 0 || data.aktivna_v_letu > 0) ? (
                     isDesktop ? (
                         // Desktop layout
                         <>
@@ -338,7 +337,7 @@ function PropertyTypeBoks({ type, data, tipPosla, isDesktop, activeTab }) {
                                 </div>
                             </div>
                             {data.povprecna_cena_m2 && (
-                                <div 
+                                <div
                                     className="rounded p-2 text-xs mt-2"
                                     style={{ backgroundColor: colors.contentBg }}
                                 >
@@ -349,7 +348,7 @@ function PropertyTypeBoks({ type, data, tipPosla, isDesktop, activeTab }) {
                                 </div>
                             )}
                             {data.povprecna_skupna_cena && (
-                                <div 
+                                <div
                                     className="rounded p-2 text-xs mt-2"
                                     style={{ backgroundColor: colors.contentBg }}
                                 >
@@ -381,14 +380,14 @@ function PropertyTypeBoks({ type, data, tipPosla, isDesktop, activeTab }) {
                                 <div className={`font-bold text-lg`}>
                                     {data.povprecna_cena_m2 ? Math.round(data.povprecna_cena_m2).toLocaleString('sl-SI') : 'N/A'}
                                 </div>
-                                <div className="text-xs text-gray-400">€{tipPosla === 'najem' ? ' / mes' : ''}</div>
+                                <div className="text-xs text-gray-400"> €{tipPosla === 'najem' ? ' / mes' : ''}</div>
                             </div>
                             <div>
                                 <div className="text-xs text-gray-500">{tipPosla === 'prodaja' ? 'Cena' : 'Najem'}</div>
                                 <div className={`font-bold text-lg`}>
                                     {data.povprecna_skupna_cena ? Math.round(data.povprecna_skupna_cena).toLocaleString('sl-SI') : 'N/A'}
                                 </div>
-                                <div className="text-xs text-gray-400">€{tipPosla === 'najem' ? ' / mes' : ''}</div>
+                                <div className="text-xs text-gray-400"> €{tipPosla === 'najem' ? ' / mes' : ''}</div>
                             </div>
                         </div>
                     )

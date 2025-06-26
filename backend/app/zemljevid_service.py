@@ -38,8 +38,12 @@ class DelStavbeService:
             ST_X(DeduplicatedModel.coordinates).label('lng'),
             ST_Y(DeduplicatedModel.coordinates).label('lat'),
             DeduplicatedModel.dejanska_raba,
-        ).filter(ST_Intersects(DeduplicatedModel.coordinates, bbox_geom))
-        
+        )
+
+        if zoom >= 8.6: 
+            base_query = base_query.filter(ST_Intersects(DeduplicatedModel.coordinates, bbox_geom))   
+
+
         base_query = apply_del_stavbe_filters(base_query, DeduplicatedModel, filters, data_source)
         
         # Dodaj data_source specifične podatke
@@ -285,10 +289,16 @@ class DelStavbeService:
         # Pridobi vse povezane del_stavbe zapise, povezane posle, reprezentativni (zadnji) del stavbe in energetske izkaznice
         vsi_povezani_deli_stavb = db.query(DelStavbeModel).filter(
             DelStavbeModel.del_stavbe_id.in_(dedup_del_stavbe[0].povezani_del_stavbe_ids)
+        ).order_by(
+            DelStavbeModel.stevilka_stavbe.asc().nulls_last(),
+            DelStavbeModel.stevilka_dela_stavbe.asc().nulls_last()
         ).all()
 
         vsi_posli = db.query(PoselModel).filter(
             PoselModel.posel_id.in_(dedup_del_stavbe[0].povezani_posel_ids)
+        ).order_by(
+            PoselModel.datum_sklenitve.desc().nulls_last(),
+            PoselModel.datum_uveljavitve.desc().nulls_last()
         ).all()
         
         representative_del_stavbe = db.query(DelStavbeModel).filter(
@@ -350,7 +360,7 @@ class DelStavbeService:
             DeduplicatedModel.sifra_ko,
             DeduplicatedModel.stevilka_stavbe,
             DeduplicatedModel.stevilka_dela_stavbe,
-            DeduplicatedModel.dejanska_raba,
+            DeduplicatedModel.vrsta_nepremicnine,
             DeduplicatedModel.obcina,
             DeduplicatedModel.naselje,
             DeduplicatedModel.ulica,
@@ -361,9 +371,11 @@ class DelStavbeService:
             DeduplicatedModel.povrsina_uporabna,
             DeduplicatedModel.leto_izgradnje_stavbe,
             DeduplicatedModel.zadnje_leto,
+            DeduplicatedModel.zadnje_stevilo_delov_stavb,
             DeduplicatedModel.energetske_izkaznice,
             DeduplicatedModel.energijski_razred,
             DeduplicatedModel.povezani_posel_ids,
+            DeduplicatedModel.povezani_del_stavbe_ids,
             ST_X(DeduplicatedModel.coordinates).label('lng'),
             ST_Y(DeduplicatedModel.coordinates).label('lat')
         )
@@ -433,7 +445,7 @@ class DelStavbeService:
                 "sifra_ko": del_stavbe.sifra_ko,
                 "stevilka_stavbe": del_stavbe.stevilka_stavbe,
                 "stevilka_dela_stavbe": del_stavbe.stevilka_dela_stavbe,
-                "dejanska_raba": del_stavbe.dejanska_raba,
+                "vrsta_nepremicnine": del_stavbe.vrsta_nepremicnine,
                 
                 "obcina": del_stavbe.obcina,
                 "naselje": del_stavbe.naselje,
@@ -442,8 +454,8 @@ class DelStavbeService:
                 "dodatek_hs": del_stavbe.dodatek_hs,
                 "stev_stanovanja": del_stavbe.stev_stanovanja,
                 
-                "povrsina_uradna": float(del_stavbe.povrsina_uradna) if del_stavbe.povrsina_uradna else None,
-                "povrsina_uporabna": float(del_stavbe.povrsina_uporabna) if del_stavbe.povrsina_uporabna else None,
+                "povrsina_uradna": del_stavbe.povrsina_uradna,
+                "povrsina_uporabna": del_stavbe.povrsina_uporabna,
                 **del_stavbe_dodatno,
                 
                 "leto_izgradnje_stavbe": del_stavbe.leto_izgradnje_stavbe,
@@ -451,6 +463,7 @@ class DelStavbeService:
                 "stevilo_poslov": stevilo_poslov,
                 "ima_vec_poslov": stevilo_poslov > 1,
                 "zadnje_leto": del_stavbe.zadnje_leto,
+                "zadnje_stevilo_delov_stavb": del_stavbe.zadnje_stevilo_delov_stavb,
                 
                 **zadnji_posel_info,
                 
