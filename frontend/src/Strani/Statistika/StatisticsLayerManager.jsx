@@ -19,6 +19,26 @@ class StatisticsLayerManager {
 
         // Flag za prisilni prikaz katastrov
         this.forceShowMunicipalities = false;
+
+        // NOVO: Lista katastrov za filtriranje
+        this.EXCLUDED_KATASTRE = [
+            { name: 'VODICE', obcina: 'LJUBLJANA' },
+            { name: 'ŠENTPETER', obcina: 'LJUBLJANA' },
+            { name: 'GOTNA VAS', obcina: 'LJUBLJANA' },
+            { name: 'RAKITINA', obcina: 'LJUBLJANA' },
+            { name: 'GOLO', obcina: 'LJUBLJANA' },
+            { name: 'VINO', obcina: 'LJUBLJANA' }
+        ];
+    }
+
+    // NOVO: Helper funkcija za filtriranje katastrov
+    shouldExcludeKataster(katastreName, obcinaName) {
+        if (!katastreName || !obcinaName) return false;
+        
+        return this.EXCLUDED_KATASTRE.some(filter => 
+            katastreName.toUpperCase().includes(filter.name.toUpperCase()) && 
+            obcinaName.toUpperCase().includes(filter.obcina.toUpperCase())
+        );
     }
 
     // Dodaj sloje občin za nizke zoom nivoje
@@ -277,7 +297,7 @@ class StatisticsLayerManager {
     }
 
     // ========================================
-    // OSTALE FUNKCIJE - POSODOBLJENE ZA BARVANJE
+    // MUNICIPALITIES LAYERS - Z FILTRIRANJEM
     // ========================================
 
     addMunicipalitiesLayers(municipalitiesData) {
@@ -286,27 +306,51 @@ class StatisticsLayerManager {
         }
 
         try {
-            // Dodaj podatkovni vir
-            this.map.addSource(SOURCE_IDS.MUNICIPALITIES, {
-                type: 'geojson',
-                data: municipalitiesData
+            // NOVO: Filtriraj podatke pred dodajanjem
+            const filteredFeatures = municipalitiesData.features.filter(feature => {
+                const katastreName = feature.properties.NAZIV || feature.properties.IMEKO || '';
+                const obcinaName = feature.properties.OBCINA || '';
+                
+                // Izključi kataster če je na filter listi
+                if (this.shouldExcludeKataster(katastreName, obcinaName)) {
+                    console.log(`🚫 Izključujem kataster: ${katastreName} v občini ${obcinaName}`);
+                    return false;
+                }
+                
+                return true;
             });
 
-            // Dodaj fill sloj - VIDLJIV za barvanje (namesto transparent)
+            // Ustvari nove podatke z filtriranimi features
+            const filteredData = {
+                ...municipalitiesData,
+                features: filteredFeatures
+            };
+
+            console.log(`📊 Originalnih katastrov: ${municipalitiesData.features.length}`);
+            console.log(`📊 Po filtriranju: ${filteredData.features.length}`);
+            console.log(`📊 Odstranjenih: ${municipalitiesData.features.length - filteredData.features.length}`);
+
+            // Dodaj podatkovni vir z filtriranimi podatki
+            this.map.addSource(SOURCE_IDS.MUNICIPALITIES, {
+                type: 'geojson',
+                data: filteredData // Uporabi filtrirane podatke
+            });
+
+            // Dodaj fill sloj - VIDLJIV za barvanje
             this.map.addLayer({
                 id: LAYER_IDS.MUNICIPALITIES.FILL,
                 type: 'fill',
                 source: SOURCE_IDS.MUNICIPALITIES,
                 paint: {
-                    'fill-color': 'rgba(255, 255, 255, 0.8)', // Spremeni na belo
-                    'fill-opacity': 0.8 // Vidna prosojnost za barvanje
+                    'fill-color': 'rgba(255, 255, 255, 0.8)',
+                    'fill-opacity': 0.8
                 },
                 layout: {
-                    'visibility': 'none' // Na začetku skrit, prikaže se z zoom ali selection
+                    'visibility': 'none' // Na začetku skrit
                 }
             });
 
-            // Dodaj obrobe sloj z izboljšanimi privzetimi stili
+            // Dodaj obrobe sloj
             this.map.addLayer({
                 id: LAYER_IDS.MUNICIPALITIES.OUTLINE,
                 type: 'line',
@@ -433,6 +477,18 @@ class StatisticsLayerManager {
         this.filterMunicipalitiesByObcina(null);
     }
 
+    // OPCIJSKO: Dinamično posodabljanje filtrov
+    updateKatastriFilters(newFilters) {
+        console.log('🔄 Posodabljam filtre katastrov:', newFilters);
+        this.EXCLUDED_KATASTRE = newFilters;
+        
+        // Če so katastri že naloženi, bi morali ponovno naložiti podatke
+        // (za to bi potrebovali dostop do originalnih municipalitiesData)
+        if (this.map.getSource(SOURCE_IDS.MUNICIPALITIES)) {
+            console.warn('⚠️ Katastri so že naloženi. Za popolno posodobitev je potreben reload.');
+        }
+    }
+
     // Pomožna metoda za odstranjevanje slojev in virov
     removeLayerAndSource(layerIds, sourceId) {
         const layersArray = Array.isArray(layerIds) ? layerIds : [layerIds];
@@ -460,7 +516,7 @@ class StatisticsLayerManager {
     cleanup() {
         // Resetiraj stanje
         this.selectedObcinaName = null;
-        this.forceShowMunicipalities = false; // Resetiraj tudi prisilni flag
+        this.forceShowMunicipalities = false;
 
         // Odstrani sloje občin
         this.removeLayerAndSource(

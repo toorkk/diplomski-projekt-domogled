@@ -236,7 +236,7 @@ export default function StatisticsZemljevid({
         if (isObcine) {
             map.current.setFilter(layerId, null);
             map.current.setPaintProperty(layerId, 'fill-color', colorExpression);
-            map.current.setPaintProperty(layerId, 'fill-opacity', 0.8);
+            map.current.setPaintProperty(layerId, 'fill-opacity', 0.9);
             map.current.setLayoutProperty(layerId, 'visibility', 'visible');
 
             // NOVO: Zagotovi da je layer viden tudi če je aktiven mask
@@ -449,35 +449,40 @@ export default function StatisticsZemljevid({
         map.current[`_${regionType}Handlers`] = handlers;
     }, [createHoverHandlers]);
 
-    const addObcinaMask = (obcinaId) => {
-        const overlayLayerId = 'obcina-mask';
-        const sourceId = SOURCE_IDS.OBCINE;
+    // In the addObcinaMask function, change the opacity values:
 
-        if (!map.current.getLayer(overlayLayerId)) {
-            map.current.addLayer({
-                id: overlayLayerId,
-                type: 'fill',
-                source: sourceId,
-                paint: {
-                    'fill-color': 'rgba(0, 0, 0, 0.4)', // Zmanjšana prosojnost iz 0.6 na 0.4
-                    'fill-opacity': [
-                        'case',
-                        ['==', ['get', 'OB_ID'], obcinaId],
-                        0, // Izbrana občina = brez mask-a
-                        0.6 // Ostale občine = delno prosojno (namesto 1)
-                    ]
-                }
-            }, LAYER_IDS.OBCINE.OUTLINE);
-        } else {
-            // Če layer že obstaja, posodobi samo opacity
-            map.current.setPaintProperty(overlayLayerId, 'fill-opacity', [
-                'case',
-                ['==', ['get', 'OB_ID'], obcinaId],
-                0,
-                0.6 // Ponovno nastavi na delno prosojnost
-            ]);
-        }
-    };
+const addObcinaMask = (obcinaId) => {
+    const overlayLayerId = 'obcina-mask';
+    const sourceId = SOURCE_IDS.OBCINE;
+
+    if (!map.current.getLayer(overlayLayerId)) {
+        map.current.addLayer({
+            id: overlayLayerId,
+            type: 'fill',
+            source: sourceId,
+            paint: {
+                'fill-color': 'rgba(0, 0, 0, 0.75)', // Increased from 0.4 to 0.75 for darker mask
+                'fill-opacity': [
+                    'case',
+                    ['==', ['get', 'OB_ID'], obcinaId],
+                    0, // Selected občina = no mask
+                    0.85 // Other občine = much darker (increased from 0.6 to 0.85)
+                ]
+            }
+        }, LAYER_IDS.OBCINE.OUTLINE);
+    } else {
+        // If layer already exists, update only opacity
+        map.current.setPaintProperty(overlayLayerId, 'fill-opacity', [
+            'case',
+            ['==', ['get', 'OB_ID'], obcinaId],
+            0,
+            0.85 // Set to much darker opacity (increased from 0.6 to 0.85)
+        ]);
+        
+        // Also update the fill-color to be darker
+        map.current.setPaintProperty(overlayLayerId, 'fill-color', 'rgba(0, 0, 0, 0.75)');
+    }
+};
 
     const loadObcine = useCallback(async () => {
         if (!map.current || obcineLoaded || !layerManager.current) return;
