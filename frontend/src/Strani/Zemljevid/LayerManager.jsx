@@ -13,343 +13,360 @@ import {
     createClusterColorExpression
 } from './MapUtils.jsx';
 
+// Konstante za konfiguracijo slogov
+const LAYER_STYLES = {
+    OBCINA: {
+        DEFAULT: { width: 1.2, opacity: 0.6 },
+        SELECTED: { width: 3.0, opacity: 1.0 },
+        HOVER: { width: 2.5, opacity: 0.9 }
+    },
+    MUNICIPALITY: {
+        DEFAULT: { width: 1.0, opacity: 0.7 },
+        SELECTED: { width: 2.5, opacity: 1.0 },
+        HOVER: { width: 2.0, opacity: 1.0 }
+    }
+};
+
+// Filtri za specifične občine
+const SUPPORTED_OBCINE = ['LJUBLJANA', 'MARIBOR'];
+
+// Pomožne funkcije za stiliziranje
+const createLineStyle = (colorExpression, widthExpression, opacityExpression) => ({
+    'line-color': colorExpression,
+    'line-width': widthExpression,
+    'line-opacity': opacityExpression
+});
+
+const createSelectionExpression = (property, selectedValue, selectedStyle, defaultStyle) => [
+    'case',
+    ['==', ['get', property], selectedValue || -1],
+    selectedStyle,
+    defaultStyle
+];
+
+const createCircleStyle = (colors, radius) => ({
+    'circle-radius': radius,
+    'circle-color': colors.CIRCLE,
+    'circle-opacity': 0.7,
+    'circle-stroke-width': 1,
+    'circle-stroke-color': "#ffffff"
+});
+
+const createTextStyle = (dataSourceType, colors, size) => ({
+    layout: {
+        'text-field': createPriceExpression(dataSourceType),
+        'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+        'text-size': size,
+        'text-allow-overlap': false,
+        'text-ignore-placement': false,
+        'text-anchor': 'center',
+        'text-justify': 'center'
+    },
+    paint: {
+        'text-color': '#ffffff',
+        'text-halo-color': colors.STROKE,
+        'text-halo-width': 1
+    }
+});
+
+// Glavna LayerManager razred
 class LayerManager {
     constructor(map) {
         this.map = map;
-        
-        /* 
-         * LAYER Z-ORDER HIERARCHY (bottom to top):
-         * 1. Base map
-         * 2. Občine - fill, outline, labels (ALWAYS visible for context)
-         * 3. Municipalities (katastrske občine) - fill, outline, labels (ONLY for Ljubljana/Maribor)
-         * 4. Properties - circles, text
-         * 5. Clusters - circles, count
-         * 6. Expanded properties - circles, text
-         */
     }
 
-    // Občine layers (ALWAYS visible)
+    // === OBČINE SLOJI ===
+    
+    // Dodaj sloje za občine (vedno vidni)
     addObcineLayers(obcineData) {
-        if (this.map.getSource(SOURCE_IDS.OBCINE)) {
-            console.log('Občine already loaded');
+        if (this.hasSource(SOURCE_IDS.OBCINE)) {
             return;
         }
 
         try {
-            // Add source
-            this.map.addSource(SOURCE_IDS.OBCINE, {
-                type: 'geojson',
-                data: obcineData
-            });
-
-            // Add fill layer (invisible, for clicks)
-            this.map.addLayer({
-                id: LAYER_IDS.OBCINE.FILL,
-                type: 'fill',
-                source: SOURCE_IDS.OBCINE,
-                paint: {
-                    'fill-color': 'transparent',
-                    'fill-opacity': 0
-                },
-                layout: {
-                    'visibility': 'visible'
-                }
-            });
-
-            // Add outline layer - ALWAYS visible
-            this.map.addLayer({
-                id: LAYER_IDS.OBCINE.OUTLINE,
-                type: 'line',
-                source: SOURCE_IDS.OBCINE,
-                paint: {
-                    'line-color': COLOR_SCHEME.OBCINA.DEFAULT,
-                    'line-width': ZOOM_STYLES.OBCINE.DEFAULT_LINE_WIDTH,
-                    'line-opacity': ZOOM_STYLES.OBCINE.DEFAULT_OPACITY
-                },
-                layout: {
-                    'visibility': 'visible'
-                }
-            });
-
-            console.log('Občine layers added successfully');
+            this.addObcineSource(obcineData);
+            this.addObcineFillLayer();
+            this.addObcineOutlineLayer();
         } catch (error) {
-            console.error('Error adding občine layers:', error);
-            throw error;
+            throw new Error(`Napaka pri dodajanju slojev občin: ${error.message}`);
         }
     }
 
+    addObcineSource(obcineData) {
+        this.map.addSource(SOURCE_IDS.OBCINE, {
+            type: 'geojson',
+            data: obcineData
+        });
+    }
+
+    addObcineFillLayer() {
+        this.map.addLayer({
+            id: LAYER_IDS.OBCINE.FILL,
+            type: 'fill',
+            source: SOURCE_IDS.OBCINE,
+            paint: {
+                'fill-color': 'transparent',
+                'fill-opacity': 0
+            },
+            layout: { 'visibility': 'visible' }
+        });
+    }
+
+    addObcineOutlineLayer() {
+        this.map.addLayer({
+            id: LAYER_IDS.OBCINE.OUTLINE,
+            type: 'line',
+            source: SOURCE_IDS.OBCINE,
+            paint: createLineStyle(
+                COLOR_SCHEME.OBCINA.DEFAULT,
+                LAYER_STYLES.OBCINA.DEFAULT.width,
+                LAYER_STYLES.OBCINA.DEFAULT.opacity
+            ),
+            layout: { 'visibility': 'visible' }
+        });
+    }
+
+    // Posodobi izbiro občine
     updateObcinaSelection(selectedObcinaId = null) {
-        if (!this.map.getLayer(LAYER_IDS.OBCINE.OUTLINE)) return;
+        if (!this.hasLayer(LAYER_IDS.OBCINE.OUTLINE)) return;
 
-        // Update outline style for selected občina
-        this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-color', [
-            'case',
-            ['==', ['get', 'OB_ID'], selectedObcinaId || -1],
-            COLOR_SCHEME.OBCINA.SELECTED,
-            COLOR_SCHEME.OBCINA.DEFAULT
-        ]);
+        this.updateObcinaStyle(selectedObcinaId, {
+            colorSelected: COLOR_SCHEME.OBCINA.SELECTED,
+            colorDefault: COLOR_SCHEME.OBCINA.DEFAULT,
+            styles: LAYER_STYLES.OBCINA
+        });
 
-        this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-width', [
-            'case',
-            ['==', ['get', 'OB_ID'], selectedObcinaId || -1],
-            3.0,  // Selected line width
-            1.2   // Default line width
-        ]);
-
-        this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-opacity', [
-            'case',
-            ['==', ['get', 'OB_ID'], selectedObcinaId || -1],
-            1.0,  // Selected opacity
-            0.6   // Default opacity
-        ]);
-
-        // Update click filter
-        if (selectedObcinaId) {
-            this.map.setFilter(LAYER_IDS.OBCINE.FILL, [
-                '!=', ['get', 'OB_ID'], selectedObcinaId
-            ]);
-        } else {
-            this.map.setFilter(LAYER_IDS.OBCINE.FILL, null);
-        }
+        this.updateObcinaFilter(selectedObcinaId);
     }
 
+    // Posodobi hover stanje občine
     updateObcinaHover(hoveredObcinaId = null) {
-        if (!this.map.getLayer(LAYER_IDS.OBCINE.OUTLINE)) return;
+        if (!this.hasLayer(LAYER_IDS.OBCINE.OUTLINE)) return;
 
-        this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-color', [
-            'case',
-            ['==', ['get', 'OB_ID'], hoveredObcinaId || -1],
-            COLOR_SCHEME.OBCINA.HOVER,
-            COLOR_SCHEME.OBCINA.DEFAULT
-        ]);
-
-        this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-width', [
-            'case',
-            ['==', ['get', 'OB_ID'], hoveredObcinaId || -1],
-            2.5,  // Hover line width
-            1.2   // Default line width
-        ]);
-
-        this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-opacity', [
-            'case',
-            ['==', ['get', 'OB_ID'], hoveredObcinaId || -1],
-            0.9,  // Hover opacity
-            0.6   // Default opacity
-        ]);
+        this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-color', 
+            createSelectionExpression('OB_ID', hoveredObcinaId, COLOR_SCHEME.OBCINA.HOVER, COLOR_SCHEME.OBCINA.DEFAULT)
+        );
+        this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-width',
+            createSelectionExpression('OB_ID', hoveredObcinaId, LAYER_STYLES.OBCINA.HOVER.width, LAYER_STYLES.OBCINA.DEFAULT.width)
+        );
+        this.map.setPaintProperty(LAYER_IDS.OBCINE.OUTLINE, 'line-opacity',
+            createSelectionExpression('OB_ID', hoveredObcinaId, LAYER_STYLES.OBCINA.HOVER.opacity, LAYER_STYLES.OBCINA.DEFAULT.opacity)
+        );
     }
 
-    // NEW: Filter municipalities data to only include Ljubljana and Maribor
-    filterMunicipalitiesForSpecificObcine(municipalitiesData) {
+    updateObcinaStyle(selectedId, config) {
+        const layerId = LAYER_IDS.OBCINE.OUTLINE;
+        
+        this.map.setPaintProperty(layerId, 'line-color',
+            createSelectionExpression('OB_ID', selectedId, config.colorSelected, config.colorDefault)
+        );
+        this.map.setPaintProperty(layerId, 'line-width',
+            createSelectionExpression('OB_ID', selectedId, config.styles.SELECTED.width, config.styles.DEFAULT.width)
+        );
+        this.map.setPaintProperty(layerId, 'line-opacity',
+            createSelectionExpression('OB_ID', selectedId, config.styles.SELECTED.opacity, config.styles.DEFAULT.opacity)
+        );
+    }
+
+    updateObcinaFilter(selectedObcinaId) {
+        const filter = selectedObcinaId ? ['!=', ['get', 'OB_ID'], selectedObcinaId] : null;
+        this.map.setFilter(LAYER_IDS.OBCINE.FILL, filter);
+    }
+
+    // === KATASTRI SLOJI ===
+
+    // Filtriraj podatke katastra za specifične občine
+    filterMunicipalitiesData(municipalitiesData) {
         return {
             ...municipalitiesData,
             features: municipalitiesData.features.filter(feature => {
                 const obcina = feature.properties.OBCINA;
-                return obcina === 'LJUBLJANA' || obcina === 'MARIBOR';
+                return SUPPORTED_OBCINE.includes(obcina);
             })
         };
     }
 
-    // Municipalities layers (ONLY for Ljubljana and Maribor)
+    // Dodaj sloje za katastre (samo Ljubljana in Maribor)
     addMunicipalitiesLayers(municipalitiesData) {
-        if (this.map.getSource(SOURCE_IDS.MUNICIPALITIES)) {
-            console.log('Municipalities already loaded');
+        if (this.hasSource(SOURCE_IDS.MUNICIPALITIES)) {
             return;
         }
 
         try {
-            // Filter data to only include Ljubljana and Maribor katastri
-            const filteredData = this.filterMunicipalitiesForSpecificObcine(municipalitiesData);
-            
-            console.log(`Filtered municipalities: ${filteredData.features.length} out of ${municipalitiesData.features.length} total`);
-
-            // Add source with filtered data
-            this.map.addSource(SOURCE_IDS.MUNICIPALITIES, {
-                type: 'geojson',
-                data: filteredData
-            });
-
-            // Add fill layer (invisible, for clicks)
-            this.map.addLayer({
-                id: LAYER_IDS.MUNICIPALITIES.FILL,
-                type: 'fill',
-                source: SOURCE_IDS.MUNICIPALITIES,
-                paint: {
-                    'fill-color': 'transparent',
-                    'fill-opacity': 0
-                },
-                layout: {
-                    'visibility': 'visible'
-                }
-            });
-
-            // Add outline layer - ALWAYS visible when katastri are loaded
-            this.map.addLayer({
-                id: LAYER_IDS.MUNICIPALITIES.OUTLINE,
-                type: 'line',
-                source: SOURCE_IDS.MUNICIPALITIES,
-                paint: {
-                    'line-color': COLOR_SCHEME.MUNICIPALITY.DEFAULT,
-                    'line-width': ZOOM_STYLES.MUNICIPALITIES.LINE_WIDTH,
-                    'line-opacity': ZOOM_STYLES.MUNICIPALITIES.LINE_OPACITY
-                },
-                layout: {
-                    'visibility': 'visible'
-                }
-            });
-
-            console.log('Municipalities layers added successfully (Ljubljana & Maribor only)');
+            const filteredData = this.filterMunicipalitiesData(municipalitiesData);
+            this.addMunicipalitiesSource(filteredData);
+            this.addMunicipalitiesFillLayer();
+            this.addMunicipalitiesOutlineLayer();
         } catch (error) {
-            console.error('Error adding municipalities layers:', error);
-            throw error;
+            throw new Error(`Napaka pri dodajanju slojev katastra: ${error.message}`);
         }
     }
 
-    // NEW: Updated visibility logic - občine always visible, katastri for Ljubljana/Maribor always visible when zoom is high enough
-    updateLayerVisibilityByZoom(currentZoom) {
-        // Občine are ALWAYS visible
-        if (this.hasLayer(LAYER_IDS.OBCINE.FILL)) {
-            this.map.setLayoutProperty(LAYER_IDS.OBCINE.FILL, 'visibility', 'visible');
-            this.map.setLayoutProperty(LAYER_IDS.OBCINE.OUTLINE, 'visibility', 'visible');
-            
-            // Labels only at lower zoom levels
-            if (this.hasLayer(LAYER_IDS.OBCINE.LABELS)) {
-                const showObcineLabels = currentZoom < ZOOM_LEVELS.OBCINE_THRESHOLD;
-                this.map.setLayoutProperty(LAYER_IDS.OBCINE.LABELS, 'visibility', showObcineLabels ? 'visible' : 'none');
-            }
-        }
+    addMunicipalitiesSource(filteredData) {
+        this.map.addSource(SOURCE_IDS.MUNICIPALITIES, {
+            type: 'geojson',
+            data: filteredData
+        });
+    }
 
-        // Katastri (municipalities) visible when zoom is high enough for detail
+    addMunicipalitiesFillLayer() {
+        this.map.addLayer({
+            id: LAYER_IDS.MUNICIPALITIES.FILL,
+            type: 'fill',
+            source: SOURCE_IDS.MUNICIPALITIES,
+            paint: {
+                'fill-color': 'transparent',
+                'fill-opacity': 0
+            },
+            layout: { 'visibility': 'visible' }
+        });
+    }
+
+    addMunicipalitiesOutlineLayer() {
+        this.map.addLayer({
+            id: LAYER_IDS.MUNICIPALITIES.OUTLINE,
+            type: 'line',
+            source: SOURCE_IDS.MUNICIPALITIES,
+            paint: createLineStyle(
+                COLOR_SCHEME.MUNICIPALITY.DEFAULT,
+                ZOOM_STYLES.MUNICIPALITIES.LINE_WIDTH,
+                ZOOM_STYLES.MUNICIPALITIES.LINE_OPACITY
+            ),
+            layout: { 'visibility': 'visible' }
+        });
+    }
+
+    // Posodobi vidnost slojev glede na zoom
+    updateLayerVisibilityByZoom(currentZoom) {
+        this.updateObcineVisibility();
+        this.updateMunicipalitiesVisibility(currentZoom);
+    }
+
+    updateObcineVisibility() {
+        if (!this.hasLayer(LAYER_IDS.OBCINE.FILL)) return;
+
+        // Občine so vedno vidne
+        this.setLayerVisibility(LAYER_IDS.OBCINE.FILL, true);
+        this.setLayerVisibility(LAYER_IDS.OBCINE.OUTLINE, true);
+        
+        // Oznake samo pri nižjih zoom nivojih
+        if (this.hasLayer(LAYER_IDS.OBCINE.LABELS)) {
+            const showLabels = this.map.getZoom() < ZOOM_LEVELS.OBCINE_THRESHOLD;
+            this.setLayerVisibility(LAYER_IDS.OBCINE.LABELS, showLabels);
+        }
+    }
+
+    updateMunicipalitiesVisibility(currentZoom) {
+        if (!this.hasLayer(LAYER_IDS.MUNICIPALITIES.FILL)) return;
+
         const showMunicipalities = currentZoom >= ZOOM_LEVELS.MUNICIPALITY_DETAIL;
         
-        if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.FILL)) {
-            this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'visibility', showMunicipalities ? 'visible' : 'none');
-            this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'visibility', showMunicipalities ? 'visible' : 'none');
-            
-            if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.LABELS)) {
-                this.map.setLayoutProperty(LAYER_IDS.MUNICIPALITIES.LABELS, 'visibility', showMunicipalities ? 'visible' : 'none');
-            }
-        }
-
-        console.log(`Zoom ${currentZoom}: Občine always visible, Katastri (Ljubljana/Maribor) ${showMunicipalities ? 'visible' : 'hidden'}`);
-    }
-
-    updateMunicipalitySelection(selectedSifko = null) {
-        if (!this.map.getLayer(LAYER_IDS.MUNICIPALITIES.OUTLINE)) return;
-
-        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-color', [
-            'case',
-            ['==', ['get', 'SIFKO'], selectedSifko || -1],
-            COLOR_SCHEME.MUNICIPALITY.SELECTED,
-            COLOR_SCHEME.MUNICIPALITY.DEFAULT
-        ]);
+        this.setLayerVisibility(LAYER_IDS.MUNICIPALITIES.FILL, showMunicipalities);
+        this.setLayerVisibility(LAYER_IDS.MUNICIPALITIES.OUTLINE, showMunicipalities);
         
-        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-width', [
-            'case',
-            ['==', ['get', 'SIFKO'], selectedSifko || -1],
-            2.5,  // Selected line width
-            1.0   // Default line width
-        ]);
-
-        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-opacity', [
-            'case',
-            ['==', ['get', 'SIFKO'], selectedSifko || -1],
-            1.0,  // Selected opacity
-            0.7   // Default opacity
-        ]);
-
-        // Update click filter
-        if (selectedSifko) {
-            this.map.setFilter(LAYER_IDS.MUNICIPALITIES.FILL, [
-                '!=', ['get', 'SIFKO'], selectedSifko
-            ]);
-        } else {
-            this.map.setFilter(LAYER_IDS.MUNICIPALITIES.FILL, null);
+        if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.LABELS)) {
+            this.setLayerVisibility(LAYER_IDS.MUNICIPALITIES.LABELS, showMunicipalities);
         }
     }
 
-    updateMunicipalityHover(hoveredSifko = null) {
-        if (!this.map.getLayer(LAYER_IDS.MUNICIPALITIES.OUTLINE)) return;
-
-        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-color', [
-            'case',
-            ['==', ['get', 'SIFKO'], hoveredSifko || -1],
-            COLOR_SCHEME.MUNICIPALITY.HOVER,
-            COLOR_SCHEME.MUNICIPALITY.DEFAULT
-        ]);
-
-        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-width', [
-            'case',
-            ['==', ['get', 'SIFKO'], hoveredSifko || -1],
-            2.0,  // Hover line width
-            1.0   // Default line width
-        ]);
-
-        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-opacity', [
-            'case',
-            ['==', ['get', 'SIFKO'], hoveredSifko || -1],
-            1.0,  // Hover opacity
-            0.7   // Default opacity
-        ]);
+    setLayerVisibility(layerId, visible) {
+        this.map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
     }
 
-    // Properties layers
+    // Posodobi izbiro katastra
+    updateMunicipalitySelection(selectedSifko = null) {
+        if (!this.hasLayer(LAYER_IDS.MUNICIPALITIES.OUTLINE)) return;
+
+        this.updateMunicipalityStyle(selectedSifko, {
+            colorSelected: COLOR_SCHEME.MUNICIPALITY.SELECTED,
+            colorDefault: COLOR_SCHEME.MUNICIPALITY.DEFAULT,
+            styles: LAYER_STYLES.MUNICIPALITY
+        });
+
+        this.updateMunicipalityFilter(selectedSifko);
+    }
+
+    // Posodobi hover stanje katastra
+    updateMunicipalityHover(hoveredSifko = null) {
+        if (!this.hasLayer(LAYER_IDS.MUNICIPALITIES.OUTLINE)) return;
+
+        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-color',
+            createSelectionExpression('SIFKO', hoveredSifko, COLOR_SCHEME.MUNICIPALITY.HOVER, COLOR_SCHEME.MUNICIPALITY.DEFAULT)
+        );
+        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-width',
+            createSelectionExpression('SIFKO', hoveredSifko, LAYER_STYLES.MUNICIPALITY.HOVER.width, LAYER_STYLES.MUNICIPALITY.DEFAULT.width)
+        );
+        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-opacity',
+            createSelectionExpression('SIFKO', hoveredSifko, LAYER_STYLES.MUNICIPALITY.HOVER.opacity, LAYER_STYLES.MUNICIPALITY.DEFAULT.opacity)
+        );
+    }
+
+    updateMunicipalityStyle(selectedId, config) {
+        const layerId = LAYER_IDS.MUNICIPALITIES.OUTLINE;
+        
+        this.map.setPaintProperty(layerId, 'line-color',
+            createSelectionExpression('SIFKO', selectedId, config.colorSelected, config.colorDefault)
+        );
+        this.map.setPaintProperty(layerId, 'line-width',
+            createSelectionExpression('SIFKO', selectedId, config.styles.SELECTED.width, config.styles.DEFAULT.width)
+        );
+        this.map.setPaintProperty(layerId, 'line-opacity',
+            createSelectionExpression('SIFKO', selectedId, config.styles.SELECTED.opacity, config.styles.DEFAULT.opacity)
+        );
+    }
+
+    updateMunicipalityFilter(selectedSifko) {
+        const filter = selectedSifko ? ['!=', ['get', 'SIFKO'], selectedSifko] : null;
+        this.map.setFilter(LAYER_IDS.MUNICIPALITIES.FILL, filter);
+    }
+
+    // === NEPREMIČNINE SLOJI ===
+
+    // Dodaj sloje za nepremičnine
     addPropertiesLayers(features, dataSourceType) {
         this.removePropertiesLayers();
 
         if (features.length === 0) return;
 
-        const colors = getColorScheme(dataSourceType);
-
         try {
-            // Add source
-            this.map.addSource(SOURCE_IDS.PROPERTIES, {
-                type: 'geojson',
-                data: {
-                    type: 'FeatureCollection',
-                    features: features
-                }
-            });
-
-            // Add circle layer
-            this.map.addLayer({
-                id: LAYER_IDS.PROPERTIES.MAIN,
-                type: 'circle',
-                source: SOURCE_IDS.PROPERTIES,
-                paint: {
-                    'circle-radius': ZOOM_STYLES.PROPERTIES.CIRCLE_RADIUS,
-                    'circle-color': colors.CIRCLE,
-                    'circle-opacity': 0.7,
-                    'circle-stroke-width': 1,
-                    'circle-stroke-color': "#ffffff"
-                }
-            });
-
-            // Add text layer
-            this.map.addLayer({
-                id: LAYER_IDS.PROPERTIES.TEXT,
-                type: 'symbol',
-                source: SOURCE_IDS.PROPERTIES,
-                layout: {
-                    'text-field': createPriceExpression(dataSourceType),
-                    'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-                    'text-size': ZOOM_STYLES.PROPERTIES.TEXT_SIZE,
-                    'text-allow-overlap': false,
-                    'text-ignore-placement': false,
-                    'text-anchor': 'center',
-                    'text-justify': 'center'
-                },
-                paint: {
-                    'text-color': '#ffffff',
-                    'text-halo-color': colors.STROKE,
-                    'text-halo-width': 1
-                }
-            });
-
-            console.log(`Added properties layers with ${features.length} features`);
+            const colors = getColorScheme(dataSourceType);
+            this.addPropertiesSource(features);
+            this.addPropertiesCircleLayer(colors);
+            this.addPropertiesTextLayer(colors, dataSourceType);
         } catch (error) {
-            console.error('Error adding properties layers:', error);
-            throw error;
+            throw new Error(`Napaka pri dodajanju slojev nepremičnin: ${error.message}`);
         }
+    }
+
+    addPropertiesSource(features) {
+        this.map.addSource(SOURCE_IDS.PROPERTIES, {
+            type: 'geojson',
+            data: {
+                type: 'FeatureCollection',
+                features: features
+            }
+        });
+    }
+
+    addPropertiesCircleLayer(colors) {
+        this.map.addLayer({
+            id: LAYER_IDS.PROPERTIES.MAIN,
+            type: 'circle',
+            source: SOURCE_IDS.PROPERTIES,
+            paint: createCircleStyle(colors, ZOOM_STYLES.PROPERTIES.CIRCLE_RADIUS)
+        });
+    }
+
+    addPropertiesTextLayer(colors, dataSourceType) {
+        const textStyle = createTextStyle(dataSourceType, colors, ZOOM_STYLES.PROPERTIES.TEXT_SIZE);
+        
+        this.map.addLayer({
+            id: LAYER_IDS.PROPERTIES.TEXT,
+            type: 'symbol',
+            source: SOURCE_IDS.PROPERTIES,
+            layout: textStyle.layout,
+            paint: textStyle.paint
+        });
     }
 
     removePropertiesLayers() {
@@ -359,60 +376,65 @@ class LayerManager {
         );
     }
 
-    // Clusters layers
+    // === GROZDOVI SLOJI ===
+
+    // Dodaj sloje za grozdove
     addClustersLayers(features, dataSourceType) {
         this.removeClustersLayers();
 
         if (features.length === 0) return;
 
-        const colors = getColorScheme(dataSourceType);
-
         try {
-            // Add source
-            this.map.addSource(SOURCE_IDS.CLUSTERS, {
-                type: 'geojson',
-                data: {
-                    type: 'FeatureCollection',
-                    features: features
-                }
-            });
-
-            // Add circle layer
-            this.map.addLayer({
-                id: LAYER_IDS.CLUSTERS.MAIN,
-                type: 'circle',
-                source: SOURCE_IDS.CLUSTERS,
-                paint: {
-                    'circle-radius': ZOOM_STYLES.CLUSTERS.RADIUS,
-                    'circle-color': createClusterColorExpression(colors.CLUSTER),
-                    'circle-opacity': 0.8,
-                    'circle-stroke-width': 1.5,
-                    'circle-stroke-color': '#ffffff'
-                }
-            });
-
-            // Add count layer
-            this.map.addLayer({
-                id: LAYER_IDS.CLUSTERS.COUNT,
-                type: 'symbol',
-                source: SOURCE_IDS.CLUSTERS,
-                layout: {
-                    'text-field': '{point_count}',
-                    'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-                    'text-size': ZOOM_STYLES.CLUSTERS.COUNT_SIZE
-                },
-                paint: {
-                    'text-color': '#ffffff',
-                    'text-halo-color': colors.STROKE,
-                    'text-halo-width': 1
-                }
-            });
-
-            console.log(`Added clusters layers with ${features.length} features`);
+            const colors = getColorScheme(dataSourceType);
+            this.addClustersSource(features);
+            this.addClustersCircleLayer(colors);
+            this.addClustersCountLayer(colors);
         } catch (error) {
-            console.error('Error adding clusters layers:', error);
-            throw error;
+            throw new Error(`Napaka pri dodajanju slojev grozdov: ${error.message}`);
         }
+    }
+
+    addClustersSource(features) {
+        this.map.addSource(SOURCE_IDS.CLUSTERS, {
+            type: 'geojson',
+            data: {
+                type: 'FeatureCollection',
+                features: features
+            }
+        });
+    }
+
+    addClustersCircleLayer(colors) {
+        this.map.addLayer({
+            id: LAYER_IDS.CLUSTERS.MAIN,
+            type: 'circle',
+            source: SOURCE_IDS.CLUSTERS,
+            paint: {
+                'circle-radius': ZOOM_STYLES.CLUSTERS.RADIUS,
+                'circle-color': createClusterColorExpression(colors.CLUSTER),
+                'circle-opacity': 0.8,
+                'circle-stroke-width': 1.5,
+                'circle-stroke-color': '#ffffff'
+            }
+        });
+    }
+
+    addClustersCountLayer(colors) {
+        this.map.addLayer({
+            id: LAYER_IDS.CLUSTERS.COUNT,
+            type: 'symbol',
+            source: SOURCE_IDS.CLUSTERS,
+            layout: {
+                'text-field': '{point_count}',
+                'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                'text-size': ZOOM_STYLES.CLUSTERS.COUNT_SIZE
+            },
+            paint: {
+                'text-color': '#ffffff',
+                'text-halo-color': colors.STROKE,
+                'text-halo-width': 1
+            }
+        });
     }
 
     removeClustersLayers() {
@@ -422,127 +444,119 @@ class LayerManager {
         );
     }
 
-    // Expanded clusters layers
-    addExpandedClusterLayers(clusterId, features, dataSourceType) {
-        const sourceId = `${SOURCE_IDS.EXPANDED_PREFIX}${clusterId}`;
-        const layerId = `${LAYER_IDS.EXPANDED.PREFIX}${clusterId}`;
-        const textLayerId = `${layerId}${LAYER_IDS.EXPANDED.TEXT_SUFFIX}`;
+    // === RAZŠIRJENI GROZDOVI ===
 
+    // Dodaj sloje za razširjene grozdove
+    addExpandedClusterLayers(clusterId, features, dataSourceType) {
+        const { sourceId, layerId, textLayerId } = this.getExpandedClusterIds(clusterId);
+        
         this.removeExpandedClusterLayers(clusterId);
 
-        const colors = getColorScheme(dataSourceType);
-
         try {
-            // Add source
-            this.map.addSource(sourceId, {
-                type: 'geojson',
-                data: {
-                    type: 'FeatureCollection',
-                    features: features
-                }
-            });
-
-            // Add circle layer
-            this.map.addLayer({
-                id: layerId,
-                type: 'circle',
-                source: sourceId,
-                paint: {
-                    'circle-radius': ZOOM_STYLES.EXPANDED.CIRCLE_RADIUS,
-                    'circle-color': colors.CIRCLE,
-                    'circle-opacity': 0.7,
-                    'circle-stroke-width': 1,
-                    'circle-stroke-color': "#ffffff"
-                }
-            });
-
-            // Add text layer
-            this.map.addLayer({
-                id: textLayerId,
-                type: 'symbol',
-                source: sourceId,
-                layout: {
-                    'text-field': createPriceExpression(dataSourceType),
-                    'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-                    'text-size': ZOOM_STYLES.EXPANDED.TEXT_SIZE,
-                    'text-allow-overlap': false,
-                    'text-ignore-placement': false,
-                    'text-anchor': 'center',
-                    'text-justify': 'center'
-                },
-                paint: {
-                    'text-color': '#ffffff',
-                    'text-halo-color': colors.STROKE,
-                    'text-halo-width': 1
-                }
-            });
-
-            console.log(`Added expanded cluster layers for ${clusterId}`);
+            const colors = getColorScheme(dataSourceType);
+            this.addExpandedClusterSource(sourceId, features);
+            this.addExpandedClusterCircleLayer(layerId, sourceId, colors);
+            this.addExpandedClusterTextLayer(textLayerId, sourceId, colors, dataSourceType);
+            
             return { layerId, textLayerId };
         } catch (error) {
-            console.error(`Error adding expanded cluster layers for ${clusterId}:`, error);
-            throw error;
+            throw new Error(`Napaka pri dodajanju razširjenih slojev grozda ${clusterId}: ${error.message}`);
         }
     }
 
-    removeExpandedClusterLayers(clusterId) {
+    getExpandedClusterIds(clusterId) {
         const sourceId = `${SOURCE_IDS.EXPANDED_PREFIX}${clusterId}`;
         const layerId = `${LAYER_IDS.EXPANDED.PREFIX}${clusterId}`;
         const textLayerId = `${layerId}${LAYER_IDS.EXPANDED.TEXT_SUFFIX}`;
+        
+        return { sourceId, layerId, textLayerId };
+    }
 
+    addExpandedClusterSource(sourceId, features) {
+        this.map.addSource(sourceId, {
+            type: 'geojson',
+            data: {
+                type: 'FeatureCollection',
+                features: features
+            }
+        });
+    }
+
+    addExpandedClusterCircleLayer(layerId, sourceId, colors) {
+        this.map.addLayer({
+            id: layerId,
+            type: 'circle',
+            source: sourceId,
+            paint: createCircleStyle(colors, ZOOM_STYLES.EXPANDED.CIRCLE_RADIUS)
+        });
+    }
+
+    addExpandedClusterTextLayer(textLayerId, sourceId, colors, dataSourceType) {
+        const textStyle = createTextStyle(dataSourceType, colors, ZOOM_STYLES.EXPANDED.TEXT_SIZE);
+        
+        this.map.addLayer({
+            id: textLayerId,
+            type: 'symbol',
+            source: sourceId,
+            layout: textStyle.layout,
+            paint: textStyle.paint
+        });
+    }
+
+    removeExpandedClusterLayers(clusterId) {
+        const { sourceId, layerId, textLayerId } = this.getExpandedClusterIds(clusterId);
         this.removeLayerAndSource([textLayerId, layerId], sourceId);
     }
 
-    // Utility method for removing layers and sources
+    // === POMOŽNE METODE ===
+
+    // Odstrani sloje in vire
     removeLayerAndSource(layerIds, sourceId) {
         const layersArray = Array.isArray(layerIds) ? layerIds : [layerIds];
         
         layersArray.forEach(layerId => {
-            if (this.map.getLayer(layerId)) {
+            if (this.hasLayer(layerId)) {
                 this.map.removeLayer(layerId);
             }
         });
 
-        if (this.map.getSource(sourceId)) {
+        if (this.hasSource(sourceId)) {
             this.map.removeSource(sourceId);
         }
     }
 
-    // Check if layer exists
+    // Preveri ali sloj obstaja
     hasLayer(layerId) {
         return !!this.map.getLayer(layerId);
     }
 
-    // Check if source exists
+    // Preveri ali vir obstaja
     hasSource(sourceId) {
         return !!this.map.getSource(sourceId);
     }
 
-    // Cleanup all layers
+    // Počisti vse sloje
     cleanup() {
-        console.log('LayerManager: Starting cleanup...');
+        this.cleanupObcineLayers();
+        this.cleanupMunicipalityLayers();
+        this.removePropertiesLayers();
+        this.removeClustersLayers();
+    }
 
-        // Remove občine layers
+    cleanupObcineLayers() {
         const obcineLayers = [LAYER_IDS.OBCINE.FILL, LAYER_IDS.OBCINE.OUTLINE];
         if (this.hasLayer(LAYER_IDS.OBCINE.LABELS)) {
             obcineLayers.push(LAYER_IDS.OBCINE.LABELS);
         }
         this.removeLayerAndSource(obcineLayers, SOURCE_IDS.OBCINE);
+    }
 
-        // Remove municipalities layers  
+    cleanupMunicipalityLayers() {
         const municipalityLayers = [LAYER_IDS.MUNICIPALITIES.FILL, LAYER_IDS.MUNICIPALITIES.OUTLINE];
         if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.LABELS)) {
             municipalityLayers.push(LAYER_IDS.MUNICIPALITIES.LABELS);
         }
         this.removeLayerAndSource(municipalityLayers, SOURCE_IDS.MUNICIPALITIES);
-
-        // Remove properties layers
-        this.removePropertiesLayers();
-
-        // Remove clusters layers
-        this.removeClustersLayers();
-
-        console.log('LayerManager: Cleanup completed');
     }
 }
 
