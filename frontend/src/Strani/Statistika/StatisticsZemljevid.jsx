@@ -938,11 +938,7 @@ const addObcinaMask = (obcinaId) => {
                                         : `Občina: ${selectedObcina.name}`
                                     }
                                 </span>
-                                {selectedObcina && !obcinaHasKatastre(selectedObcina.name) && (
-                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                                        Brez katastrov
-                                    </span>
-                                )}
+                                
                             </div>
                         </div>
                         <button

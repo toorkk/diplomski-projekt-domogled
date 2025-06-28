@@ -177,7 +177,7 @@ PropertyGrid.propTypes = {
     propertyType: PropTypes.oneOf(['stanovanje', 'hisa']).isRequired
 };
 
-// Ovojnica za grafikone
+// Ovojnica za grafe
 const ChartWrapper = ({ title, children, showSwitcher = false, chartType, setChartType, chartTypeKey, activeTab }) => (
     <div className="bg-white border border-gray-200 rounded-lg p-4">
         <div className="flex justify-between items-center mb-4">
