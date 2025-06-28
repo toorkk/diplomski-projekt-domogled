@@ -733,6 +733,13 @@ export default function Zemljevid({ onNavigateToStatistics }) {
                 loadMunicipalities();
                 layerManager.current.updateLayerVisibilityByZoom(MAP_CONFIG.INITIAL_ZOOM);
                 setupZoomHandler();
+
+                // NOVO: Naloži nepremičnine ob začetnem nalaganju
+                setTimeout(() => {
+                    const currentFilters = activeFiltersRef.current;
+                    console.log('Initial property loading with filters:', currentFilters);
+                    fetchPropertiesForCurrentView(currentFilters);
+                }, 100);
             });
         }
 
