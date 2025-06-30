@@ -17,7 +17,7 @@ WITH najemni_podatki AS (
     SELECT 
         -- Identifikatorji regij
         n.obcina,
-        n.ime_ko,
+        n.sifra_ko,
         np.posel_id,
         
         -- Vrsta nepremičnine
@@ -86,7 +86,7 @@ WITH najemni_podatki AS (
         -- FILTRIRANJE PODATKOV
         -- ===================
         np.vrsta_posla IN (1,2)  -- Samo najemni posli
-        AND n.ime_ko IS NOT NULL
+        AND n.sifra_ko IS NOT NULL
         AND n.obcina IS NOT NULL
         AND np.datum_uveljavitve IS NOT NULL
         AND n.vrsta_nepremicnine IN (1, 2) -- ni vkljucenih sob (16) ker mislim da bi prevec vplivalo na podatke
@@ -125,7 +125,7 @@ najemni_podatki_po_letih AS (
 filtered_posli AS (
     SELECT 
         posel_id,
-        COUNT(DISTINCT (obcina, ime_ko, vrsta_nepremicnine)) as stevilo_delov_stavb
+        COUNT(DISTINCT (obcina, sifra_ko, vrsta_nepremicnine)) as stevilo_delov_stavb
     FROM najemni_podatki_po_letih
     GROUP BY posel_id
 ),
@@ -194,14 +194,14 @@ SELECT
     -- DIMENZIJE REGIJE
     -- ================
     CASE 
-        WHEN GROUPING(obcina, ime_ko) = 3 THEN 'slovenija'  -- Oba NULL
-        WHEN GROUPING(obcina) = 1 THEN 'katastrska_obcina'  -- obcina=NULL, ime_ko!=NULL  
-        ELSE 'obcina'  -- obcina!=NULL, ime_ko=NULL
+        WHEN GROUPING(obcina, sifra_ko) = 3 THEN 'slovenija'  -- Oba NULL
+        WHEN GROUPING(obcina) = 1 THEN 'katastrska_obcina'  -- obcina=NULL, sifra_ko!=NULL  
+        ELSE 'obcina'  -- obcina!=NULL, sifra_ko=NULL
     END as tip_regije,
     
     CASE 
-        WHEN GROUPING(obcina, ime_ko) = 3 THEN 'SLOVENIJA'
-        WHEN GROUPING(obcina) = 1 THEN ime_ko
+        WHEN GROUPING(obcina, sifra_ko) = 3 THEN 'SLOVENIJA'
+        WHEN GROUPING(obcina) = 1 THEN sifra_ko::TEXT
         ELSE obcina
     END as ime_regije,
     
@@ -235,7 +235,7 @@ SELECT
     
 FROM najemni_podatki_z_razdeljeno_najemnino
 GROUP BY GROUPING SETS (
-    (ime_ko, vrsta_nepremicnine, leto_najema),     -- Katastrske občine
+    (sifra_ko, vrsta_nepremicnine, leto_najema),     -- Katastrske občine
     (obcina, vrsta_nepremicnine, leto_najema),     -- Občine  
     (vrsta_nepremicnine, leto_najema)              -- Slovenija
 ));

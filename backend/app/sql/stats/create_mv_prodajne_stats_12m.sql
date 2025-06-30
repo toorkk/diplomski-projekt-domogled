@@ -16,7 +16,7 @@ WITH prodajni_podatki AS (
     SELECT 
         -- Identifikatorji
         k.obcina,
-        k.ime_ko,
+        k.sifra_ko,
         kp.posel_id,
         
         CASE 
@@ -68,7 +68,7 @@ WITH prodajni_podatki AS (
         -- FILTRIRANJE PODATKOV - ZADNJIH 12 MESECEV
         -- ==========================================
         kp.vrsta_posla IN (1,2)
-        AND k.ime_ko IS NOT NULL
+        AND k.sifra_ko IS NOT NULL
         AND k.obcina IS NOT NULL
         AND kp.datum_sklenitve IS NOT NULL
         AND kp.datum_sklenitve >= CURRENT_DATE - INTERVAL '12 months'
@@ -135,14 +135,14 @@ SELECT
     -- DIMENZIJE REGIJE
     -- ================
     CASE 
-        WHEN GROUPING(obcina, ime_ko) = 3 THEN 'slovenija'  -- Oba NULL
-        WHEN GROUPING(obcina) = 1 THEN 'katastrska_obcina'  -- obcina=NULL, ime_ko!=NULL  
-        ELSE 'obcina'  -- obcina!=NULL, ime_ko=NULL
+        WHEN GROUPING(obcina, sifra_ko) = 3 THEN 'slovenija'  -- Oba NULL
+        WHEN GROUPING(obcina) = 1 THEN 'katastrska_obcina'  -- obcina=NULL, sifra_ko!=NULL  
+        ELSE 'obcina'  -- obcina!=NULL, sifra_ko=NULL
     END as tip_regije,
     
     CASE 
-        WHEN GROUPING(obcina, ime_ko) = 3 THEN 'SLOVENIJA'
-        WHEN GROUPING(obcina) = 1 THEN ime_ko
+        WHEN GROUPING(obcina, sifra_ko) = 3 THEN 'SLOVENIJA'
+        WHEN GROUPING(obcina) = 1 THEN sifra_ko::TEXT
         ELSE obcina
     END as ime_regije,
     
@@ -168,7 +168,7 @@ SELECT
     
 FROM prodajni_podatki_z_razdeljeno_ceno
 GROUP BY GROUPING SETS (
-    (ime_ko, vrsta_nepremicnine),     -- Katastrske občine
+    (sifra_ko, vrsta_nepremicnine),     -- Katastrske občine
     (obcina, vrsta_nepremicnine),     -- Občine  
     (vrsta_nepremicnine)              -- Slovenija
 ));
