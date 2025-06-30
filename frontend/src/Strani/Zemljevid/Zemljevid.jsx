@@ -9,6 +9,7 @@ import Iskalnik from "./Iskalnik.jsx";
 import Podrobnosti from "./Podrobnosti.jsx";
 import PopupManager from "./PopupManager.jsx";
 import StatistikePanel from "./StatistikePanel.jsx";
+import IntroModal from "./IntroModal.jsx";
 
 // Importanje managerjev
 import LayerManager from "./LayerManager.jsx";
@@ -64,10 +65,26 @@ export default function Zemljevid({ onNavigateToStatistics }) {
     const [obcinaStatistics, setObcinaStatistics] = useState(null);
     const [statisticsLoading, setStatisticsLoading] = useState(false);
 
+    // State za intro modal
+    const [showIntroModal, setShowIntroModal] = useState(false);
+
     const activeFiltersRef = useRef({});
     const selectedMunicipalityRef = useRef(null);
 
     const isMobile = window.innerWidth <= 768;
+
+    // Preveri ali je uporabnik že videl intro
+    useEffect(() => {
+        const hasSeenIntro = localStorage.getItem('hasSeenMapIntro');
+        if (!hasSeenIntro) {
+            setShowIntroModal(true);
+        }
+    }, []);
+
+    const handleCloseIntro = () => {
+        setShowIntroModal(false);
+        localStorage.setItem('hasSeenMapIntro', 'true');
+    };
 
     // Updejtanje ref ko se spremeni state
     useEffect(() => {
@@ -829,6 +846,17 @@ export default function Zemljevid({ onNavigateToStatistics }) {
             />
             <Iskalnik onSearch={handleSearch} />
 
+            {/* Help gumb za ponovno odpiranje intro */}
+            <button
+                onClick={() => setShowIntroModal(true)}
+                className="fixed top-7 left-7 z-40 w-12 h-12 bg-white hover:bg-gray-300 text-black rounded-full shadow-lg flex items-center justify-center transition-colors duration-200"
+                title="Pomoč - kako uporabljati aplikacijo"
+            >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </button>
+
             {/* Podrobnosti za nepremičnine model */}
             {showPropertyDetails && selectedProperty && (
                 <Podrobnosti
@@ -840,6 +868,12 @@ export default function Zemljevid({ onNavigateToStatistics }) {
                     }}
                 />
             )}
+
+            {/* IntroModal komponenta */}
+            <IntroModal 
+                isVisible={showIntroModal}
+                onClose={handleCloseIntro}
+            />
         </>
     );
 }
