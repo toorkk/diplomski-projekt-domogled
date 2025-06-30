@@ -14,6 +14,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
 
   const availableYears = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015, 2014, 2013, 2012, 2011, 2010, 2009, 2008];
 
+  // Določi privzete vrednosti glede na tip podatkov (prodaja ali najem)
   const getDefaultRanges = () => {
     if (dataSourceType === 'prodaja') {
       return {
@@ -30,15 +31,10 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
 
   const ranges = getDefaultRanges();
 
-  // ===========================================
-  // RESET FILTERS WHEN activeFilters PROP CHANGES FROM PARENT
-  // ===========================================
+  // Posodobi filtre ko se spremenijo aktivni filtri iz parent komponente
   useEffect(() => {
-    console.log('External activeFilters changed:', activeFilters);
-
-    // If activeFilters is empty (reset from parent), clear the form
+    // Če so aktivni filtri prazni (reset iz parent komponente), počisti obrazec
     if (Object.keys(activeFilters).length === 0) {
-      console.log('Resetting filter form to empty state');
       setFilters({
         filter_leto: 2025,
         min_cena: null,
@@ -47,8 +43,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
         max_povrsina: null
       });
     } else {
-      // Update form to match external state
-      console.log('Updating filter form to match external state');
+      // Posodobi obrazec da se ujema z zunanjim stanjem
       setFilters({
         filter_leto: activeFilters.filter_leto || 2025,
         min_cena: activeFilters.min_cena || null,
@@ -59,27 +54,20 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
     }
   }, [activeFilters]);
 
-  // ===========================================
-  // RESET FILTERS WHEN DATA SOURCE CHANGES
-  // ===========================================
+  // Ohrani filtre ko se spremeni tip podatkov (prodaja/najem)
   useEffect(() => {
-    console.log('Data source changed to:', dataSourceType, '- resetting filters');
-    const resetFilters = {
-      filter_leto: 2025,
-      min_cena: null,
-      max_cena: null,
-      min_povrsina: null,
-      max_povrsina: null
-    };
-    setFilters(resetFilters);
+    // Filtriramo samo ne-prazne vrednosti
+    const cleanedFilters = Object.fromEntries(
+      Object.entries(filters).filter(([_, v]) => v !== null && v !== '')
+    );
 
-    // Notify parent of reset
+    // Pošljemo trenutne filtre parentu za validacijo
     if (onFiltersChange) {
-      onFiltersChange({});
+      onFiltersChange(cleanedFilters);
     }
-  }, [dataSourceType]);
+  }, [dataSourceType]); 
 
-  // Detekcija screen siza
+  // Zaznavanje velikosti zaslona in upravljanje s responsive dizajnom
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
@@ -91,6 +79,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Obravnavanje sprememb filtrov
   const handleFilterChange = (key, value) => {
     const newFilters = {
       ...filters,
@@ -98,18 +87,17 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
     };
     setFilters(newFilters);
 
-    // poslje samo ne null vrednosti parentu
+    // Pošlje samo ne-prazne vrednosti parentu
     const cleanedFilters = Object.fromEntries(
       Object.entries(newFilters).filter(([_, v]) => v !== null && v !== '')
     );
-
-    console.log('Filter changed:', key, '=', value, 'sending to parent:', cleanedFilters);
 
     if (onFiltersChange) {
       onFiltersChange(cleanedFilters);
     }
   };
 
+  // Reset vseh filtrov
   const handleReset = () => {
     const resetFilters = {
       filter_leto: 2025,
@@ -121,12 +109,14 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
     setFilters(resetFilters);
 
     if (onFiltersChange) {
-      onFiltersChange(resetFilters);
+      onFiltersChange({}); // Pošlje prazen objekt za reset
     }
   };
 
+  // Preveri ali so aktivni kakšni filtri
   const hasActiveFilters = Object.values(filters).some(value => value !== null && value !== '');
 
+  // Formatiranje prikazane cene glede na tip podatkov
   const formatCenaLabel = (value) => {
     if (dataSourceType === 'prodaja') {
       return value >= 1000 ? `${(value / 1000).toFixed(0)}k €` : `${value} €`;
@@ -135,7 +125,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
     }
   };
 
-  // Funkcija za prikaz aktivnih filtrov
+  // Pripravi besedilo za prikaz aktivnih filtrov
   const getActiveFiltersText = () => {
     const activeFiltersList = [];
     
@@ -158,11 +148,11 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
     return activeFiltersList;
   };
 
-  // Mobile filter (kot prej)
+  // Mobilna verzija filtra
   if (isMobile) {
     return (
       <>
-        {/* Gumb za odpiranje filtra - vedno viden ko je filter zaprt */}
+        {/* Okrogel gumb za odpiranje filtra na mobilnih napravah */}
         <button
           onClick={() => setIsOpen(true)}
           className="fixed bottom-4 left-4 bg-white shadow-lg border border-gray-200 hover:bg-gray-50 transition-all duration-300 flex items-center justify-center z-10"
@@ -187,13 +177,14 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
                 d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
               />
             </svg>
+            {/* Indikator aktivnih filtrov */}
             {hasActiveFilters && (
               <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full"></div>
             )}
           </div>
         </button>
 
-        {/* Filter container - naloži se samo ko je odprt */}
+        {/* Mobilni filter container - prikaže se z dna zaslona */}
         {isOpen && (
           <div className="fixed bottom-0 left-0 right-0 z-50">
             <div
@@ -202,7 +193,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
                 height: '500px'
               }}
             >
-              {/* Header - fiksni */}
+              {/* Naslovnica s tipko za zapiranje */}
               <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
                 <div className="flex items-center space-x-2">
                   <h2 className="text-lg font-semibold text-gray-800">Filtri</h2>
@@ -220,10 +211,10 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
                 </button>
               </div>
 
-              {/* Mobile filter content - scrollable */}
+              {/* Vsebina filtrov z možnostjo drsenja */}
               <div className="flex-1 overflow-y-auto p-4">
                 <div className="space-y-4">
-                  {/* leto */}
+                  {/* Filter za leto */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Posli od leta</label>
                     <select
@@ -238,7 +229,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
                     </select>
                   </div>
 
-                  {/* cena */}
+                  {/* Filter za ceno */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">{ranges.cena.label}</label>
                     <div className="grid grid-cols-2 gap-2">
@@ -261,7 +252,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
                     </div>
                   </div>
 
-                  {/* uporabna povrsina */}
+                  {/* Filter za površino */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">{ranges.povrsina.label}</label>
                     <div className="grid grid-cols-2 gap-2">
@@ -284,7 +275,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
                     </div>
                   </div>
 
-                  {/* reset */}
+                  {/* Gumb za resetiranje filtrov */}
                   {hasActiveFilters && (
                     <button
                       onClick={handleReset}
@@ -303,18 +294,18 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
     );
   }
 
-  // Desktop version - NOVI KOMPAKTNI DIZAJN SPODAJ LEVO
+  // Namizna verzija filtra
   return (
     <div className="fixed bottom-4 left-4 z-10 flex flex-col">
-      {/* Enotni filter container - razširi se navzgor */}
+      {/* Glavni filter container z razširjanjem navzgor */}
       <div className={`bg-white shadow-xl border border-gray-200 rounded-xl transition-all duration-300 w-96 ${
         isOpen ? 'h-auto' : 'h-auto'
       } flex flex-col overflow-hidden`}>
         
-        {/* Filter content - prikaže se samo ko je odprt */}
+        {/* Vsebina filtrov - prikaže se samo ko je odprt */}
         {isOpen && (
           <div className="border-b border-gray-100">
-            {/* Header */}
+            {/* Naslovnica */}
             <div className="bg-white px-4 py-3 border-b border-gray-100">
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
@@ -322,10 +313,10 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
               </div>
             </div>
 
-            {/* Filter inputs */}
+            {/* Vnosna polja za filtre */}
             <div className="p-4">
               <div className="space-y-4">
-                {/* leto */}
+                {/* Filter za leto */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Posli od leta
@@ -342,7 +333,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
                   </select>
                 </div>
 
-                {/* cena */}
+                {/* Filter za ceno */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     {ranges.cena.label}
@@ -381,7 +372,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
                   </div>
                 </div>
 
-                {/* uporabna povrsina */}
+                {/* Filter za površino */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     {ranges.povrsina.label}
@@ -420,7 +411,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
                   </div>
                 </div>
 
-                {/* reset */}
+                {/* Gumb za resetiranje filtrov */}
                 {hasActiveFilters && (
                   <div className="pt-2 border-t border-gray-100">
                     <button
@@ -440,7 +431,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
           </div>
         )}
 
-        {/* Kompaktni filter gumb - vedno na dnu */}
+        {/* Kompaktni gumb za odpiranje/zapiranje filtra */}
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="hover:bg-gray-50 transition-all duration-300 p-4 w-full rounded-xl"
@@ -461,6 +452,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
                   d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
                 />
               </svg>
+              {/* Indikator aktivnih filtrov */}
               {hasActiveFilters && (
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full"></div>
               )}
@@ -481,6 +473,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
               )}
             </div>
 
+            {/* Puščica za odpiranje/zapiranje */}
             <svg
               className={`w-4 h-4 text-gray-500 transition-transform duration-200 flex-shrink-0 ${
                 isOpen ? 'rotate-180' : ''

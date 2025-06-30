@@ -30,7 +30,7 @@ export default function Navbar({ activePage, onPageChange }) {
   };
 
   return (
-    <nav className={`absolute top-6 z-30 bg-white rounded-xl shadow-lg border border-gray-100 ${
+    <nav className={`absolute top-6 z-50 bg-white rounded-xl shadow-lg border border-gray-100 ${
       isMobile 
         ? 'left-4 right-4' 
         : 'left-1/2 transform -translate-x-1/2'

@@ -209,6 +209,55 @@ ChartWrapper.propTypes = {
     activeTab: PropTypes.string
 };
 
+// KOMPAKTNA WELCOME MESSAGE KOMPONENTA
+const WelcomeOverlay = ({ onDismiss }) => (
+    <>
+        {/* Overlay background - znižan z-index da ne prekrije header-ja */}
+        <div className="absolute inset-0 bg-black/40 z-30" onClick={onDismiss} />
+        
+        {/* Compact message - znižan z-index da ne prekrije header-ja */}
+        <div className="absolute inset-0 z-30 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg shadow-xl border border-gray-200 p-6 max-w-md w-full">
+                <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            Statistični pregled
+                        </h3>
+                        <p className="text-gray-600 text-sm mb-4">
+                            Izberi občino ali kataster za ogled nepremičninskih trendov in statistik.
+                        </p>
+                        <button
+                            onClick={onDismiss}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors w-full"
+                        >
+                            Razumem
+                        </button>
+                    </div>
+                    <button
+                        onClick={onDismiss}
+                        className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </>
+);
+
+WelcomeOverlay.propTypes = {
+    onDismiss: PropTypes.func.isRequired
+};
+
 // ========================================
 // POMOŽNE FUNKCIJE (Poenostavitev logike)
 // ========================================
@@ -258,6 +307,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
     const [selectedMunicipality, setSelectedMunicipality] = useState(null);
     const [selectedObcina, setSelectedObcina] = useState(null);
     const [activeTab, setActiveTab] = useState('prodaja');
+    const [showWelcomeMessage, setShowWelcomeMessage] = useState(true); // NOVO STANJE
     const [chartType, setChartType] = useState({
         price: 'stanovanje',
         totalPrice: 'stanovanje',
@@ -302,6 +352,9 @@ export default function Statistika({ selectedRegionFromNavigation }) {
     // Funkcije za izbiro katastrov
     const handleMunicipalitySelect = useCallback((municipalityData) => {
         setSelectedMunicipality(municipalityData);
+        
+        // SKRIJ WELCOME MESSAGE KO SE IZBERE OBČINA
+        setShowWelcomeMessage(false);
 
         // NE resetiraj selectedObcina če je preserveObcina = true
         if (!municipalityData?.preserveObcina) {
@@ -323,6 +376,9 @@ export default function Statistika({ selectedRegionFromNavigation }) {
     const handleObcinaSelect = useCallback((obcinaData) => {
         setSelectedObcina(obcinaData);
         setSelectedMunicipality(null);
+        
+        // SKRIJ WELCOME MESSAGE KO SE IZBERE OBČINA
+        setShowWelcomeMessage(false);
 
         if (obcinaData) {
             fetchStatistics(obcinaData.name, 'obcina');
@@ -345,10 +401,14 @@ export default function Statistika({ selectedRegionFromNavigation }) {
         if (type === 'katastrska_obcina') {
             setSelectedMunicipality({ name: `${name} (${sifko})`, sifko });
             setSelectedObcina(null);
+            // SKRIJ WELCOME MESSAGE KO SE NAVIGIRA IZ DRUGE STRANI
+            setShowWelcomeMessage(false);
             fetchStatistics(name, 'katastrska_obcina');
         } else if (type === 'obcina') {
             setSelectedObcina({ name, obcinaId });
             setSelectedMunicipality(null);
+            // SKRIJ WELCOME MESSAGE KO SE NAVIGIRA IZ DRUGE STRANI
+            setShowWelcomeMessage(false);
             fetchStatistics(name, 'obcina');
         }
     }, [selectedRegionFromNavigation, fetchStatistics, fetchSloveniaStatistics]);
@@ -397,9 +457,9 @@ export default function Statistika({ selectedRegionFromNavigation }) {
     return (
         <div className="min-h-screen bg-gray-100 lg:pt-16 lg:pb-8 lg:px-16">
             <div className="max-w-none">
-                <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+                <div className="bg-white rounded-lg shadow-lg overflow-hidden relative">
                     {/* Sekcija zemljevida */}
-                    <div className="h-[450px] lg:h-[600px]">
+                    <div className="h-[450px] lg:h-[600px] relative">
                         <StatisticsZemljevid
                             onMunicipalitySelect={handleMunicipalitySelect}
                             onObcinaSelect={handleObcinaSelect}
@@ -407,7 +467,13 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                             selectedObcina={selectedObcina}
                             selectedRegionFromNavigation={selectedRegionFromNavigation}
                             activeTab={activeTab}
+                            showWelcomeOverlay={showWelcomeMessage}
                         />
+                        
+                        {/* WELCOME OVERLAY - NAD ZEMLJEVIDOM */}
+                        {showWelcomeMessage && (
+                            <WelcomeOverlay onDismiss={() => setShowWelcomeMessage(false)} />
+                        )}
                     </div>
 
                     {/* Sekcija statistik */}

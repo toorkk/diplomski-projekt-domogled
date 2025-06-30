@@ -630,19 +630,13 @@ const addObcinaMask = (obcinaId) => {
             const transaction = activeTab === 'prodaja' ? 'Prodaje' : 'Najemi';
             const metric = viewMode === 'cene' ? 'povprečne cene/m²' : 'število poslov';
 
-            // NOVO: Prikaži kontekst če je izbrana regija
-            let context = '';
-            if (selectedMunicipality) {
-                context = ` - ${selectedMunicipality.name}`;
-            } else if (selectedObcina) {
-                context = ` - ${selectedObcina.name}`;
-            }
+            
 
-            return `${transaction} - ${metric} (zadnjih 12 mesecev)${context}`;
+            return `${transaction} - ${metric} (zadnjih 12 mesecev)`;
         };
 
         return (
-            <div className="absolute top-4 left-4 z-20 bg-white/95 backdrop-blur-sm rounded-lg shadow-md border border-gray-200 px-3 py-3">
+            <div className="absolute top-4 left-4 z-20 bg-white/95 backdrop-blur-sm rounded-lg shadow-md border border-gray-200 px-3 py-3 hidden sm:block">
                 <div className="text-xs font-medium text-gray-700 mb-3">
                     {getLegendTitle()}
                 </div>
