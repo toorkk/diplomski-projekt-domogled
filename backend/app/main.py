@@ -25,9 +25,9 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",                    # Lokalno
-        "https://domogled.vercel.app",      # Production
-        "https://*.vercel.app"                     # Vercel previews
+        "http://localhost:5173",                   # Lokalno
+        "https://domogled.si",
+        "https://www.domogled.si",                 # Production
     ],
     allow_credentials=True,
     allow_methods=["*"],
