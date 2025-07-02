@@ -384,18 +384,15 @@ export default function Iskalnik({ onSearch }) {
         <div
           className="absolute top-50 right-2 z-10"
           ref={searchContainerRef}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          // Add keyboard support
-          onFocus={handleMouseEnter}
-          onBlur={handleMouseLeave}
-          // Make it focusable but not tab-stoppable since the button inside is the real interactive element
-          tabIndex={-1}
         >
           {!searchVisible ? (
             <DesktopSearchIcon onClick={() => setSearchVisible(true)} />
           ) : (
-            <div className="relative">
+            <div
+              className="relative"
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+            >
               <DesktopSearchForm
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
