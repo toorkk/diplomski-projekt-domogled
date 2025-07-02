@@ -29,9 +29,21 @@ Glavne funkcionalnosti ki so na razpolago za vsako občino (tudi katastrske obč
 
 ------------------------
 
-## Setup
+## Namestitev in zagon
 
-### Baza
+### Predpogoji
+- Python 3.8 ali novejši
+- Node.js 16 ali novejši
+- Docker
+- Git
+
+### 1. Kloniranje repozitorija
+```
+git clone https://github.com/toorkk/diplomski-projekt-domogled.git
+cd .\diplomski-projekt-domogled\
+```
+
+### 2. Baza
 
 PostgreSQL baza z PostGIS se namesti z Docker containerjem.
 
@@ -61,7 +73,7 @@ cd .\db\
 docker-compose up -d
 ```
 
-### Backend
+### 3. Backend
 FastAPI backend. Temelji na Python-u, potrebem vsaj Python 3.8
 
 
@@ -83,7 +95,7 @@ cd .\backend\
 python -m uvicorn app.main:app --reload
 ```
 
-### Frontend
+### 4. Frontend
 Frontend temelji na React + Vite v jeziku JavaScript
 
 
@@ -103,6 +115,14 @@ npm run dev
 ------------------------
 
 ## Domogled API
+
+Backend API je dostopen na http://localhost:8000
+
+Dodatna dokumentacija je po zagonu backend strežnika tudi na voljo na:
+
+Swagger UI: http://localhost:8000/docs
+
+ReDoc: http://localhost:8000/redoc
 
 ### Vnos podatkov
 
@@ -167,6 +187,3 @@ GET /api/statistike/vse-obcine-posli-zadnjih-12m
 ```
 GET /api/statistike/vse-obcine-cene-m2-zadnjih-12m
 ```
-
-
-definicije vseh endpointov so ldostopne na http://localhost:8000/docs, po tem ko je zagnan FastAPI backend strežnik.
