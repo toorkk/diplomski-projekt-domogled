@@ -182,4 +182,4 @@ SET tip_rabe = CASE
         
    ELSE 'drugo'
 END
-WHERE tip_rabe IS NULL OR tip_rabe = '';
+WHERE tip_rabe IS NULL OR LENGTH(TRIM(tip_rabe)) = 0;

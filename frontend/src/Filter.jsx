@@ -216,8 +216,11 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
                 <div className="space-y-4">
                   {/* Filter za leto */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Posli od leta</label>
+                    <label htmlFor="mobile-filter-leto" className="block text-sm font-medium text-gray-700 mb-2">
+                      Posli od leta
+                    </label>
                     <select
+                      id="mobile-filter-leto"
                       value={filters.filter_leto || 2025}
                       onChange={(e) => handleFilterChange('filter_leto', e.target.value || 2025)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -231,47 +234,63 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
 
                   {/* Filter za ceno */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">{ranges.cena.label}</label>
+                    <span className="block text-sm font-medium text-gray-700 mb-2">{ranges.cena.label}</span>
                     <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="number"
-                        value={filters.min_cena || ''}
-                        onChange={(e) => handleFilterChange('min_cena', e.target.value || null)}
-                        placeholder="Min"
-                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        disabled={isLoading}
-                      />
-                      <input
-                        type="number"
-                        value={filters.max_cena || ''}
-                        onChange={(e) => handleFilterChange('max_cena', e.target.value || null)}
-                        placeholder="Max"
-                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        disabled={isLoading}
-                      />
+                      <div>
+                        <label htmlFor="mobile-min-cena" className="sr-only">Minimalna cena</label>
+                        <input
+                          id="mobile-min-cena"
+                          type="number"
+                          value={filters.min_cena || ''}
+                          onChange={(e) => handleFilterChange('min_cena', e.target.value || null)}
+                          placeholder="Min"
+                          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+                          disabled={isLoading}
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="mobile-max-cena" className="sr-only">Maksimalna cena</label>
+                        <input
+                          id="mobile-max-cena"
+                          type="number"
+                          value={filters.max_cena || ''}
+                          onChange={(e) => handleFilterChange('max_cena', e.target.value || null)}
+                          placeholder="Max"
+                          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+                          disabled={isLoading}
+                        />
+                      </div>
                     </div>
                   </div>
 
                   {/* Filter za površino */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">{ranges.povrsina.label}</label>
+                    <span className="block text-sm font-medium text-gray-700 mb-2">{ranges.povrsina.label}</span>
                     <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="number"
-                        value={filters.min_povrsina || ''}
-                        onChange={(e) => handleFilterChange('min_povrsina', e.target.value || null)}
-                        placeholder="Min m²"
-                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        disabled={isLoading}
-                      />
-                      <input
-                        type="number"
-                        value={filters.max_povrsina || ''}
-                        onChange={(e) => handleFilterChange('max_povrsina', e.target.value || null)}
-                        placeholder="Max m²"
-                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        disabled={isLoading}
-                      />
+                      <div>
+                        <label htmlFor="mobile-min-povrsina" className="sr-only">Minimalna površina</label>
+                        <input
+                          id="mobile-min-povrsina"
+                          type="number"
+                          value={filters.min_povrsina || ''}
+                          onChange={(e) => handleFilterChange('min_povrsina', e.target.value || null)}
+                          placeholder="Min m²"
+                          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+                          disabled={isLoading}
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="mobile-max-povrsina" className="sr-only">Maksimalna površina</label>
+                        <input
+                          id="mobile-max-povrsina"
+                          type="number"
+                          value={filters.max_povrsina || ''}
+                          onChange={(e) => handleFilterChange('max_povrsina', e.target.value || null)}
+                          placeholder="Max m²"
+                          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+                          disabled={isLoading}
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -318,10 +337,11 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
               <div className="space-y-4">
                 {/* Filter za leto */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="desktop-filter-leto" className="block text-sm font-medium text-gray-700 mb-2">
                     Posli od leta
                   </label>
                   <select
+                    id="desktop-filter-leto"
                     value={filters.filter_leto || 2025}
                     onChange={(e) => handleFilterChange('filter_leto', e.target.value || 2025)}
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
@@ -335,14 +355,15 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
 
                 {/* Filter za ceno */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <span className="block text-sm font-medium text-gray-700 mb-2">
                     {ranges.cena.label}
-                  </label>
+                  </span>
                   <div className="space-y-2">
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Min</label>
+                        <label htmlFor="desktop-min-cena" className="block text-xs text-gray-500 mb-1">Min</label>
                         <input
+                          id="desktop-min-cena"
                           type="number"
                           value={filters.min_cena || ''}
                           onChange={(e) => handleFilterChange('min_cena', e.target.value || null)}
@@ -355,8 +376,9 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Max</label>
+                        <label htmlFor="desktop-max-cena" className="block text-xs text-gray-500 mb-1">Max</label>
                         <input
+                          id="desktop-max-cena"
                           type="number"
                           value={filters.max_cena || ''}
                           onChange={(e) => handleFilterChange('max_cena', e.target.value || null)}
@@ -374,14 +396,15 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
 
                 {/* Filter za površino */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <span className="block text-sm font-medium text-gray-700 mb-2">
                     {ranges.povrsina.label}
-                  </label>
+                  </span>
                   <div className="space-y-2">
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Min</label>
+                        <label htmlFor="desktop-min-povrsina" className="block text-xs text-gray-500 mb-1">Min</label>
                         <input
+                          id="desktop-min-povrsina"
                           type="number"
                           value={filters.min_povrsina || ''}
                           onChange={(e) => handleFilterChange('min_povrsina', e.target.value || null)}
@@ -394,8 +417,9 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Max</label>
+                        <label htmlFor="desktop-max-povrsina" className="block text-xs text-gray-500 mb-1">Max</label>
                         <input
+                          id="desktop-max-povrsina"
                           type="number"
                           value={filters.max_povrsina || ''}
                           onChange={(e) => handleFilterChange('max_povrsina', e.target.value || null)}
