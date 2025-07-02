@@ -326,7 +326,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
 
         try {
             const response = await fetch(
-                `${API_CONFIG.BASE_URL}/api/statistike/vse/${regionType}/${encodeURIComponent(regionName.toUpperCase())}`
+                `${API_CONFIG.BASE_URL}/api/statistike/vse/${regionType}/${encodeURIComponent(regionName.toString().toUpperCase())}`
             );
 
             if (!response.ok) {
@@ -349,7 +349,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
         fetchStatistics('SLOVENIJA', 'slovenija');
     }, [fetchStatistics]);
 
-    // Funkcije za izbiro katastrov
+    // ✅ POPRAVLJENA funkcija za izbiro katastrov - uporabi SIFKO
     const handleMunicipalitySelect = useCallback((municipalityData) => {
         setSelectedMunicipality(municipalityData);
         
@@ -362,11 +362,8 @@ export default function Statistika({ selectedRegionFromNavigation }) {
         }
 
         if (municipalityData) {
-            let name = municipalityData.name;
-            if (name.includes('(') && name.includes(')')) {
-                name = name.split('(')[0].trim();
-            }
-            fetchStatistics(name, 'katastrska_obcina');
+            // ✅ NOVA KODA - uporabi SIFKO direktno namesto parsanja imena
+            fetchStatistics(municipalityData.sifko, 'katastrska_obcina');
         } else {
             // Če ni izbrane občine, naloži statistike za Slovenijo
             fetchSloveniaStatistics();
@@ -388,7 +385,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
         }
     }, [fetchStatistics, fetchSloveniaStatistics]);
 
-    // Samodejno nalaganje iz navigacije
+    // ✅ POPRAVLJEN samodejno nalaganje iz navigacije
     useEffect(() => {
         if (!selectedRegionFromNavigation) {
             // Če ni podane regije iz navigacije, naloži statistike za Slovenijo
@@ -403,13 +400,14 @@ export default function Statistika({ selectedRegionFromNavigation }) {
             setSelectedObcina(null);
             // SKRIJ WELCOME MESSAGE KO SE NAVIGIRA IZ DRUGE STRANI
             setShowWelcomeMessage(false);
-            fetchStatistics(name, 'katastrska_obcina');
+            // ✅ NOVA KODA - uporabi SIFKO namesto imena
+            fetchStatistics(sifko, 'katastrska_obcina');
         } else if (type === 'obcina') {
             setSelectedObcina({ name, obcinaId });
             setSelectedMunicipality(null);
             // SKRIJ WELCOME MESSAGE KO SE NAVIGIRA IZ DRUGE STRANI
             setShowWelcomeMessage(false);
-            fetchStatistics(name, 'obcina');
+            fetchStatistics(name, 'obcina'); // ✅ Občine ostanejo enako
         }
     }, [selectedRegionFromNavigation, fetchStatistics, fetchSloveniaStatistics]);
 

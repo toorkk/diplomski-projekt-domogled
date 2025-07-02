@@ -19,26 +19,6 @@ class StatisticsLayerManager {
 
         // Flag za prisilni prikaz katastrov
         this.forceShowMunicipalities = false;
-
-        // NOVO: Lista katastrov za filtriranje
-        this.EXCLUDED_KATASTRE = [
-            { name: 'VODICE', obcina: 'LJUBLJANA' },
-            { name: 'ŠENTPETER', obcina: 'LJUBLJANA' },
-            { name: 'GOTNA VAS', obcina: 'LJUBLJANA' },
-            { name: 'RAKITINA', obcina: 'LJUBLJANA' },
-            { name: 'GOLO', obcina: 'LJUBLJANA' },
-            { name: 'VINO', obcina: 'LJUBLJANA' }
-        ];
-    }
-
-    // NOVO: Helper funkcija za filtriranje katastrov
-    shouldExcludeKataster(katastreName, obcinaName) {
-        if (!katastreName || !obcinaName) return false;
-        
-        return this.EXCLUDED_KATASTRE.some(filter => 
-            katastreName.toUpperCase().includes(filter.name.toUpperCase()) && 
-            obcinaName.toUpperCase().includes(filter.obcina.toUpperCase())
-        );
     }
 
     // Dodaj sloje občin za nizke zoom nivoje
@@ -297,7 +277,7 @@ class StatisticsLayerManager {
     }
 
     // ========================================
-    // MUNICIPALITIES LAYERS - Z FILTRIRANJEM
+    // MUNICIPALITIES LAYERS - BREZ FILTRIRANJA
     // ========================================
 
     addMunicipalitiesLayers(municipalitiesData) {
@@ -306,44 +286,23 @@ class StatisticsLayerManager {
         }
 
         try {
-            // NOVO: Filtriraj podatke pred dodajanjem
-            const filteredFeatures = municipalitiesData.features.filter(feature => {
-                const katastreName = feature.properties.NAZIV || feature.properties.IMEKO || '';
-                const obcinaName = feature.properties.OBCINA || '';
-                
-                // Izključi kataster če je na filter listi
-                if (this.shouldExcludeKataster(katastreName, obcinaName)) {
-                    console.log(`🚫 Izključujem kataster: ${katastreName} v občini ${obcinaName}`);
-                    return false;
-                }
-                
-                return true;
-            });
-
-            // Ustvari nove podatke z filtriranimi features
-            const filteredData = {
-                ...municipalitiesData,
-                features: filteredFeatures
-            };
-
-            console.log(`📊 Originalnih katastrov: ${municipalitiesData.features.length}`);
-            console.log(`📊 Po filtriranju: ${filteredData.features.length}`);
-            console.log(`📊 Odstranjenih: ${municipalitiesData.features.length - filteredData.features.length}`);
-
-            // Dodaj podatkovni vir z filtriranimi podatki
+            // Dodaj podatkovni vir z originalnimi podatki (brez filtriranja)
             this.map.addSource(SOURCE_IDS.MUNICIPALITIES, {
                 type: 'geojson',
-                data: filteredData // Uporabi filtrirane podatke
+                data: municipalitiesData
             });
 
-            // Dodaj fill sloj - VIDLJIV za barvanje
+            console.log(`📊 Dodanih katastrov: ${municipalitiesData.features.length}`);
+
+            // Dodaj fill sloj - NEPROSOJNI katastri
             this.map.addLayer({
                 id: LAYER_IDS.MUNICIPALITIES.FILL,
                 type: 'fill',
                 source: SOURCE_IDS.MUNICIPALITIES,
                 paint: {
-                    'fill-color': 'rgba(255, 255, 255, 0.8)',
-                    'fill-opacity': 0.8
+                    // SPREMEMBA: Popolnoma neprosojni katastri
+                    'fill-color': '#ffffff', // Bela barva namesto rgba
+                    'fill-opacity': 1.0 // Popolnoma neprosojni
                 },
                 layout: {
                     'visibility': 'none' // Na začetku skrit
@@ -358,7 +317,7 @@ class StatisticsLayerManager {
                 paint: {
                     'line-color': COLOR_SCHEME.MUNICIPALITY.DEFAULT,
                     'line-width': ZOOM_STYLES.MUNICIPALITIES.LINE_WIDTH,
-                    'line-opacity': ZOOM_STYLES.MUNICIPALITIES.LINE_OPACITY
+                    'line-opacity': 1.0 // SPREMEMBA: Tudi obrobe popolnoma neprosojne
                 },
                 layout: {
                     'visibility': 'none' // Na začetku skrit
@@ -382,27 +341,29 @@ class StatisticsLayerManager {
             // Preveri ali je colorExpression veljaven
             if (!colorExpression || !Array.isArray(colorExpression)) {
                 console.warn('Invalid color expression, using default color');
-                this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-color', 'rgba(255, 255, 255, 0.8)');
+                this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-color', '#ffffff');
                 return;
             }
 
             // Preveri če ima expression dovolj argumentov
             if (colorExpression.length < 3) {
                 console.warn('Color expression too short, using default color');
-                this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-color', 'rgba(255, 255, 255, 0.8)');
+                this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-color', '#ffffff');
                 return;
             }
 
             // Aplikacija color expression
             this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-color', colorExpression);
-            this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-opacity', 0.8);
+            // SPREMEMBA: Vedno popolnoma neprosojni
+            this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-opacity', 1.0);
 
             console.log('Municipality colors updated successfully');
 
         } catch (error) {
             console.error('Error updating municipality fill colors:', error);
-            // Fallback na osnovne barve
-            this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-color', COLOR_MAPPING_CONFIG.DEFAULT_FALLBACK);
+            // Fallback na osnovne barve - NEPROSOJNE
+            this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-color', COLOR_MAPPING_CONFIG.DEFAULT_FALLBACK || '#ffffff');
+            this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-opacity', 1.0);
         }
     }
 
@@ -424,13 +385,8 @@ class StatisticsLayerManager {
             ZOOM_STYLES.MUNICIPALITIES.LINE_WIDTH
         ]);
 
-        // Posodobi prosojnost za izbrani kataster
-        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-opacity', [
-            'case',
-            ['==', ['get', 'SIFKO'], selectedSifko || -1],
-            1.0,
-            ZOOM_STYLES.MUNICIPALITIES.LINE_OPACITY
-        ]);
+        // SPREMEMBA: Vedno popolnoma neprosojne obrobe
+        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-opacity', 1.0);
 
         // Posodobi filter klikov za katastre - samo če ni izbrane občine
         if (selectedSifko && !this.selectedObcinaName) {
@@ -462,12 +418,8 @@ class StatisticsLayerManager {
             ZOOM_STYLES.MUNICIPALITIES.LINE_WIDTH
         ]);
 
-        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-opacity', [
-            'case',
-            ['==', ['get', 'SIFKO'], hoveredSifko || -1],
-            1.0,
-            ZOOM_STYLES.MUNICIPALITIES.LINE_OPACITY
-        ]);
+        // SPREMEMBA: Vedno popolnoma neprosojne obrobe
+        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-opacity', 1.0);
     }
 
     // Resetiraj filtre
@@ -475,18 +427,6 @@ class StatisticsLayerManager {
         this.selectedObcinaName = null;
         this.forceShowMunicipalities = false; // Resetiraj tudi prisilni flag
         this.filterMunicipalitiesByObcina(null);
-    }
-
-    // OPCIJSKO: Dinamično posodabljanje filtrov
-    updateKatastriFilters(newFilters) {
-        console.log('🔄 Posodabljam filtre katastrov:', newFilters);
-        this.EXCLUDED_KATASTRE = newFilters;
-        
-        // Če so katastri že naloženi, bi morali ponovno naložiti podatke
-        // (za to bi potrebovali dostop do originalnih municipalitiesData)
-        if (this.map.getSource(SOURCE_IDS.MUNICIPALITIES)) {
-            console.warn('⚠️ Katastri so že naloženi. Za popolno posodobitev je potreben reload.');
-        }
     }
 
     // Pomožna metoda za odstranjevanje slojev in virov

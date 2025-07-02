@@ -106,7 +106,8 @@ export default function IntroModal({ isVisible, onClose }) {
                                 </div>
                                 Kako uporabljati?
                             </h3>
-                            <div className="space-y-4">
+                            {/* Grid layout za boxe */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="bg-gray-50 rounded-lg p-4">
                                     <div className="flex items-center mb-2">
                                         <span className="text-lg mr-2">🔍</span>

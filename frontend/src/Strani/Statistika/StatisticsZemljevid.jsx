@@ -45,6 +45,11 @@ export default function StatisticsZemljevid({
     const [hoveredMunicipality, setHoveredMunicipality] = useState(null);
     const [viewMode, setViewMode] = useState('posli');
 
+    // Mobile stanja
+    const [isMobile, setIsMobile] = useState(false);
+    const [selectedObcinaDropdown, setSelectedObcinaDropdown] = useState('');
+    const [selectedKatastrDropdown, setSelectedKatastrDropdown] = useState('');
+
     // Nova stanja za cursor tooltip
     const [cursorTooltip, setCursorTooltip] = useState(null);
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -59,6 +64,234 @@ export default function StatisticsZemljevid({
         center: MAP_CONFIG.INITIAL_CENTER,
         zoom: MAP_CONFIG.INITIAL_ZOOM
     });
+
+    // Check if mobile
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768); // md breakpoint
+        };
+        
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    // Pripravi podatke za dropdown
+    const getObcineOptions = () => {
+        if (!obcineData) return [];
+        
+        const options = obcineData.features
+            .map(feature => ({
+                id: getObcinaId(feature),
+                name: getObcinaName(feature),
+                feature: feature
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name, 'sl'));
+        
+        console.log('🔍 Vsi dosegljivi ID-ji občin:', options.map(opt => `${opt.id}: ${opt.name}`));
+        return options;
+    };
+
+    const getKatastriOptions = (obcinaName) => {
+        if (!municipalitiesData || !obcinaName) return [];
+        
+        const supportedMunicipalities = COLOR_MAPPING_CONFIG.SUPPORTED_MUNICIPALITIES;
+        if (!supportedMunicipalities.includes(obcinaName.toUpperCase())) {
+            return [];
+        }
+
+        return municipalitiesData.features
+            .filter(feature => {
+                const municipalityName = getMunicipalityName(feature);
+                return municipalityName.toLowerCase().includes(obcinaName.toLowerCase());
+            })
+            .map(feature => ({
+                sifko: feature.properties.SIFKO,
+                name: getMunicipalityName(feature),
+                feature: feature
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name, 'sl'));
+    };
+
+    // Mobile dropdown handlers
+    const handleObcinaDropdownChange = (obcinaId) => {
+        console.log('🔍 Mobile - Izbrana občina ID:', obcinaId);
+        const allOptions = getObcineOptions();
+        console.log('🔍 Mobile - Iskanje občine z ID:', obcinaId, 'v opcijah:', allOptions.length);
+        
+        setSelectedObcinaDropdown(obcinaId);
+        setSelectedKatastrDropdown(''); // Reset kataster selection
+        
+        if (!obcinaId) {
+            console.log('🔍 Mobile - Resetiram izbiro občine');
+            onObcinaSelect?.(null);
+            onMunicipalitySelect?.(null);
+            return;
+        }
+
+        const obcinaOption = allOptions.find(opt => opt.id.toString() === obcinaId.toString());
+        if (obcinaOption) {
+            console.log('🔍 Mobile - Našel občino:', obcinaOption.name);
+            
+            // ✅ DIREKTNO KLIČI onObcinaSelect namesto handleObcinaClick
+            const obcinaIdValue = getObcinaId(obcinaOption.feature);
+            const obcinaName = getObcinaName(obcinaOption.feature);
+            const bounds = calculateBoundsFromGeometry(obcinaOption.feature.geometry);
+
+            const obcinaData = {
+                name: obcinaName,
+                obcinaId: obcinaIdValue,
+                bounds: bounds
+            };
+
+            console.log('🔍 Mobile - Pošiljam podatke o občini:', obcinaData);
+            console.log('🔍 Mobile - onObcinaSelect callback obstaja?', !!onObcinaSelect);
+            
+            if (onObcinaSelect) {
+                onObcinaSelect(obcinaData);
+                console.log('🔍 Mobile - onObcinaSelect klican uspešno');
+            } else {
+                console.warn('❌ Mobile - onObcinaSelect callback ne obstaja!');
+            }
+
+            // Potem še pokliči handleObcinaClick za zemljevid
+            handleObcinaClick(obcinaOption.feature);
+        } else {
+            console.warn('❌ Mobile - Občina z ID', obcinaId, 'ni bila najdena');
+            console.log('🔍 Mobile - Dosegljivi ID-ji:', allOptions.map(opt => opt.id));
+        }
+    };
+
+    const handleKatastrDropdownChange = (sifko) => {
+        console.log('🔍 Mobile - Izbran kataster SIFKO:', sifko);
+        setSelectedKatastrDropdown(sifko);
+        
+        if (!sifko) {
+            console.log('🔍 Mobile - Resetiram izbiro katastra');
+            onMunicipalitySelect?.(null);
+            return;
+        }
+
+        const katastrOption = getKatastriOptions(selectedObcina?.name || '').find(opt => opt.sifko === sifko);
+        if (katastrOption) {
+            console.log('🔍 Mobile - Našel kataster:', katastrOption.name);
+            
+            // ✅ DIREKTNO KLIČI onMunicipalitySelect namesto handleMunicipalityClick
+            const municipalityName = getMunicipalityName(katastrOption.feature);
+            const bounds = calculateBoundsFromGeometry(katastrOption.feature.geometry);
+
+            const municipalityData = {
+                name: municipalityName,
+                sifko: sifko,
+                bounds: bounds,
+                preserveObcina: true
+            };
+
+            console.log('🔍 Mobile - Pošiljam podatke o katastru:', municipalityData);
+            onMunicipalitySelect?.(municipalityData);
+
+            // Potem še pokliči handleMunicipalityClick za zemljevid
+            handleMunicipalityClick(katastrOption.feature);
+        }
+    };
+
+    // Mobile Overlay Component
+    const MobileOverlay = () => {
+        if (!isMobile) return null;
+
+        const obcineOptions = getObcineOptions();
+        const katastriOptions = selectedObcina ? getKatastriOptions(selectedObcina.name) : [];
+        const hasKatastriSupport = katastriOptions.length > 0;
+
+        return (
+            <div className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex flex-col">
+                {/* Content area */}
+                <div className="flex-1 flex flex-col justify-center px-4 py-6 space-y-6">
+                    {/* Občina selector */}
+                    <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Izberite občino:
+                        </label>
+                        <select
+                            value={selectedObcinaDropdown}
+                            onChange={(e) => handleObcinaDropdownChange(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        >
+                            <option value="">-- Izberi občino --</option>
+                            {obcineOptions.map(option => (
+                                <option key={option.id} value={option.id}>
+                                    {option.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Kataster selector - samo če je podprta občina */}
+                    {selectedObcina && hasKatastriSupport && (
+                        <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Izberite katastrsko občino:
+                            </label>
+                            <select
+                                value={selectedKatastrDropdown}
+                                onChange={(e) => handleKatastrDropdownChange(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            >
+                                <option value="">-- Izberi katastrsko občino --</option>
+                                {katastriOptions.map(option => (
+                                    <option key={option.sifko} value={option.sifko}>
+                                        {option.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
+
+
+                    {/* Current selection display */}
+                    {(selectedObcina || selectedMunicipality) && (
+                        <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-700">
+                                        Izbrano:
+                                    </p>
+                                    <p className="text-xs text-gray-600 mt-1">
+                                        {selectedMunicipality 
+                                            ? `Kataster: ${selectedMunicipality.name}` 
+                                            : `Občina: ${selectedObcina?.name}`
+                                        }
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        console.log('🔍 Mobile - Kliknjen reset gumb');
+                                        setSelectedObcinaDropdown('');
+                                        setSelectedKatastrDropdown('');
+                                        // ✅ DIREKTNO resetiraj callback-e, potem handleReset
+                                        onObcinaSelect?.(null);
+                                        onMunicipalitySelect?.(null);
+                                        handleReset();
+                                    }}
+                                    className="px-3 py-1 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-red-50 rounded-lg transition-colors"
+                                >
+                                    Počisti
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div className="bg-white/95 backdrop-blur-sm border-t border-gray-200 px-4 py-3">
+                    <p className="text-xs text-center text-gray-500">
+                        Interaktivne funkcije so na voljo na računalniku
+                    </p>
+                </div>
+            </div>
+        );
+    };
 
     // Utility funkcije
     const obcinaHasKatastre = (obcinaName) => {
@@ -163,7 +396,7 @@ export default function StatisticsZemljevid({
         }
     };
 
-    // Unified barvanje za občine in katastre
+    // ✅ POPRAVLJENA updateRegionColors funkcija
     const updateRegionColors = useCallback((
         regionType,
         activeTabParam = activeTab,
@@ -181,27 +414,74 @@ export default function StatisticsZemljevid({
         if (!dataSource) return;
 
         const allValues = [];
-        const nameMapping = new Map();
-        const apiNames = Object.keys(dataSource);
-        const geoData = isObcine ? obcineData : municipalitiesData;
-        const nameProperty = isObcine ? 'OB_UIME' : 'NAZIV';
-        const maxDistance = isObcine ? 2 : 3;
+        const colorExpression = ['case'];
 
-        geoData.features.forEach(feature => {
-            const geojsonName = feature.properties[nameProperty] || feature.properties.IMEKO;
-            if (!geojsonName) return;
+        if (isObcine) {
+            // ✅ Občine ostanejo enako - uporabljajo ime z closest match
+            const nameMapping = new Map();
+            const apiNames = Object.keys(dataSource);
+            const maxDistance = 2;
 
-            const closestApiName = findClosestName(geojsonName, apiNames, maxDistance);
+            obcineData.features.forEach(feature => {
+                const geojsonName = feature.properties.OB_UIME;
+                if (!geojsonName) return;
 
-            if (closestApiName) {
-                nameMapping.set(geojsonName, closestApiName);
+                const closestApiName = findClosestName(geojsonName, apiNames, maxDistance);
+
+                if (closestApiName) {
+                    nameMapping.set(geojsonName, closestApiName);
+                    const value = viewModeParam === 'cene'
+                        ? dataSource[closestApiName][activeTabParam]?.skupna_povprecna_cena_m2 || 0
+                        : dataSource[closestApiName][activeTabParam]?.skupaj || 0;
+
+                    if (value > 0) allValues.push(value);
+                }
+            });
+
+            nameMapping.forEach((apiName, geojsonName) => {
+                const regionData = dataSource[apiName];
                 const value = viewModeParam === 'cene'
-                    ? dataSource[closestApiName][activeTabParam]?.skupna_povprecna_cena_m2 || 0
-                    : dataSource[closestApiName][activeTabParam]?.skupaj || 0;
+                    ? regionData[activeTabParam]?.skupna_povprecna_cena_m2 || 0
+                    : regionData[activeTabParam]?.skupaj || 0;
 
-                if (value > 0) allValues.push(value);
-            }
-        });
+                const color = getColorForValuePercentiles(value, allValues, activeTabParam);
+
+                colorExpression.push(['==', ['get', 'OB_UIME'], geojsonName]);
+                colorExpression.push(color);
+            });
+        } else {
+            // ✅ POPRAVLJENA KODA za municipalities - uporabi SIFKO direktno
+            municipalitiesData.features.forEach(feature => {
+                const sifko = feature.properties.SIFKO;
+                if (!sifko) return;
+
+                // Direktno uporabi SIFKO kot ključ
+                if (dataSource[sifko]) {
+                    const value = viewModeParam === 'cene'
+                        ? dataSource[sifko][activeTabParam]?.skupna_povprecna_cena_m2 || 0
+                        : dataSource[sifko][activeTabParam]?.skupaj || 0;
+
+                    if (value > 0) allValues.push(value);
+                }
+            });
+
+            municipalitiesData.features.forEach(feature => {
+                const sifko = feature.properties.SIFKO;
+                if (!sifko || !dataSource[sifko]) return;
+
+                const regionData = dataSource[sifko];
+                const value = viewModeParam === 'cene'
+                    ? regionData[activeTabParam]?.skupna_povprecna_cena_m2 || 0
+                    : regionData[activeTabParam]?.skupaj || 0;
+
+                const color = getColorForValuePercentiles(value, allValues, activeTabParam);
+
+                colorExpression.push(['==', ['get', 'SIFKO'], sifko]);
+                colorExpression.push(color);
+            });
+        }
+
+        colorExpression.push(COLOR_MAPPING_CONFIG.DEFAULT_FALLBACK);
 
         if (isObcine) {
             const sortedValues = allValues.sort((a, b) => a - b);
@@ -217,31 +497,13 @@ export default function StatisticsZemljevid({
             window.currentViewMode = viewModeParam;
         }
 
-        const colorExpression = ['case'];
-
-        nameMapping.forEach((apiName, geojsonName) => {
-            const regionData = dataSource[apiName];
-            const value = viewModeParam === 'cene'
-                ? regionData[activeTabParam]?.skupna_povprecna_cena_m2 || 0
-                : regionData[activeTabParam]?.skupaj || 0;
-
-            const color = getColorForValuePercentiles(value, allValues, activeTabParam);
-
-            colorExpression.push(['==', ['get', nameProperty], geojsonName]);
-            colorExpression.push(color);
-        });
-
-        colorExpression.push(COLOR_MAPPING_CONFIG.DEFAULT_FALLBACK);
-
         if (isObcine) {
             map.current.setFilter(layerId, null);
             map.current.setPaintProperty(layerId, 'fill-color', colorExpression);
             map.current.setPaintProperty(layerId, 'fill-opacity', 0.9);
             map.current.setLayoutProperty(layerId, 'visibility', 'visible');
 
-            // NOVO: Zagotovi da je layer viden tudi če je aktiven mask
             if (selectedObcina) {
-                // Poskrbi da je fill layer pred mask layerjem
                 const maskLayerId = 'obcina-mask';
                 if (map.current.getLayer(maskLayerId)) {
                     map.current.moveLayer(layerId, maskLayerId);
@@ -261,7 +523,7 @@ export default function StatisticsZemljevid({
         setMousePosition({ x: e.clientX, y: e.clientY });
     }, []);
 
-    // Unified hover setup
+    // ✅ POPRAVLJENA createHoverHandlers funkcija
     const createHoverHandlers = useCallback((regionType) => {
         const isObcine = regionType === 'obcine';
         const layerId = isObcine ? 'obcine-fill' : 'municipalities-fill';
@@ -269,7 +531,7 @@ export default function StatisticsZemljevid({
         const nameProperty = isObcine ? 'OB_UIME' : 'NAZIV';
 
         let currentHoveredId = null;
-        const debouncedUpdate = debounce((hoveredId, hoveredName) => {
+        const debouncedUpdate = debounce((hoveredId, hoveredName, hoveredSifko) => {
             const selected = isObcine ? selectedObcina : selectedMunicipality;
             const selectedId = isObcine ? selected?.obcinaId : selected?.sifko;
 
@@ -284,12 +546,19 @@ export default function StatisticsZemljevid({
                     : (isObcine ? obcinePosliData : katastrskePosliData);
 
                 if (dataSource) {
-                    const searchName = isObcine ? hoveredName : hoveredName.split('(')[0].trim();
-                    const apiNames = Object.keys(dataSource);
-                    const closestApiName = findClosestName(searchName, apiNames, isObcine ? 2 : 3);
+                    let apiKey;
+                    if (isObcine) {
+                        // ✅ Za občine - uporabi ime z closest match
+                        const searchName = hoveredName;
+                        const apiNames = Object.keys(dataSource);
+                        apiKey = findClosestName(searchName, apiNames, 2);
+                    } else {
+                        // ✅ Za katestre - direktno uporabi SIFKO
+                        apiKey = hoveredSifko;
+                    }
 
-                    if (closestApiName && dataSource[closestApiName]) {
-                        const regionData = dataSource[closestApiName][activeTab];
+                    if (apiKey && dataSource[apiKey]) {
+                        const regionData = dataSource[apiKey][activeTab];
 
                         if (viewMode === 'cene') {
                             hoverInfo.value = regionData?.skupna_povprecna_cena_m2 || 0;
@@ -303,10 +572,8 @@ export default function StatisticsZemljevid({
                     }
                 }
 
-                // Nastavi cursor tooltip za vsa hover stanja
                 setCursorTooltip(hoverInfo);
 
-                // Nastavi klasične hover komponente
                 if (isObcine) {
                     setHoveredRegion(hoverInfo);
                     layerManager.current?.updateObcinaHover(hoveredId);
@@ -321,11 +588,12 @@ export default function StatisticsZemljevid({
             move: (e) => {
                 const hoveredId = e.features[0]?.properties?.[idProperty];
                 const hoveredName = e.features[0]?.properties?.[nameProperty];
+                const hoveredSifko = e.features[0]?.properties?.SIFKO; // ✅ Dodaj SIFKO
 
                 if (hoveredId !== currentHoveredId) {
                     currentHoveredId = hoveredId;
                     map.current.getCanvas().style.cursor = 'pointer';
-                    debouncedUpdate(hoveredId, hoveredName);
+                    debouncedUpdate(hoveredId, hoveredName, hoveredSifko); // ✅ Posreduj SIFKO
                 }
             },
             leave: () => {
@@ -392,7 +660,6 @@ export default function StatisticsZemljevid({
 
         const hasKatastre = obcinaHasKatastre(obcinaName);
 
-        // Shrani prejšnje stanje samo če ni izbrane občine
         if (!selectedObcina) {
             const currentCenter = map.current.getCenter();
             const currentZoom = map.current.getZoom();
@@ -404,7 +671,6 @@ export default function StatisticsZemljevid({
 
         const bounds = calculateBoundsFromGeometry(obcinaFeature.geometry);
 
-        // Pokliči callback za izbiro občine
         onObcinaSelect?.({
             name: obcinaName,
             obcinaId: obcinaId,
@@ -419,7 +685,6 @@ export default function StatisticsZemljevid({
             }
         }
 
-        // ZOOM IN MASK SAMO ČE IMA OBČINA KATASTRE
         if (hasKatastre) {
             map.current.fitBounds(bounds, {
                 padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
@@ -430,7 +695,6 @@ export default function StatisticsZemljevid({
             map.current.setMaxBounds(bounds);
             addObcinaMask(obcinaId);
         }
-        // Če občina nima katastrov, se samo izbere brez zoom-a in mask-a
 
     }, [selectedObcina, onObcinaSelect]);
 
@@ -449,40 +713,36 @@ export default function StatisticsZemljevid({
         map.current[`_${regionType}Handlers`] = handlers;
     }, [createHoverHandlers]);
 
-    // In the addObcinaMask function, change the opacity values:
+    const addObcinaMask = (obcinaId) => {
+        const overlayLayerId = 'obcina-mask';
+        const sourceId = SOURCE_IDS.OBCINE;
 
-const addObcinaMask = (obcinaId) => {
-    const overlayLayerId = 'obcina-mask';
-    const sourceId = SOURCE_IDS.OBCINE;
-
-    if (!map.current.getLayer(overlayLayerId)) {
-        map.current.addLayer({
-            id: overlayLayerId,
-            type: 'fill',
-            source: sourceId,
-            paint: {
-                'fill-color': 'rgba(0, 0, 0, 0.75)', // Increased from 0.4 to 0.75 for darker mask
-                'fill-opacity': [
-                    'case',
-                    ['==', ['get', 'OB_ID'], obcinaId],
-                    0, // Selected občina = no mask
-                    0.85 // Other občine = much darker (increased from 0.6 to 0.85)
-                ]
-            }
-        }, LAYER_IDS.OBCINE.OUTLINE);
-    } else {
-        // If layer already exists, update only opacity
-        map.current.setPaintProperty(overlayLayerId, 'fill-opacity', [
-            'case',
-            ['==', ['get', 'OB_ID'], obcinaId],
-            0,
-            0.85 // Set to much darker opacity (increased from 0.6 to 0.85)
-        ]);
-        
-        // Also update the fill-color to be darker
-        map.current.setPaintProperty(overlayLayerId, 'fill-color', 'rgba(0, 0, 0, 0.75)');
-    }
-};
+        if (!map.current.getLayer(overlayLayerId)) {
+            map.current.addLayer({
+                id: overlayLayerId,
+                type: 'fill',
+                source: sourceId,
+                paint: {
+                    'fill-color': 'rgba(0, 0, 0, 0.75)',
+                    'fill-opacity': [
+                        'case',
+                        ['==', ['get', 'OB_ID'], obcinaId],
+                        0,
+                        0.85
+                    ]
+                }
+            }, LAYER_IDS.OBCINE.OUTLINE);
+        } else {
+            map.current.setPaintProperty(overlayLayerId, 'fill-opacity', [
+                'case',
+                ['==', ['get', 'OB_ID'], obcinaId],
+                0,
+                0.85
+            ]);
+            
+            map.current.setPaintProperty(overlayLayerId, 'fill-color', 'rgba(0, 0, 0, 0.75)');
+        }
+    };
 
     const loadObcine = useCallback(async () => {
         if (!map.current || obcineLoaded || !layerManager.current) return;
@@ -520,25 +780,20 @@ const addObcinaMask = (obcinaId) => {
             layerManager.current.resetFilters();
         }
 
-        // Odstrani mask layer če obstaja
         const overlayLayerId = 'obcina-mask';
         if (map.current.getLayer(overlayLayerId)) {
             map.current.removeLayer(overlayLayerId);
         }
 
-        // Resetiraj max bounds
         map.current.setMaxBounds(null);
 
         if (layerManager.current) {
             layerManager.current.updateLayerVisibilityByZoom(previousMapState.zoom, false, null);
         }
 
-        // Posodobi barve regij
         updateRegionColors('obcine', activeTab, viewMode);
         updateRegionColors('municipalities', activeTab, viewMode);
 
-        // ZOOM NAZAJ SAMO ČE JE BILA IZBRANA OBČINA Z KATASTRI
-        // (kar pomeni da je bil zoom izveden v handleObcinaClick)
         const shouldResetZoom = selectedObcina && obcinaHasKatastre(selectedObcina.name);
 
         if (shouldResetZoom) {
@@ -556,7 +811,6 @@ const addObcinaMask = (obcinaId) => {
                 duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION
             });
         }
-        // Če občina ni imela katastrov, ne resetiraj zoom-a
 
         onMunicipalitySelect?.(null);
         onObcinaSelect?.(null);
@@ -588,8 +842,7 @@ const addObcinaMask = (obcinaId) => {
     };
 
     const PercentileLegenda = () => {
-        // POPRAVKA: Odstrani selectedObcina || selectedMunicipality pogoj
-        if (!coloringLoaded) return null;
+        if (!coloringLoaded || isMobile) return null;
 
         const getCurrentStats = () => {
             const dataSource = viewMode === 'cene' ? obcineCeneData : obcinePosliData;
@@ -630,8 +883,6 @@ const addObcinaMask = (obcinaId) => {
             const transaction = activeTab === 'prodaja' ? 'Prodaje' : 'Najemi';
             const metric = viewMode === 'cene' ? 'povprečne cene/m²' : 'število poslov';
 
-            
-
             return `${transaction} - ${metric} (zadnjih 12 mesecev)`;
         };
 
@@ -671,7 +922,7 @@ const addObcinaMask = (obcinaId) => {
 
     // Cursor Tooltip komponenta - sledi miški
     const CursorTooltip = ({ tooltip, position }) => {
-        if (!tooltip) return null;
+        if (!tooltip || isMobile) return null;
 
         return (
             <div
@@ -704,9 +955,24 @@ const addObcinaMask = (obcinaId) => {
         );
     };
 
+    // Effects - Update dropdown states when selections change
+    useEffect(() => {
+        if (selectedObcina) {
+            setSelectedObcinaDropdown(selectedObcina.obcinaId);
+        } else {
+            setSelectedObcinaDropdown('');
+        }
+    }, [selectedObcina]);
 
+    useEffect(() => {
+        if (selectedMunicipality) {
+            setSelectedKatastrDropdown(selectedMunicipality.sifko);
+        } else {
+            setSelectedKatastrDropdown('');
+        }
+    }, [selectedMunicipality]);
 
-    // Effects
+    // Ostali effects ostanejo enaki...
     useEffect(() => {
         if (map.current && !selectedObcina && !selectedMunicipality) {
             const currentCenter = map.current.getCenter();
@@ -812,14 +1078,14 @@ const addObcinaMask = (obcinaId) => {
                 minZoom: 2,
                 maxZoom: 15,
                 attributionControl: false,
-                scrollZoom: false,
-                boxZoom: false,
-                doubleClickZoom: false,
-                touchZoomRotate: false,
+                scrollZoom: !isMobile,
+                boxZoom: !isMobile,
+                doubleClickZoom: !isMobile,
+                touchZoomRotate: !isMobile,
                 dragRotate: false,
-                keyboard: false,
+                keyboard: !isMobile,
                 touchPitch: false,
-                dragPan: false
+                dragPan: !isMobile
             });
 
             map.current.on('load', () => {
@@ -844,7 +1110,6 @@ const addObcinaMask = (obcinaId) => {
 
         return () => {
             if (map.current) {
-                // Cleanup event handlers
                 ['obcine', 'municipalities'].forEach(regionType => {
                     const handlers = map.current[`_${regionType}Handlers`];
                     if (handlers) {
@@ -860,18 +1125,17 @@ const addObcinaMask = (obcinaId) => {
                 map.current = null;
             }
         };
-    }, []);
+    }, [isMobile]);
 
-    // Dodaj mouse move listener za tracking mouse pozicije
     useEffect(() => {
         const container = mapContainer.current;
-        if (container) {
+        if (container && !isMobile) {
             container.addEventListener('mousemove', handleMouseMove);
             return () => {
                 container.removeEventListener('mousemove', handleMouseMove);
             };
         }
-    }, [handleMouseMove]);
+    }, [handleMouseMove, isMobile]);
 
     return (
         <div className="relative w-full h-full">
@@ -887,41 +1151,43 @@ const addObcinaMask = (obcinaId) => {
                 }}
             />
 
-            {/* Cursor Tooltip - sledi miški */}
+            {/* Mobile Overlay */}
+            <MobileOverlay />
+
             <CursorTooltip tooltip={cursorTooltip} position={mousePosition} />
 
-            {/* Toggle gumb za prikaz */}
-            <div className="absolute top-4 right-4 z-20 bg-white/95 backdrop-blur-sm rounded-lg shadow-md border border-gray-200 p-2">
-                <div className="flex space-x-1">
-                    <button
-                        onClick={() => setViewMode('posli')}
-                        className={`px-3 py-2 text-xs font-medium rounded transition-colors ${viewMode === 'posli'
-                            ? 'text-white shadow-sm'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                        style={viewMode === 'posli' ? {
-                            backgroundColor: activeTab === 'prodaja' ? 'rgba(37, 99, 235, 0.8)' : 'rgba(5, 150, 105, 0.8)'
-                        } : {}}
-                    >
-                        {activeTab === 'prodaja' ? 'Število prodaj' : 'Število najemov'}
-                    </button>
-                    <button
-                        onClick={() => setViewMode('cene')}
-                        className={`px-3 py-2 text-xs font-medium rounded transition-colors ${viewMode === 'cene'
-                            ? 'text-white shadow-sm'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                        style={viewMode === 'cene' ? {
-                            backgroundColor: activeTab === 'prodaja' ? 'rgba(37, 99, 235, 0.8)' : 'rgba(5, 150, 105, 0.8)'
-                        } : {}}
-                    >
-                        Cena/m²
-                    </button>
+            {!isMobile && (
+                <div className="absolute top-4 right-4 z-20 bg-white/95 backdrop-blur-sm rounded-lg shadow-md border border-gray-200 p-2">
+                    <div className="flex space-x-1">
+                        <button
+                            onClick={() => setViewMode('posli')}
+                            className={`px-3 py-2 text-xs font-medium rounded transition-colors ${viewMode === 'posli'
+                                ? 'text-white shadow-sm'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                            style={viewMode === 'posli' ? {
+                                backgroundColor: activeTab === 'prodaja' ? 'rgba(37, 99, 235, 0.8)' : 'rgba(5, 150, 105, 0.8)'
+                            } : {}}
+                        >
+                            {activeTab === 'prodaja' ? 'Število prodaj' : 'Število najemov'}
+                        </button>
+                        <button
+                            onClick={() => setViewMode('cene')}
+                            className={`px-3 py-2 text-xs font-medium rounded transition-colors ${viewMode === 'cene'
+                                ? 'text-white shadow-sm'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                            style={viewMode === 'cene' ? {
+                                backgroundColor: activeTab === 'prodaja' ? 'rgba(37, 99, 235, 0.8)' : 'rgba(5, 150, 105, 0.8)'
+                            } : {}}
+                        >
+                            Cena/m²
+                        </button>
+                    </div>
                 </div>
-            </div>
+            )}
 
-            {/* Indikator izbrane regije - locked desno doli */}
-            {(selectedMunicipality || selectedObcina) && (
+            {!isMobile && (selectedMunicipality || selectedObcina) && (
                 <div className="absolute bottom-4 right-4 z-20 bg-white rounded-lg shadow-lg border border-gray-200 px-4 py-2 max-w-sm">
                     <div className="flex items-center justify-between space-x-2">
                         <div className="min-w-0 flex-1">
@@ -945,7 +1211,6 @@ const addObcinaMask = (obcinaId) => {
                 </div>
             )}
 
-            {/* Legenda */}
             <PercentileLegenda />
         </div>
     );
