@@ -9,3 +9,5 @@ pandas
 joblib
 python-dotenv
 requests
+aiohttp
+aiofiles
