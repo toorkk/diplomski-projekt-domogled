@@ -11,7 +11,7 @@ const MAPTILER_KEY = "VxVsHKinUjiHiI3FPcfq";
 // Pomožne funkcije
 const isMobileDevice = () => window.innerWidth <= MOBILE_BREAKPOINT;
 
-const createSearchUrl = (query) => 
+const createSearchUrl = (query) =>
   `https://api.maptiler.com/geocoding/${encodeURIComponent(query)}.json?key=${MAPTILER_KEY}&limit=${MAX_SUGGESTIONS}&country=si`;
 
 const formatSuggestion = (feature) => ({
@@ -58,7 +58,7 @@ const useDebouncedSearch = (onSearch) => {
 
       try {
         const response = await fetch(createSearchUrl(query));
-        
+
         if (!response.ok) {
           throw new Error(`HTTP napaka ${response.status}`);
         }
@@ -116,9 +116,8 @@ const SearchInput = ({ value, onChange, onKeyDown, onFocus, autoFocus = false, c
 const SuggestionItem = ({ suggestion, isFirst, onClick, isMobile = false }) => (
   <li
     onClick={onClick}
-    className={`px-4 py-${isMobile ? '3' : '2'} hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0 ${
-      isFirst ? 'bg-blue-50 border-l-4 border-l-gray-900' : ''
-    }`}
+    className={`px-4 py-${isMobile ? '3' : '2'} hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0 ${isFirst ? 'bg-blue-50 border-l-4 border-l-gray-900' : ''
+      }`}
   >
     <div className="font-medium">
       {suggestion.name}
@@ -134,11 +133,11 @@ const SuggestionItem = ({ suggestion, isFirst, onClick, isMobile = false }) => (
   </li>
 );
 
-const SuggestionsDropdown = ({ 
-  show, 
-  loading, 
-  suggestions, 
-  searchQuery, 
+const SuggestionsDropdown = ({
+  show,
+  loading,
+  suggestions,
+  searchQuery,
   onSuggestionClick,
   isMobile = false,
   className = ""
@@ -188,10 +187,10 @@ const DesktopSearchIcon = ({ onClick }) => (
     className="bg-white rounded-lg shadow-lg border border-gray-200 p-3.5 w-12 h-12 hover:bg-gray-50 transition-colors duration-200 flex items-center justify-center cursor-pointer focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
     aria-label="Odpri iskanje lokacije"
   >
-    <svg 
-      className="w-5 h-5 text-gray-700" 
-      fill="none" 
-      stroke="currentColor" 
+    <svg
+      className="w-5 h-5 text-gray-700"
+      fill="none"
+      stroke="currentColor"
       viewBox="0 0 24 24"
       aria-hidden="true"
     >
@@ -200,13 +199,13 @@ const DesktopSearchIcon = ({ onClick }) => (
   </button>
 );
 
-const DesktopSearchForm = ({ 
-  searchQuery, 
-  setSearchQuery, 
-  handleSearch, 
-  handleKeyDown, 
-  setShowSuggestions, 
-  loading 
+const DesktopSearchForm = ({
+  searchQuery,
+  setSearchQuery,
+  handleSearch,
+  handleKeyDown,
+  setShowSuggestions,
+  loading
 }) => (
   <form onSubmit={handleSearch} className="flex bg-white rounded-lg shadow-lg border border-gray-200">
     <SearchInput
@@ -246,13 +245,13 @@ const MobileSearchHeader = ({ onClose }) => (
   </div>
 );
 
-const MobileSearchForm = ({ 
-  searchQuery, 
-  setSearchQuery, 
-  handleSearch, 
-  handleKeyDown, 
-  setShowSuggestions, 
-  loading 
+const MobileSearchForm = ({
+  searchQuery,
+  setSearchQuery,
+  handleSearch,
+  handleKeyDown,
+  setShowSuggestions,
+  loading
 }) => (
   <form onSubmit={handleSearch} className="flex">
     <SearchInput
@@ -274,7 +273,7 @@ export default function Iskalnik({ onSearch }) {
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  
+
   const searchContainerRef = useRef(null);
   const isOnMobile = useResponsiveDetection();
 
@@ -387,6 +386,11 @@ export default function Iskalnik({ onSearch }) {
           ref={searchContainerRef}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
+          // Add keyboard support
+          onFocus={handleMouseEnter}
+          onBlur={handleMouseLeave}
+          // Make it focusable but not tab-stoppable since the button inside is the real interactive element
+          tabIndex={-1}
         >
           {!searchVisible ? (
             <DesktopSearchIcon onClick={() => setSearchVisible(true)} />
@@ -400,7 +404,7 @@ export default function Iskalnik({ onSearch }) {
                 setShowSuggestions={setShowSuggestions}
                 loading={loading}
               />
-              
+
               <SuggestionsDropdown
                 show={showSuggestions}
                 loading={loading}
@@ -420,12 +424,12 @@ export default function Iskalnik({ onSearch }) {
           {!searchVisible && (
             <MobileSearchTrigger onClick={() => setSearchVisible(true)} />
           )}
-          
+
           {searchVisible && (
             <div className="absolute top-25 left-4 right-4 z-20">
               <div className="bg-white rounded-xl shadow-lg border border-gray-200">
                 <MobileSearchHeader onClose={handleMobileClose} />
-                
+
                 <div className="p-4">
                   <MobileSearchForm
                     searchQuery={searchQuery}
