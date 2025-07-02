@@ -123,11 +123,12 @@ const PanelHeader = ({ regionName, regionType, onClose, showCloseAndMinimize = f
 
 // Komponenta za mobile trigger button
 const MobileTriggerButton = ({ regionName, regionType, statisticsLoading, onClick }) => (
-    <div
+    <button
         onClick={onClick}
-        className="fixed bottom-4 z-10 left-1/2 transform -translate-x-1/2 bg-white shadow-lg border border-gray-200 hover:bg-gray-50 transition-all duration-300 flex items-center justify-between px-4 py-3 cursor-pointer"
+        className="fixed bottom-4 z-10 left-1/2 transform -translate-x-1/2 bg-white shadow-lg border border-gray-200 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-300 flex items-center justify-between px-4 py-3 cursor-pointer"
         style={{ borderRadius: '25px', width: '55vw' }}
         title="Prikaži statistike"
+        aria-label={`Prikaži statistike za ${regionType}: ${regionName}`}
     >
         <div className="flex items-center space-x-2 min-w-0 flex-1">
             <div className="min-w-0 flex-1">
@@ -144,7 +145,7 @@ const MobileTriggerButton = ({ regionName, regionType, statisticsLoading, onClic
                 </svg>
             )}
         </div>
-    </div>
+    </button>
 );
 
 // Desktop komponenta

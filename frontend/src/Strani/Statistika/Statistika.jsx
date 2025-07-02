@@ -49,10 +49,10 @@ const ChartTypeSwitcher = ({ chartType, setChartType, chartTypeKey, activeTab })
                 key={type}
                 onClick={() => setChartType(prev => ({ ...prev, [chartTypeKey]: type }))}
                 className={`px-3 py-1 text-xs font-medium rounded transition-colors ${chartType[chartTypeKey] === type
-                        ? (type === 'stanovanje'
-                            ? (activeTab === 'prodaja' ? 'bg-blue-100 text-blue-700 border border-blue-300' : 'bg-emerald-100 text-emerald-700 border border-emerald-300')
-                            : (activeTab === 'prodaja' ? 'bg-blue-200 text-blue-800 border border-blue-400' : 'bg-emerald-200 text-emerald-800 border border-emerald-400'))
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? (type === 'stanovanje'
+                        ? (activeTab === 'prodaja' ? 'bg-blue-100 text-blue-700 border border-blue-300' : 'bg-emerald-100 text-emerald-700 border border-emerald-300')
+                        : (activeTab === 'prodaja' ? 'bg-blue-200 text-blue-800 border border-blue-400' : 'bg-emerald-200 text-emerald-800 border border-emerald-400'))
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
             >
                 {type === 'stanovanje' ? 'Stanovanje' : 'Hiša'}
@@ -74,7 +74,7 @@ const PropertyGrid = ({ data, activeTab, propertyType }) => {
 
     const getValue = (source, key) => data[source]?.[key];
     const isApartment = propertyType === 'stanovanje';
-    
+
     return (
         <div className="bg-white border border-gray-200 hover:border-gray-300 transition-colors rounded-lg">
             {/* Minimal Header */}
@@ -82,8 +82,8 @@ const PropertyGrid = ({ data, activeTab, propertyType }) => {
                 <div className="flex items-center space-x-3">
                     <div className={`
                         w-10 h-10 flex items-center justify-center
-                        ${activeTab === 'prodaja' 
-                            ? 'bg-blue-100 text-blue-600' 
+                        ${activeTab === 'prodaja'
+                            ? 'bg-blue-100 text-blue-600'
                             : 'bg-emerald-100 text-emerald-600'
                         }
                     `}>
@@ -113,7 +113,7 @@ const PropertyGrid = ({ data, activeTab, propertyType }) => {
                                 Cena na m²
                             </div>
                             <div className="text-xl font-bold text-gray-900 mt-1">
-                                {getValue('cene', 'povprecna_cena_m2') 
+                                {getValue('cene', 'povprecna_cena_m2')
                                     ? `€${Math.round(getValue('cene', 'povprecna_cena_m2'))}`
                                     : 'N/A'
                                 }
@@ -124,14 +124,14 @@ const PropertyGrid = ({ data, activeTab, propertyType }) => {
                                 Skupna cena
                             </div>
                             <div className="text-xl font-bold text-gray-900 mt-1">
-                                {getValue('cene', 'povprecna_skupna_cena') 
+                                {getValue('cene', 'povprecna_skupna_cena')
                                     ? `€${Math.round(getValue('cene', 'povprecna_skupna_cena')).toLocaleString()}`
                                     : 'N/A'
                                 }
                             </div>
                         </div>
                     </div>
-                    
+
                     {/* Other stats */}
                     <div className="grid grid-cols-3 gap-4 pt-2 border-t border-gray-100">
                         <div>
@@ -139,7 +139,7 @@ const PropertyGrid = ({ data, activeTab, propertyType }) => {
                                 Velikost
                             </div>
                             <div className="text-lg font-semibold text-gray-800 mt-1">
-                                {getValue('lastnosti', 'povprecna_velikost_m2') 
+                                {getValue('lastnosti', 'povprecna_velikost_m2')
                                     ? `${Math.round(getValue('lastnosti', 'povprecna_velikost_m2'))} m²`
                                     : 'N/A'
                                 }
@@ -213,8 +213,20 @@ ChartWrapper.propTypes = {
 const WelcomeOverlay = ({ onDismiss }) => (
     <>
         {/* Overlay background - znižan z-index da ne prekrije header-ja */}
-        <div className="absolute inset-0 bg-black/40 z-30" onClick={onDismiss} />
-        
+        <div
+            className="absolute inset-0 bg-black/40 z-30"
+            onClick={onDismiss}
+            role="button"
+            tabIndex={0}
+            aria-label="Zapri okno"
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onDismiss();
+                }
+            }}
+        />
+
         {/* Compact message - znižan z-index da ne prekrije header-ja */}
         <div className="absolute inset-0 z-30 flex items-center justify-center p-4">
             <div className="bg-white rounded-lg shadow-xl border border-gray-200 p-6 max-w-md w-full">
@@ -352,7 +364,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
     // ✅ POPRAVLJENA funkcija za izbiro katastrov - uporabi SIFKO
     const handleMunicipalitySelect = useCallback((municipalityData) => {
         setSelectedMunicipality(municipalityData);
-        
+
         // SKRIJ WELCOME MESSAGE KO SE IZBERE OBČINA
         setShowWelcomeMessage(false);
 
@@ -373,7 +385,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
     const handleObcinaSelect = useCallback((obcinaData) => {
         setSelectedObcina(obcinaData);
         setSelectedMunicipality(null);
-        
+
         // SKRIJ WELCOME MESSAGE KO SE IZBERE OBČINA
         setShowWelcomeMessage(false);
 
@@ -467,7 +479,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                             activeTab={activeTab}
                             showWelcomeOverlay={showWelcomeMessage}
                         />
-                        
+
                         {/* WELCOME OVERLAY - NAD ZEMLJEVIDOM */}
                         {showWelcomeMessage && (
                             <WelcomeOverlay onDismiss={() => setShowWelcomeMessage(false)} />
@@ -484,8 +496,8 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                         key={tab}
                                         onClick={() => setActiveTab(tab)}
                                         className={`pb-2 px-4 text-sm font-medium transition-colors relative ${activeTab === tab
-                                                ? 'text-black border-b-2 border-black'
-                                                : 'text-gray-400 border-b-2 border-transparent hover:text-gray-600'
+                                            ? 'text-black border-b-2 border-black'
+                                            : 'text-gray-400 border-b-2 border-transparent hover:text-gray-600'
                                             }`}
                                     >
                                         {tab === 'prodaja' ? 'Prodaja' : 'Najem'}

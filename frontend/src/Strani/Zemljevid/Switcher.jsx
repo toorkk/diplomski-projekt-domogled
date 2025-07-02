@@ -59,7 +59,7 @@ export default function Switcher({ activeType, onChangeType }) {
                 : 'h-4 w-4'
             } ${
               activeType === 'prodaja' 
-                ? (isMobile ? 'translate-x-1' : 'translate-x-1')
+                ? 'translate-x-1'
                 : (isMobile ? 'translate-x-5' : 'translate-x-6')
             }`}
           />

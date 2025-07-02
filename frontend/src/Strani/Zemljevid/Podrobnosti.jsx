@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { 
-  getDaBoljNe, getNeBoljDa, getVrstaDelaStavbe, getGradebnaFaza, 
-  getStopnjaDDV, getCasNajemanja, getTrznostPosla, getVrstaAkta, 
-  getVrstaNajemnegaPosla, getVrstaProdajnegaPosla, getEnergyClassColor, 
-  getColorClasses, getNaslov, getCeloStDelaStavbe 
+import {
+  getDaBoljNe, getNeBoljDa, getVrstaDelaStavbe, getGradebnaFaza,
+  getStopnjaDDV, getCasNajemanja, getTrznostPosla, getVrstaAkta,
+  getVrstaNajemnegaPosla, getVrstaProdajnegaPosla, getEnergyClassColor,
+  getColorClasses, getNaslov, getCeloStDelaStavbe
 } from './PodrobnostiHelper.jsx';
 import { API_CONFIG } from './MapConstants.jsx';
 
@@ -60,7 +60,7 @@ const usePodrobnostiData = (propertyId, dataSource) => {
       setLoading(true);
       try {
         const response = await fetch(`${API_CONFIG.BASE_URL}/property-details/${propertyId}?data_source=${dataSource}`);
-        
+
         if (!response.ok) {
           throw new Error(`HTTP error: ${response.status}`);
         }
@@ -123,7 +123,7 @@ const EnergetskaIzkaznica = ({ energetske_izkaznice, selectedEnergyIndex, setSel
       </h4>
       <div className="space-y-2">
         {energetske_izkaznice.length > 1 && (
-          <EnergySelector 
+          <EnergySelector
             energetske_izkaznice={energetske_izkaznice}
             selectedEnergyIndex={selectedEnergyIndex}
             setSelectedEnergyIndex={setSelectedEnergyIndex}
@@ -144,8 +144,8 @@ const EnergySelector = ({ energetske_izkaznice, selectedEnergyIndex, setSelected
     >
       {energetske_izkaznice.map((ei, index) => (
         <option key={ei.id} value={index}>
-          {ei.ei_id} - {ei.datum_izdelave ? 
-            new Date(ei.datum_izdelave).toLocaleDateString('sl-SI') : 
+          {ei.ei_id} - {ei.datum_izdelave ?
+            new Date(ei.datum_izdelave).toLocaleDateString('sl-SI') :
             'Neznan datum'}
           {ei.energijski_razred && ` (${ei.energijski_razred})`}
         </option>
@@ -232,9 +232,9 @@ const PoselData = ({ posel, dataSource }) => (
       <DetailRow label="Zadnja uveljavitev" value={posel.datum_zadnje_uveljavitve ? formatirajDatum(posel.datum_zadnje_uveljavitve) : null} />
       <DetailRow label="Zadnja sprememba" value={posel.datum_zadnje_spremembe ? formatirajDatum(posel.datum_zadnje_spremembe) : null} />
       <DetailRow label="Tržnost posla" value={getTrznostPosla(posel.trznost_posla)} />
-      <DetailRow 
-        label="Vrsta posla" 
-        value={dataSource === 'np' ? getVrstaNajemnegaPosla(posel.vrsta_posla) : getVrstaProdajnegaPosla(posel.vrsta_posla)} 
+      <DetailRow
+        label="Vrsta posla"
+        value={dataSource === 'np' ? getVrstaNajemnegaPosla(posel.vrsta_posla) : getVrstaProdajnegaPosla(posel.vrsta_posla)}
       />
     </div>
   </div>
@@ -415,11 +415,10 @@ const TabNavigation = ({ activeTab, setActiveTab, posliCount }) => (
 const TabButton = ({ isActive, onClick, text }) => (
   <button
     onClick={onClick}
-    className={`flex-1 py-3 px-4 text-sm font-medium border-b-2 transition-colors ${
-      isActive
+    className={`flex-1 py-3 px-4 text-sm font-medium border-b-2 transition-colors ${isActive
         ? 'border-blue-500 text-blue-600 bg-blue-50'
         : 'border-transparent text-gray-500 hover:text-gray-700'
-    }`}
+      }`}
   >
     {text}
   </button>
@@ -430,7 +429,7 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
   const [selectedEnergyIndex, setSelectedEnergyIndex] = useState(0);
   const [selectedPoselId, setSelectedPoselId] = useState(null);
   const [activeTab, setActiveTab] = useState(DEFAULT_TAB);
-  
+
   const isMobile = useResponsive();
   const { loading, property, error } = usePodrobnostiData(propertyId, dataSource);
   const poselRefs = useRef({});
@@ -542,19 +541,19 @@ const MobileLayout = ({ colors, representativeProperty, property, activeTab, set
     <div className="absolute inset-0"></div>
     <div className="relative shadow-xl w-full h-full overflow-hidden flex flex-col">
       <MobileHeader colors={colors} representativeProperty={representativeProperty} onClose={onClose} />
-      
+
       {property?.povezani_posli?.length > 0 && (
-        <TabNavigation 
-          activeTab={activeTab} 
-          setActiveTab={setActiveTab} 
-          posliCount={property.povezani_posli.length} 
+        <TabNavigation
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          posliCount={property.povezani_posli.length}
         />
       )}
 
       <div className="flex-1 bg-gray-50 overflow-y-auto details-content">
         <div className="p-3">
           {activeTab === 'posli' ? (
-            <PosliContent 
+            <PosliContent
               posli={property.povezani_posli}
               selectedPoselId={selectedPoselId}
               poselRefs={poselRefs}
@@ -563,7 +562,7 @@ const MobileLayout = ({ colors, representativeProperty, property, activeTab, set
               getConnectedBuildingParts={(poselId) => property.povezani_deli_stavb?.filter(del => del.posel_id === poselId) || []}
             />
           ) : (
-            <DetailsContent 
+            <DetailsContent
               representativeProperty={representativeProperty}
               dataSource={dataSource}
               selectedEnergyIndex={selectedEnergyIndex}
@@ -584,11 +583,11 @@ const DesktopLayout = ({ colors, representativeProperty, property, selectedPosel
     <div className="absolute inset-0"></div>
     <div className="relative rounded-lg shadow-xl w-full max-w-7xl h-full overflow-hidden border border-gray-200 flex flex-col">
       <DesktopHeader colors={colors} representativeProperty={representativeProperty} onClose={onClose} />
-      
+
       <div className="flex flex-1 bg-gray-50 min-h-0">
         <div className="flex-1 p-4 overflow-y-auto min-h-0">
           <div className="max-w-5xl mx-auto">
-            <DetailsContent 
+            <DetailsContent
               representativeProperty={representativeProperty}
               dataSource={dataSource}
               selectedEnergyIndex={selectedEnergyIndex}
@@ -608,7 +607,7 @@ const DesktopLayout = ({ colors, representativeProperty, property, selectedPosel
               </h3>
             </div>
             <div className="p-2 space-y-3 flex-1">
-              <PosliContent 
+              <PosliContent
                 posli={property.povezani_posli}
                 selectedPoselId={selectedPoselId}
                 poselRefs={poselRefs}
@@ -651,13 +650,17 @@ const PosliContent = ({ posli, selectedPoselId, poselRefs, selectPosel, dataSour
 );
 
 const PoselCard = ({ posel, isSelected, priceInfo, connectedPartsCount, dataSource, onClick, isDesktop }) => (
-  <div
+  <button
     onClick={onClick}
-    className={`rounded-lg cursor-pointer transition-colors bg-white ${
-      isSelected
+    className={`w-full text-left rounded-lg cursor-pointer transition-colors bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isSelected
         ? 'border-2 border-gray-600 p-3'
         : `hover:bg-gray-100 border border-gray-300 p-3 ${isDesktop ? 'm-px mb-3' : ''}`
-    }`}
+      }`}
+    aria-pressed={isSelected}
+    aria-label={`Posel ${dataSource === 'kpp' ? 'z dne' : 'za obdobje'} ${dataSource === 'kpp'
+        ? (posel.datum_sklenitve && formatirajDatum(posel.datum_sklenitve))
+        : formatRentalPeriod(posel.datum_zacetka_najemanja, posel.datum_prenehanja_najemanja)
+      }${priceInfo.hasCena ? `, cena ${priceInfo.cenaText}` : ''}`}
   >
     <div className="space-y-3">
       <PoselHeader posel={posel} dataSource={dataSource} />
@@ -665,7 +668,7 @@ const PoselCard = ({ posel, isSelected, priceInfo, connectedPartsCount, dataSour
       <PoselData posel={posel} dataSource={dataSource} />
       {posel.opombe && <PoselNotes posel={posel} />}
     </div>
-  </div>
+  </button>
 );
 
 const PoselHeader = ({ posel, dataSource }) => (
@@ -683,9 +686,8 @@ const PoselHeader = ({ posel, dataSource }) => (
         </span>
       )}
       {dataSource === 'np' && (
-        <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold text-gray-900 self-start ${
-          posel.vrsta_akta === 1 ? 'bg-gray-100' : 'bg-pink-100'
-        }`}>
+        <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold text-gray-900 self-start ${posel.vrsta_akta === 1 ? 'bg-gray-100' : 'bg-pink-100'
+          }`}>
           {getVrstaAkta(posel.vrsta_akta)}
         </span>
       )}
@@ -734,7 +736,7 @@ const DetailsContent = ({ representativeProperty, dataSource, selectedEnergyInde
         <FinancialDataSection property={representativeProperty} />
       </div>
 
-      <EnergetskaIzkaznica 
+      <EnergetskaIzkaznica
         energetske_izkaznice={property?.energetske_izkaznice}
         selectedEnergyIndex={selectedEnergyIndex}
         setSelectedEnergyIndex={setSelectedEnergyIndex}
@@ -767,11 +769,11 @@ const AdditionalPartsSection = ({ parts, representativeProperty, dataSource }) =
         return groups;
       }, {})
     ).map(([groupKey, group]) => (
-      <BuildingGroup 
-        key={groupKey} 
-        group={group} 
-        representativeProperty={representativeProperty} 
-        dataSource={dataSource} 
+      <BuildingGroup
+        key={groupKey}
+        group={group}
+        representativeProperty={representativeProperty}
+        dataSource={dataSource}
       />
     ))}
   </PropertySection>
