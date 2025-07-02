@@ -317,9 +317,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
   return (
     <div className="fixed bottom-4 left-4 z-10 flex flex-col">
       {/* Glavni filter container z razširjanjem navzgor */}
-      <div className={`bg-white shadow-xl border border-gray-200 rounded-xl transition-all duration-300 w-96 ${
-        isOpen ? 'h-auto' : 'h-auto'
-      } flex flex-col overflow-hidden`}>
+      <div className="bg-white shadow-xl border border-gray-200 rounded-xl transition-all duration-300 w-96 flex flex-col overflow-hidden">
         
         {/* Vsebina filtrov - prikaže se samo ko je odprt */}
         {isOpen && (

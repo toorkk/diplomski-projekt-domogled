@@ -197,101 +197,116 @@ export default function StatisticsZemljevid({
 
     // Mobile Overlay Component
     const MobileOverlay = () => {
-        if (!isMobile) return null;
+    if (!isMobile) return null;
 
-        const obcineOptions = getObcineOptions();
-        const katastriOptions = selectedObcina ? getKatastriOptions(selectedObcina.name) : [];
-        const hasKatastriSupport = katastriOptions.length > 0;
+    const obcineOptions = getObcineOptions();
+    const katastriOptions = selectedObcina ? getKatastriOptions(selectedObcina.name) : [];
+    const hasKatastriSupport = katastriOptions.length > 0;
 
-        return (
-            <div className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex flex-col">
-                {/* Content area */}
-                <div className="flex-1 flex flex-col justify-center px-4 py-6 space-y-6">
-                    {/* Občina selector */}
+    return (
+        <div className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex flex-col">
+            {/* Content area */}
+            <div className="flex-1 flex flex-col justify-center px-4 py-6 space-y-6">
+                {/* Občina selector */}
+                <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-4">
+                    <label 
+                        htmlFor="obcina-select" 
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                        Izberite občino:
+                    </label>
+                    <select
+                        id="obcina-select"
+                        value={selectedObcinaDropdown}
+                        onChange={(e) => handleObcinaDropdownChange(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        aria-describedby="obcina-help"
+                    >
+                        <option value="">-- Izberi občino --</option>
+                        {obcineOptions.map(option => (
+                            <option key={option.id} value={option.id}>
+                                {option.name}
+                            </option>
+                        ))}
+                    </select>
+                    <div id="obcina-help" className="sr-only">
+                        Izberite občino iz seznama za prikaz podatkov
+                    </div>
+                </div>
+
+                {/* Kataster selector - samo če je podprta občina */}
+                {selectedObcina && hasKatastriSupport && (
                     <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Izberite občino:
+                        <label 
+                            htmlFor="kataster-select" 
+                            className="block text-sm font-medium text-gray-700 mb-2"
+                        >
+                            Izberite katastrsko občino:
                         </label>
                         <select
-                            value={selectedObcinaDropdown}
-                            onChange={(e) => handleObcinaDropdownChange(e.target.value)}
+                            id="kataster-select"
+                            value={selectedKatastrDropdown}
+                            onChange={(e) => handleKatastrDropdownChange(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            aria-describedby="kataster-help"
                         >
-                            <option value="">-- Izberi občino --</option>
-                            {obcineOptions.map(option => (
-                                <option key={option.id} value={option.id}>
+                            <option value="">-- Izberi katastrsko občino --</option>
+                            {katastriOptions.map(option => (
+                                <option key={option.sifko} value={option.sifko}>
                                     {option.name}
                                 </option>
                             ))}
                         </select>
+                        <div id="kataster-help" className="sr-only">
+                            Izberite katastrsko občino za podrobnejši prikaz podatkov
+                        </div>
                     </div>
+                )}
 
-                    {/* Kataster selector - samo če je podprta občina */}
-                    {selectedObcina && hasKatastriSupport && (
-                        <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Izberite katastrsko občino:
-                            </label>
-                            <select
-                                value={selectedKatastrDropdown}
-                                onChange={(e) => handleKatastrDropdownChange(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                            >
-                                <option value="">-- Izberi katastrsko občino --</option>
-                                {katastriOptions.map(option => (
-                                    <option key={option.sifko} value={option.sifko}>
-                                        {option.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
-
-
-
-                    {/* Current selection display */}
-                    {(selectedObcina || selectedMunicipality) && (
-                        <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-700">
-                                        Izbrano:
-                                    </p>
-                                    <p className="text-xs text-gray-600 mt-1">
-                                        {selectedMunicipality 
-                                            ? `Kataster: ${selectedMunicipality.name}` 
-                                            : `Občina: ${selectedObcina?.name}`
-                                        }
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={() => {
-                                        console.log('🔍 Mobile - Kliknjen reset gumb');
-                                        setSelectedObcinaDropdown('');
-                                        setSelectedKatastrDropdown('');
-                                        // ✅ DIREKTNO resetiraj callback-e, potem handleReset
-                                        onObcinaSelect?.(null);
-                                        onMunicipalitySelect?.(null);
-                                        handleReset();
-                                    }}
-                                    className="px-3 py-1 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-red-50 rounded-lg transition-colors"
-                                >
-                                    Počisti
-                                </button>
+                {/* Current selection display */}
+                {(selectedObcina || selectedMunicipality) && (
+                    <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-gray-700">
+                                    Izbrano:
+                                </p>
+                                <p className="text-xs text-gray-600 mt-1">
+                                    {selectedMunicipality 
+                                        ? `Kataster: ${selectedMunicipality.name}` 
+                                        : `Občina: ${selectedObcina?.name}`
+                                    }
+                                </p>
                             </div>
+                            <button
+                                onClick={() => {
+                                    console.log('🔍 Mobile - Kliknjen reset gumb');
+                                    setSelectedObcinaDropdown('');
+                                    setSelectedKatastrDropdown('');
+                                    // ✅ DIREKTNO resetiraj callback-e, potem handleReset
+                                    onObcinaSelect?.(null);
+                                    onMunicipalitySelect?.(null);
+                                    handleReset();
+                                }}
+                                className="px-3 py-1 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-red-50 rounded-lg transition-colors"
+                                aria-label="Počisti izbiro občine in katastra"
+                            >
+                                Počisti
+                            </button>
                         </div>
-                    )}
-                </div>
-
-                {/* Footer */}
-                <div className="bg-white/95 backdrop-blur-sm border-t border-gray-200 px-4 py-3">
-                    <p className="text-xs text-center text-gray-500">
-                        Interaktivne funkcije so na voljo na računalniku
-                    </p>
-                </div>
+                    </div>
+                )}
             </div>
-        );
-    };
+
+            {/* Footer */}
+            <div className="bg-white/95 backdrop-blur-sm border-t border-gray-200 px-4 py-3">
+                <p className="text-xs text-center text-gray-500">
+                    Interaktivne funkcije so na voljo na računalniku
+                </p>
+            </div>
+        </div>
+    );
+};
 
     // Utility funkcije
     const obcinaHasKatastre = (obcinaName) => {
