@@ -1,72 +1,114 @@
-# diplomski-projekt
-Ekipa Ptujčana, razvoj spletne strani za vizualizacijo in analizo nepremičninskega trga: Domogled
+# domogled.si
+Ekipa Ptujčana, razvoj spletne strani za vizualizacijo in analizo nepremičninskega trga v Sloveniji.
+
+Rešitev je dostopna na naslednji domeni:
+[domogled.si](https://domogled.si/).
+
+------------------------
+
+## Setup
+
+### Baza
+
+PostgreSQL baza z PostGIS se namesti z Docke containerjem.
 
 
-# setup
+Proces namestitve iz root direktorija je naslednji:
 
-DOCKER:
-v mapi db
-
+```
+cd .\db\
 docker compose build
 docker-compose up -d
+```
 
-prvič laufal:
-za tem pojdi v sql commands.txt in zaženi kaj je not
+v db/commands.txt se nahajajo ukazi za kreacijo vseh potrebnih tabel baze, razdeljene na 6 dokumentov. Zagnati jih je potrebno v /db direktoriju
 
--------------------------
-BACKEND:
-v mapi backend
+Ukazi so:
+```
+Get-Content sql/01_create_database.sql | docker exec -i domogled-db psql -U postgres -d domogled
+Get-Content sql/02_np_staging_schema.sql | docker exec -i domogled-db psql -U postgres -d domogled
+Get-Content sql/03_kpp_staging_schema.sql | docker exec -i domogled-db psql -U postgres -d domogled
+Get-Content sql/04_ei_staging_schema.sql | docker exec -i domogled-db psql -U postgres -d domogled
+Get-Content sql/05_core_schema.sql | docker exec -i domogled-db psql -U postgres -d domogled
+Get-Content sql/06_stats_schema.sql | docker exec -i domogled-db psql -U postgres -d domogled
+```
 
-ustvari virtual enviornment:
+za ponovni zagon sta potrebna samo naslednja ukaza:
+```
+cd .\db\
+docker-compose up -d
+```
+
+### Backend
+FastAPI backend. Temelji na Python-u, potrebem vsaj Python 3.8
+
+
+Za vspostavitev je potrebno zagnati naslednje ukaze iz root direktorija:
+```
+cd .\backend\
 python -m venv venv
-
-spodnja komanda aktivira virtual enviornment:
 .\venv\Scripts\Activate.ps1
-(moralo bi pokazati "(venv)" v zacetku vsake vrstice terminala. če ga želiš disablat je komanda "deactivate")
-
-
-
 pip install -r requirements.txt
+python -m uvicorn app.main:app --reload
+```
 
-preveri če dela:
-uvicorn --version
+po kreaciji virtual enviornment-a (python -m venv venv), se mora prikazati "(venv)" v zacetku vsake vrstice terminala. če ga želiš onemogočiti je komanda "deactivate"
 
-zaženi:
-
+Za ponovni zagon so potrebni samo naslednji ukazi:
+```
+cd .\backend\
 .\venv\Scripts\Activate.ps1
 python -m uvicorn app.main:app --reload
+```
 
-------------------------
-FRONTEND:
-v mapi frontend
+### Frontend
+Frontend temelji na React + Vite v jeziku JavaScript
 
+
+Za vspostavitev je potrebno zagnati naslednje ukaze iz root direktorija:
+```
+cd .\frontend\
 npm install
+npm run dev
+```
 
-npm run dev	
+za ponovni zagon sta potrebna samo naslednja ukaza:
+```
+cd .\frontend\
+npm run dev
+```
 
-ce si v vs code installiraj Tailwind CSS IntelliSense plugin
 ------------------------
-DATA INGESTION:
+
+## Domogled API
+
+### Vnos podatkov
+
+Za avtomatski vnos, filtriranje in transformacijo podatkov v tabele baze so na voljo naslednji API endpoint-i:
 
 
-POST /api/deli-stavb/ingest?data_type=np   -- tu zraven se lahko das start_year in end_year
+- vnos vseh delov stavb in poslov
+```
+POST /api/deli-stavb/ingest
+POST /api/deli-stavb/ingest?data_type=np
 POST /api/deli-stavb/ingest?data_type=kpp
-GET /api/deli-stavb/status
-
+```
+-- tu zraven se lahko das start_year in end_year
+   
+- vnos energetskih izkaznic
+```
 POST /api/energetske-izkaznice/ingest
-GET  /api/energetske-izkaznice/status
+```
 
+- vnos dedupliciranih podatkov za prikaz nepremičnin na zemljevidu, pridobljene iz tabel za dele stavb, poslov in tabele energetskih izkaznic
+```
 POST /api/deduplication/ingest
-GET /api/deduplication/status
+```
 
+- vnos statističnih podatkov, pridobljene iz tabel za dele stavb in poslov
+```
 POST /api/statistike/posodobi
+```
 
-definicije vseh endpointov si lahko pogledas v http://localhost:8000/docs
 
-
-STATISTIKA:
-
-prodajna:
-- začne se v letu 2007
-
-najemna:
+definicije vseh endpointov so ldostopne na http://localhost:8000/docs, po tem ko je zagnan FastAPI backend strežnik.
