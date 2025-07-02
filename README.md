@@ -1,8 +1,31 @@
-# domogled.si
-Ekipa Ptujčana, razvoj spletne strani za vizualizacijo in analizo nepremičninskega trga v Sloveniji.
+# Domogled.si
+Spletna rešitev za interaktivno vizualizacijo in analizo nepremičninskih prodajnih in oddajnih poslov.
 
 Rešitev je dostopna na naslednji domeni:
 [domogled.si](https://domogled.si/).
+
+------------------------
+
+## Pregled projekta
+Spletna rešitev je sestavljena iz dveh glavnih delov. Nepremičninski zemljevid in Statistični zemljevid.
+
+### Nepremičninski zemljevid
+
+Glavne funkcionalnosti:
+- Vizualizacija individualnih nepremičninskih poslov, deljene na kupoprodajne in najemne posle.
+- Filtriranje poslov glede na: leto sklenitve, ceno/najemnino in uporabno površino nepremičnine.
+- Splošne statistike občine, deljene na hiše/stanovanja (ter katastrske občine Ljubljane in Maribora), za zadnjih 12 mesecev.
+- Podroben prikaz informacij o prodani/oddani nepremičnini, ki vključuje: 
+pretekle posle, karakteristike nepremičnine za določen posel (spreminjane karakteristik med različnimi posli), energetska izkaznica dela stavbe/stavbe, dodatni deli stavb vključeni v nepremičninski posel.
+
+
+### Statistični zemljevid
+
+Glavne funkcionalnosti ki so na razpolago za vsako občino (tudi katastrske občine Ljubljane in Maribora), deljene na prodajne/najemne informacije:
+- Vizualizacija povprečne cene/m² in število poslov na zemljevidu.
+- Prikaz splošnih statistik za zadnjih 12 mesecev deljene na hiše/stanovanja ki vključuje: število poslov, povp. cena/m², povprečna celotna cena, povp. uporabna površina, povp. starost stavbe.
+- Prikaz statističnih trendov skozi leta, deljene na hiše/stanovanja ki vključuje enake informacije kot statistike za zadnjih 12 mesecev.
+- Statistike za celotno Slovenijo
 
 ------------------------
 
@@ -10,8 +33,7 @@ Rešitev je dostopna na naslednji domeni:
 
 ### Baza
 
-PostgreSQL baza z PostGIS se namesti z Docke containerjem.
-
+PostgreSQL baza z PostGIS se namesti z Docker containerjem.
 
 Proces namestitve iz root direktorija je naslednji:
 
@@ -90,10 +112,7 @@ Za avtomatski vnos, filtriranje in transformacijo podatkov v tabele baze so na v
 - vnos vseh delov stavb in poslov
 ```
 POST /api/deli-stavb/ingest
-POST /api/deli-stavb/ingest?data_type=np
-POST /api/deli-stavb/ingest?data_type=kpp
 ```
--- tu zraven se lahko das start_year in end_year
    
 - vnos energetskih izkaznic
 ```
@@ -108,6 +127,45 @@ POST /api/deduplication/ingest
 - vnos statističnih podatkov, pridobljene iz tabel za dele stavb in poslov
 ```
 POST /api/statistike/posodobi
+```
+
+### Pridobivanje podatkov
+
+Za pridobivanje podatkov spletna rešitev uporablja naslednje endpoint-e:
+
+- pridobivanje geoJSON datoteke za prikaz posameznih prodanih/oddanih nepremičnin na zemljevidu v določenem viewbox-u (trenutno viden del zemljevida), avtomatsko grupira po oddaljenosti/stavbah v cluster-je glede na zoom level
+```
+GET /properties/geojson
+```
+
+- pridobivanje osnovnih podatkov o vseh nepremičninah za določen cluster (samo za cluster-je ki grupirajo po stavbah)
+```
+GET /cluster/{cluster_id}/properties
+```
+
+- pridobivanje podrobnih informacij (vsi relevanti deli stavb, posli, energetske izkaznice) za izbrano nepremičnino na zemljevidu
+```
+GET /property-details/{deduplicated_id}
+```
+
+- pridobivanje podrobnih statistik za Slovenijo/občino/katastrsko občino za prikaz v statističnem zemljevidu
+```
+GET /api/statistike/vse/{tip_regije}/{regija}
+```
+
+- pridobivanje splošnih statistik za občino/katastrsko občino za prikaz v nepremičninskem zemljevidu
+```
+GET /api/statistike/splosne/{tip_regije}/{regija}
+```
+
+- pridobivanje statistik o stevilu poslov za vse občine/katastrske občine za prikaz na statističnem zemljevidu
+```
+GET /api/statistike/vse-obcine-posli-zadnjih-12m
+```
+
+- pridobivanje statistik o ceni/m² za vse občine/katastrske občine za prikaz na statističnem zemljevidu
+```
+GET /api/statistike/vse-obcine-cene-m2-zadnjih-12m
 ```
 
 
