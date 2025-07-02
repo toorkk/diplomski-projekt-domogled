@@ -18,6 +18,14 @@ class PopupManager {
         this.clusterExpander = new ClusterExpander(map);
     }
 
+    _isMobileDevice() {
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        const isSmallScreen = window.innerWidth <= 768;
+        const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        return isTouchDevice && (isSmallScreen || isMobileUserAgent);
+    }
+
     updateDataSourceType(newType) {
         console.log(`PopupManager: Data source changing from ${this.currentDataSourceType} to ${newType}`);
 
@@ -49,7 +57,12 @@ class PopupManager {
         const handler = (e) => {
             const feature = e.features[0];
             if (feature.properties.type === 'individual') {
-                this._showPropertyPopup(e.lngLat, feature.properties);
+
+                if (this._isMobileDevice()) {
+                    this._handleMobilePropertyClick(feature.properties);
+                } else {
+                    this._showPropertyPopup(e.lngLat, feature.properties);
+                }
             }
         };
 
@@ -76,7 +89,12 @@ class PopupManager {
         const handler = (e) => {
             const { lngLat, properties } = e.detail;
             console.log('Handling expanded property click via custom event');
-            this._showPropertyPopup(lngLat, properties);
+            
+            if (this._isMobileDevice()) {
+                this._handleMobilePropertyClick(properties);
+            } else {
+                this._showPropertyPopup(lngLat, properties);
+            }
         };
 
         this.map.getContainer().addEventListener('expandedPropertyClick', handler);
@@ -84,6 +102,11 @@ class PopupManager {
     }
 
     _setupHoverHandlers() {
+        // Na mobilnih napravah ne potrebujemo hover efektov
+        if (this._isMobileDevice()) {
+            return;
+        }
+
         const hoverLayers = [
             LAYER_IDS.PROPERTIES.MAIN,
             LAYER_IDS.PROPERTIES.TEXT,
@@ -106,6 +129,23 @@ class PopupManager {
         this.eventHandlers.hoverEnter = enterHandler;
         this.eventHandlers.hoverLeave = leaveHandler;
         this.eventHandlers.hoverLayers = hoverLayers;
+    }
+
+
+    _handleMobilePropertyClick(properties) {
+        console.log('PopupManager: Handling mobile property click - opening details directly');
+        
+        if (!this.onPropertySelectCallback) {
+            console.warn('PopupManager: No property select callback available');
+            return;
+        }
+
+        const dataSource = getApiDataSource(this.currentDataSourceType);
+        this.onPropertySelectCallback({
+            ...properties,
+            dataSource: dataSource,
+            deduplicatedId: properties.id
+        });
     }
 
     async _handleClusterClick(lngLat, clusterProperties) {
