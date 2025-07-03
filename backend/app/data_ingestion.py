@@ -1,6 +1,5 @@
 import os
-import aiohttp
-import aiofiles
+import requests
 import pandas as pd
 import tempfile
 import zipfile
@@ -39,6 +38,7 @@ class DataIngestionService:
     async def download_data(self, filter_year: str, data_type: str) -> str:
         """Prenese podatke iz API-ja in vrne pot do prenesene datoteke."""
         try:
+
             # parametri ki jih zahteva api
             filter_param = "DRZAVA"
             filter_value = "1"
@@ -60,70 +60,65 @@ class DataIngestionService:
                 "Accept": "*/*"
             }
             
-            # Create aiohttp session with timeout
-            timeout = aiohttp.ClientTimeout(total=300)  # 5 minutes timeout
+            # Pridobivanje URL-ja za prenos iz API-ja
+            response = requests.get(api_url, params=params, headers=headers)
             
-            async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
-                # Pridobivanje URL-ja za prenos iz API-ja
-                async with session.get(api_url, params=params) as response:
-                    
-                    if response.status != 200:
-                        response_text = await response.text()
-                        logger.error(f"API zahteva je bila neuspešna, status: {response.status}, odgovor: {response_text}")
-                        raise Exception(f"API zahteva je bila neuspešna, status: {response.status}")
-                    
-                    # Razčlenitev JSON odgovora
-                    try:
-                        json_data = await response.json()
-                        
-                        # Pridobivanje URL-ja za prenos
-                        if "url" not in json_data:
-                            logger.error(f"URL za prenos ni bil najden v odzivu: {json_data}")
-                            raise Exception("URL za prenos ni bil najden v odzivu")
-                        
-                        download_url = json_data["url"]
-                        logger.info(f"Najden URL za prenos: {download_url}")
-                        
-                    except json.JSONDecodeError:
-                        response_text = await response.text()
-                        logger.error(f"Odziv ni veljaven JSON: {response_text[:500]}")
-                        raise Exception("Odziv ni veljaven JSON")
+            if response.status_code != 200:
+                logger.error(f"API zahteva je bila neuspešna, status: {response.status_code}, odgovor: {response.text}")
+                raise Exception(f"API zahteva je bila neuspešna, status: {response.status_code}")
+            
+            # Razčlenitev JSON odgovora
+            try:
+                json_data = response.json()
+                
+                # Pridobivanje URL-ja za prenos
+                if "url" not in json_data:
+                    logger.error(f"URL za prenos ni bil najden v odzivu: {json_data}")
+                    raise Exception("URL za prenos ni bil najden v odzivu")
+                
+                download_url = json_data["url"]
+                logger.info(f"Najden URL za prenos: {download_url}")
                 
                 # Prenos ZIP datoteke
                 logger.info("Prenašanje ZIP datoteke...")
-                async with session.get(download_url) as file_response:
-                    
-                    if file_response.status != 200:
-                        logger.error(f"Prenos datoteke ni uspel, status: {file_response.status}")
-                        raise Exception(f"Prenos datoteke ni uspel, status: {file_response.status}")
-                    
-                    # Ustvarjanje začasnega direktorija in shranjevanje datoteke
-                    temp_dir = tempfile.mkdtemp()
-                    zip_path = os.path.join(temp_dir, f"{data_type}_downloaded_data.zip")
-                    
-                    # Use aiofiles for async file writing
-                    async with aiofiles.open(zip_path, 'wb') as f:
-                        async for chunk in file_response.content.iter_chunked(8192):
-                            await f.write(chunk)
-                    
-                    file_size = os.path.getsize(zip_path)
-                    logger.info(f"Datoteka prenešena, velikost: {file_size} bajtov")
-                    
-                    # Preverjanje, ali je ZIP datoteka veljavna
-                    try:
-                        with zipfile.ZipFile(zip_path, 'r') as zip_test:
-                            file_list = zip_test.namelist()
-                            logger.info(f"Uspešno potrjeno, da je datoteka ZIP. Vsebuje {len(file_list)} datoteke")
-                    except zipfile.BadZipFile:
-                        logger.error("Prenesena datoteka ni veljavna ZIP datoteka")
-                        raise Exception("Prenesena datoteka ni veljavna ZIP datoteka")
-                    
-                    logger.info(f"Podatki uspešno preneseni: {zip_path}")
-                    return zip_path
+                file_response = requests.get(download_url, headers=headers, stream=True)
+                
+                if file_response.status_code != 200:
+                    logger.error(f"Prenos datoteke ni uspel, status: {file_response.status_code}")
+                    raise Exception(f"Prenos datoteke ni uspel, status: {file_response.status_code}")
+                
+                # Ustvarjanje začasnega direktorija in shranjevanje datoteke
+                temp_dir = tempfile.mkdtemp()
+                zip_path = os.path.join(temp_dir, f"{data_type}_downloaded_data.zip")
+                
+                with open(zip_path, 'wb') as f:
+                    for chunk in file_response.iter_content(chunk_size=8192):
+                        f.write(chunk)
+                
+                file_size = os.path.getsize(zip_path)
+                logger.info(f"Datoteka prenešena, velikost: {file_size} bajtov")
+                
+                # Preverjanje, ali je ZIP datoteka veljavna
+                try:
+                    with zipfile.ZipFile(zip_path, 'r') as zip_test:
+                        file_list = zip_test.namelist()
+                        logger.info(f"Uspešno potrjeno, da je datoteka ZIP. Vsebuje {len(file_list)} datoteke")
+                except zipfile.BadZipFile:
+                    logger.error("Prenesena datoteka ni veljavna ZIP datoteka")
+                    raise Exception("Prenesena datoteka ni veljavna ZIP datoteka")
+                
+                logger.info(f"Podatki uspešno preneseni: {zip_path}")
+                return zip_path
+                
+            except json.JSONDecodeError:
+                logger.error(f"Odziv ni veljaven JSON: {response.text[:500]}")
+                raise Exception("Odziv ni veljaven JSON")
                 
         except Exception as e:
             logger.error(f"Napaka pri prenosu podatkov: {str(e)}")
             raise
+
+
 
 
     def extract_files(self, zip_path: str, data_type: str) -> Dict[str, str]:
@@ -182,6 +177,8 @@ class DataIngestionService:
             raise
     
 
+
+
     def import_to_staging(self, csv_files: Dict[str, str]):
         """Uvozi CSV podatke v staging tabele."""
         try:
@@ -227,6 +224,8 @@ class DataIngestionService:
         except Exception as e:
             logger.error(f"Napaka pri uvozu v staging: {str(e)}")
             raise
+
+
 
     def transform_to_core(self, filter_year: str, data_type: str):
         """Pretvori podatke iz staging v core tabele."""
@@ -351,6 +350,8 @@ class DataIngestionService:
             raise
     
 
+
+
     def cleanup(self, temp_dir: str):
         """Počisti začasen direktorij."""
         try:
@@ -359,6 +360,8 @@ class DataIngestionService:
         except Exception as e:
             logger.error(f"Napaka pri čiščenju začasnega direktorija: {str(e)}")
     
+
+
 
     async def run_ingestion(self, filter_year: str, data_type: str = "np") -> Dict[str, Any]:
         """Zažene celoten proces vnosa podatkov."""
