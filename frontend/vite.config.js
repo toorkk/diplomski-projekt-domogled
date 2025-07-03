@@ -10,9 +10,9 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    vitePrerenderPlugin({
-      renderTarget: '#root',
-      prerenderScript: path.resolve('./src/main.jsx')
-    }),
+    // vitePrerenderPlugin({
+    //   renderTarget: '#root',
+    //   prerenderScript: path.resolve('./src/main.jsx')
+    // }),
   ],
 })
