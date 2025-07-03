@@ -1,18 +1,7 @@
-import { useState, useEffect } from "react";
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 export default function Switcher({ activeType, onChangeType }) {
-  const [isMobile, setIsMobile] = useState(false);
-
-  // Detecta screen velikost
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  const isMobile = useIsMobile();
 
   // Pozicioniranje glede na screen velikost
   const positionClasses = isMobile 

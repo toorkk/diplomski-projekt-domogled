@@ -6,13 +6,10 @@ import {
   getColorClasses, getNaslov, getCeloStDelaStavbe
 } from './PodrobnostiHelper.jsx';
 import { API_CONFIG } from './MapConstants.jsx';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
-// Konstante
-const MOBILE_BREAKPOINT = 768;
+
 const DEFAULT_TAB = 'posli';
-
-// Pomožne funkcije
-const isMobileScreen = () => window.innerWidth < MOBILE_BREAKPOINT;
 
 const formatPrice = (price) => {
   if (!price) return null;
@@ -34,20 +31,6 @@ const formatRentalPeriod = (startDate, endDate) => {
   if (!startDate) return `Do ${formatirajDatum(endDate)}`;
   if (!endDate) return `Od ${formatirajDatum(startDate)}`;
   return `${formatirajDatum(startDate)} – ${formatirajDatum(endDate)}`;
-};
-
-// Hooks
-const useResponsive = () => {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(isMobileScreen());
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  return isMobile;
 };
 
 const usePodrobnostiData = (propertyId, dataSource) => {
@@ -430,7 +413,7 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
   const [selectedPoselId, setSelectedPoselId] = useState(null);
   const [activeTab, setActiveTab] = useState(DEFAULT_TAB);
 
-  const isMobile = useResponsive();
+  const isMobile = useIsMobile();
   const { loading, property, error } = usePodrobnostiData(propertyId, dataSource);
   const poselRefs = useRef({});
 

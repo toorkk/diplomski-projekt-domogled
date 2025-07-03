@@ -1,76 +1,5 @@
 CREATE SCHEMA IF NOT EXISTS core;
 
-DROP TABLE IF EXISTS core.np_del_stavbe CASCADE;
-CREATE TABLE core.np_del_stavbe (
-  del_stavbe_id         SERIAL          PRIMARY KEY,
-  posel_id              INTEGER         NOT NULL,
-  sifra_ko              SMALLINT        NOT NULL,
-  ime_ko                VARCHAR(101),
-  obcina                VARCHAR(102),
-  stevilka_stavbe       INTEGER,
-  stevilka_dela_stavbe  INTEGER,
-
-  naselje               VARCHAR(103),
-  ulica                 VARCHAR(300),
-  hisna_stevilka        INTEGER,
-  dodatek_hs            VARCHAR(10),
-  stev_stanovanja       INTEGER,
-  vrsta_nepremicnine    SMALLINT,
-  opremljenost          SMALLINT,
-
-  opombe                TEXT,
-  leto_izgradnje_stavbe SMALLINT,
-  dejanska_raba         VARCHAR(100),
-  tip_rabe                    VARCHAR(50),     -- bivalno, shrambeno, poslovno, podrtija, drugo
-  lega_v_stavbi         VARCHAR(20),
-  povrsina_uradna       NUMERIC(10,2),
-  povrsina_uporabna     NUMERIC(10,2),
-  prostori              TEXT,
-
-  -- podatki so pretvorjeni iz slovenskega sistema (SRID 3794) v WGS84
-  coordinates           GEOMETRY(Point, 4326),
-  leto                  SMALLINT
-);
-
-
-DROP TABLE IF EXISTS core.kpp_del_stavbe CASCADE;
-CREATE TABLE core.kpp_del_stavbe (
-    del_stavbe_id                           SERIAL          PRIMARY KEY,
-    posel_id                                INTEGER         NOT NULL,
-    sifra_ko                                SMALLINT        NOT NULL,
-    ime_ko                                  VARCHAR(101),
-    obcina                                  VARCHAR(102),
-    stevilka_stavbe                         INTEGER,
-    stevilka_dela_stavbe                    INTEGER,
-
-    naselje                                 VARCHAR(103),
-    ulica                                   VARCHAR(300),
-    hisna_stevilka                          INTEGER,
-    dodatek_hs                              VARCHAR(10),
-    stev_stanovanja                         INTEGER,
-    vrsta_nepremicnine                      SMALLINT,
-    leto_izgradnje_stavbe                   SMALLINT,
-    stavba_je_dokoncana                     INTEGER,
-    gradbena_faza                           INTEGER,
-    novogradnja                             INTEGER,
-    prodani_delez                           VARCHAR(199),
-    nadstropje                              INTEGER,        -- ta podatek se vec ne vpisuje
-    opombe                                  TEXT,           -- ta podatek se vec ne vpisuje
-    dejanska_raba                           VARCHAR(310),
-    tip_rabe                    VARCHAR(50),     -- bivalno, shrambeno, poslovno, podrtija, drugo
-    lega_v_stavbi                           VARCHAR(50),
-    stevilo_sob                             INTEGER,        -- ta podatek se vec ne vpisuje
-    povrsina_uradna                         NUMERIC(10,2),
-    povrsina_uporabna                       NUMERIC(10,2),
-    prostori                                TEXT,
-    pogodbena_cena                          NUMERIC(20,2),
-    stopnja_ddv                             NUMERIC(5,2),
-    coordinates                             GEOMETRY(Point, 4326),  -- podatki so pretvorjeni iz slovenskega sistema (SRID 3794) v WGS84
-    leto                                    SMALLINT
-);
-
-
-
 
 DROP TABLE IF EXISTS core.np_posel;
 CREATE TABLE core.np_posel (
@@ -118,6 +47,80 @@ CREATE TABLE core.kpp_posel (
     leto                    SMALLINT
 );
 
+
+
+DROP TABLE IF EXISTS core.np_del_stavbe CASCADE;
+CREATE TABLE core.np_del_stavbe (
+  del_stavbe_id         SERIAL          PRIMARY KEY,
+  posel_id              INTEGER         NOT NULL,
+  sifra_ko              SMALLINT        NOT NULL,
+  ime_ko                VARCHAR(101),
+  obcina                VARCHAR(102),
+  stevilka_stavbe       INTEGER,
+  stevilka_dela_stavbe  INTEGER,
+
+  naselje               VARCHAR(103),
+  ulica                 VARCHAR(300),
+  hisna_stevilka        INTEGER,
+  dodatek_hs            VARCHAR(10),
+  stev_stanovanja       INTEGER,
+  vrsta_nepremicnine    SMALLINT,
+  opremljenost          SMALLINT,
+
+  opombe                TEXT,
+  leto_izgradnje_stavbe SMALLINT,
+  dejanska_raba         VARCHAR(100),
+  tip_rabe                    VARCHAR(50),     -- bivalno, shrambeno, poslovno, podrtija, drugo
+  lega_v_stavbi         VARCHAR(20),
+  povrsina_uradna       NUMERIC(10,2),
+  povrsina_uporabna     NUMERIC(10,2),
+  prostori              TEXT,
+
+  -- podatki so pretvorjeni iz slovenskega sistema (SRID 3794) v WGS84
+  coordinates           GEOMETRY(Point, 4326),
+  leto                  SMALLINT,
+
+  CONSTRAINT fk_np_del_stavbe_posel FOREIGN KEY (posel_id) REFERENCES core.np_posel(posel_id)
+);
+
+
+DROP TABLE IF EXISTS core.kpp_del_stavbe CASCADE;
+CREATE TABLE core.kpp_del_stavbe (
+    del_stavbe_id                           SERIAL          PRIMARY KEY,
+    posel_id                                INTEGER         NOT NULL,
+    sifra_ko                                SMALLINT        NOT NULL,
+    ime_ko                                  VARCHAR(101),
+    obcina                                  VARCHAR(102),
+    stevilka_stavbe                         INTEGER,
+    stevilka_dela_stavbe                    INTEGER,
+
+    naselje                                 VARCHAR(103),
+    ulica                                   VARCHAR(300),
+    hisna_stevilka                          INTEGER,
+    dodatek_hs                              VARCHAR(10),
+    stev_stanovanja                         INTEGER,
+    vrsta_nepremicnine                      SMALLINT,
+    leto_izgradnje_stavbe                   SMALLINT,
+    stavba_je_dokoncana                     INTEGER,
+    gradbena_faza                           INTEGER,
+    novogradnja                             INTEGER,
+    prodani_delez                           VARCHAR(199),
+    nadstropje                              INTEGER,        -- ta podatek se vec ne vpisuje
+    opombe                                  TEXT,           -- ta podatek se vec ne vpisuje
+    dejanska_raba                           VARCHAR(310),
+    tip_rabe                    VARCHAR(50),     -- bivalno, shrambeno, poslovno, podrtija, drugo
+    lega_v_stavbi                           VARCHAR(50),
+    stevilo_sob                             INTEGER,        -- ta podatek se vec ne vpisuje
+    povrsina_uradna                         NUMERIC(10,2),
+    povrsina_uporabna                       NUMERIC(10,2),
+    prostori                                TEXT,
+    pogodbena_cena                          NUMERIC(20,2),
+    stopnja_ddv                             NUMERIC(5,2),
+    coordinates                             GEOMETRY(Point, 4326),  -- podatki so pretvorjeni iz slovenskega sistema (SRID 3794) v WGS84
+    leto                                    SMALLINT,
+
+    CONSTRAINT fk_kpp_del_stavbe_posel FOREIGN KEY (posel_id) REFERENCES core.kpp_posel(posel_id)
+);
 
 
 
