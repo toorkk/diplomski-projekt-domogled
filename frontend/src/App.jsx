@@ -1,9 +1,8 @@
 import { useState } from "react";
 import Navbar from "./Navbar";
 import Zemljevid from "./Strani/Zemljevid/Zemljevid";
-import Primerjevalnik from "./Strani/Primerjevalnik";
 import Statistika from "./Strani/Statistika/Statistika";
-import Izracun from "./Strani/Izračun";
+import OPodatkih from "./Strani/OPodatkih"; 
 
 export default function App() {
   const [activePage, setActivePage] = useState('zemljevid');
@@ -24,26 +23,24 @@ export default function App() {
   };
 
   const renderPage = () => {
-    switch(activePage) {
+    switch (activePage) {
       case 'zemljevid':
         return (
-          <Zemljevid 
+          <Zemljevid
             onNavigateToStatistics={handleNavigateToStatistics}
           />
         );
-      case 'primerjevalnik':
-        return <Primerjevalnik />;
       case 'statistika':
         return (
-          <Statistika 
+          <Statistika
             selectedRegionFromNavigation={selectedRegionForStatistics}
           />
         );
-      case 'izracun':
-        return <Izracun />;
+      case 'opodatkih':
+        return <OPodatkih />;
       default:
         return (
-          <Zemljevid 
+          <Zemljevid
             onNavigateToStatistics={handleNavigateToStatistics}
           />
         );
