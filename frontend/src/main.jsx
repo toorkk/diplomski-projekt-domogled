@@ -37,8 +37,27 @@ if (typeof window !== 'undefined') {
 }
 
 // Prerender funkcija
-export async function prerender() {
+// main.jsx
+export async function prerender(data) {
   const { renderToString } = await import('react-dom/server');
-  const html = renderToString(<ServerApp />);
-  return { html };
+  
+  const renderPromise = new Promise((resolve) => {
+    try {
+      const html = renderToString(<ServerApp url={data?.url} />);
+      resolve({ html });
+    } catch (error) {
+      console.error('Prerender error:', error);
+      resolve({ html: '<div>Loading...</div>' });
+    }
+  });
+
+  // Timeout po 10 sekundah
+  const timeoutPromise = new Promise((resolve) => {
+    setTimeout(() => {
+      console.warn('Prerender timeout - using fallback');
+      resolve({ html: '<div>Loading...</div>' });
+    }, 10000);
+  });
+
+  return Promise.race([renderPromise, timeoutPromise]);
 }
