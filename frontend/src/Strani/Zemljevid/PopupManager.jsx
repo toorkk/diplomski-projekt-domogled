@@ -19,10 +19,11 @@ class PopupManager {
     }
 
     _isMobileDevice() {
-        
+
         if (typeof window === "undefined") {
             return false; // Server-side default
         }
+        
         const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
         const isSmallScreen = window.innerWidth <= 768;
         const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);

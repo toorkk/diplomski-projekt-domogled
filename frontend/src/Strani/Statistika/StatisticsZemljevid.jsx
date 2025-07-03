@@ -23,6 +23,7 @@ import {
 import '../Stili/Zemljevid.css';
 import municipalitiesData from '../../Občine/Katastri_Maribor_Ljubljana.json';
 import obcineData from '../../Občine/OB.json';
+import { useIsMobile } from "../../hooks/useIsMobile.jsx";
 
 export default function StatisticsZemljevid({
     onMunicipalitySelect,
@@ -46,7 +47,7 @@ export default function StatisticsZemljevid({
     const [viewMode, setViewMode] = useState('posli');
 
     // Mobile stanja
-    const [isMobile, setIsMobile] = useState(false);
+    const isMobile = useIsMobile();
     const [selectedObcinaDropdown, setSelectedObcinaDropdown] = useState('');
     const [selectedKatastrDropdown, setSelectedKatastrDropdown] = useState('');
 
@@ -70,17 +71,6 @@ export default function StatisticsZemljevid({
         center: MAP_CONFIG.INITIAL_CENTER,
         zoom: MAP_CONFIG.INITIAL_ZOOM
     });
-
-    // Check if mobile
-    useEffect(() => {
-        const checkMobile = () => {
-            setIsMobile(window.innerWidth < 768); // md breakpoint
-        };
-        
-        checkMobile();
-        window.addEventListener('resize', checkMobile);
-        return () => window.removeEventListener('resize', checkMobile);
-    }, []);
 
     // ✅ NOVO: Event listener za kontinuirano sledenje sprememb zemljevida
     useEffect(() => {
@@ -531,8 +521,11 @@ export default function StatisticsZemljevid({
                 p60: sortedValues[Math.floor(sortedValues.length * 0.6)],
                 p80: sortedValues[Math.floor(sortedValues.length * 0.8)]
             };
-            window.currentPercentileStats = stats;
-            window.currentViewMode = viewModeParam;
+            
+            if (typeof window !== "undefined") {
+                window.currentPercentileStats = stats;
+                window.currentViewMode = viewModeParam;
+            }
         }
 
         if (isObcine) {
