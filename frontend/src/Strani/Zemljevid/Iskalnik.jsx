@@ -1,15 +1,12 @@
 import { useState, useEffect, useRef } from "react";
+import { useIsMobile } from '../../hooks/useIsMobile';
 import debounce from "lodash/debounce";
 
 // Konstante
-const MOBILE_BREAKPOINT = 768;
 const MIN_SEARCH_LENGTH = 3;
 const DEBOUNCE_DELAY = 300;
 const MAX_SUGGESTIONS = 5;
 const MAPTILER_KEY = "VxVsHKinUjiHiI3FPcfq";
-
-// Pomožne funkcije
-const isMobileDevice = () => window.innerWidth <= MOBILE_BREAKPOINT;
 
 const createSearchUrl = (query) =>
   `https://api.maptiler.com/geocoding/${encodeURIComponent(query)}.json?key=${MAPTILER_KEY}&limit=${MAX_SUGGESTIONS}&country=si`;
@@ -23,18 +20,6 @@ const formatSuggestion = (feature) => ({
 });
 
 // Hooks
-const useResponsiveDetection = () => {
-  const [isOnMobile, setIsOnMobile] = useState(isMobileDevice());
-
-  useEffect(() => {
-    const handleResize = () => setIsOnMobile(isMobileDevice());
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  return isOnMobile;
-};
-
 const useClickOutside = (ref, onClickOutside) => {
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -275,7 +260,7 @@ export default function Iskalnik({ onSearch }) {
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const searchContainerRef = useRef(null);
-  const isOnMobile = useResponsiveDetection();
+  const isMobile = useIsMobile();
 
   // Debounced funkcija za iskanje predlogov
   const handleSuggestionsUpdate = (newSuggestions) => {
@@ -353,13 +338,13 @@ export default function Iskalnik({ onSearch }) {
 
   // Mouse events za desktop
   const handleMouseLeave = () => {
-    if (!isOnMobile && !showSuggestions) {
+    if (!isMobile && !showSuggestions) {
       setSearchVisible(false);
     }
   };
 
   const handleMouseEnter = () => {
-    if (!isOnMobile && !searchVisible) {
+    if (!isMobile && !searchVisible) {
       setSearchVisible(true);
     }
   };
@@ -380,7 +365,7 @@ export default function Iskalnik({ onSearch }) {
   return (
     <>
       {/* Desktop verzija */}
-      {!isOnMobile && (
+      {!isMobile && (
         <div
           className="absolute top-50 right-2 z-10"
           ref={searchContainerRef}
@@ -416,7 +401,7 @@ export default function Iskalnik({ onSearch }) {
       )}
 
       {/* Mobile verzija */}
-      {isOnMobile && (
+      {isMobile && (
         <>
           {!searchVisible && (
             <MobileSearchTrigger onClick={() => setSearchVisible(true)} />

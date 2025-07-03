@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { formatFilterSummary, formatStatistics } from './MapUtils.jsx';
+import { formatStatistics } from './MapUtils.jsx';
+import { useIsMobile } from '../../hooks/useIsMobile.jsx';
 
 // Barve za komponente
 const COLOR_CONFIG = {
@@ -219,12 +220,12 @@ export default function StatistikePanel({
     activeTab = 'prodaja'
 }) {
     const [isOpen, setIsOpen] = useState(false);
+    const isMobile = useIsMobile();
 
     if (!selectedMunicipality && !selectedObcina) {
         return null;
     }
 
-    const isMobile = window.innerWidth <= 768;
     const hasActiveFilters = Object.keys(activeFilters).length > 0;
     const regionInfo = getRegionInfo(selectedMunicipality, selectedObcina);
     const stats = getStatistics(selectedMunicipality, municipalityStatistics, obcinaStatistics, dataSourceType);

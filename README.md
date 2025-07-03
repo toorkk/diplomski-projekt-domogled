@@ -29,6 +29,30 @@ Glavne funkcionalnosti ki so na razpolago za vsako občino (tudi katastrske obč
 
 ------------------------
 
+## Viri podatkov
+
+Podatki, kateri so javne narave, so pridobljeni iz naslednjih virov:
+- Informacije o prodajnih in najemnih poslih ter podatki o delih stavb: [Javni Geodetski Podatki](https://ipi.eprostor.gov.si/jgp/data)
+- Informacije o energetskih izkaznicah za posamezne stavbe in dele stavb: [Register Energetskih Izkaznic](https://www.energetika-portal.si/podrocja/energetika/energetske-izkaznice-stavb/register-energetskih-izkaznic/)
+
+------------------------
+
+## Arhitektura
+
+Spletna rešitev je zgrajena iz treh delov: Vite + React frontend, FastAPI backend in PostgreSQL + PostGIS podatkovna baza
+asdf
+
+Struktura projekta je naslednja:
+```
+├── backend/        <-- FastAPI
+├── frontend/       <-- Vite + React
+├── db/             <-- PostgreSQL + PostGIS
+├── dokumentacija/  <-- diagrami
+└── README.md
+```
+
+------------------------
+
 ## Namestitev in zagon
 
 ### Predpogoji
@@ -96,7 +120,7 @@ python -m uvicorn app.main:app --reload
 ```
 
 ### 4. Frontend
-Frontend temelji na React + Vite v jeziku JavaScript
+Frontend temelji na Vite + React v JavaScript-u
 
 
 Za vspostavitev je potrebno zagnati naslednje ukaze iz root direktorija:

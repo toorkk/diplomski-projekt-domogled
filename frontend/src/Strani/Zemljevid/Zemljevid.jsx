@@ -38,6 +38,7 @@ import {
 import '../Stili/Zemljevid.css';
 import municipalitiesData from '../../Občine/Katastri_Maribor_Ljubljana.json';
 import obcineData from '../../Občine/OB.json';
+import { useIsMobile } from "../../hooks/useIsMobile.jsx";
 
 export default function Zemljevid({ onNavigateToStatistics }) {
     // Refs
@@ -71,7 +72,7 @@ export default function Zemljevid({ onNavigateToStatistics }) {
     const activeFiltersRef = useRef({});
     const selectedMunicipalityRef = useRef(null);
 
-    const isMobile = window.innerWidth <= 768;
+    const isMobile = useIsMobile();
 
     // Preveri ali je uporabnik že videl intro
     useEffect(() => {

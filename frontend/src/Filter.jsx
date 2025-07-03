@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
+import { useIsMobile } from './hooks/useIsMobile';
 
 export default function Filters({ onFiltersChange, dataSourceType, isLoading, activeFilters = {} }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
 
   const [filters, setFilters] = useState({
     filter_leto: 2025,
@@ -66,18 +67,6 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
       onFiltersChange(cleanedFilters);
     }
   }, [dataSourceType]); 
-
-  // Zaznavanje velikosti zaslona in upravljanje s responsive dizajnom
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-      setIsOpen(false);
-    };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   // Obravnavanje sprememb filtrov
   const handleFilterChange = (key, value) => {

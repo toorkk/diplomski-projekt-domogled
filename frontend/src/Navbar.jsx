@@ -1,28 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useIsMobile } from './hooks/useIsMobile';
+
 
 export default function Navbar({ activePage, onPageChange }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
 
   const navItems = [
     { name: 'Nepremičnine', key: 'zemljevid' },
     { name: 'Statistika', key: 'statistika' },
     { name: 'O podatkih', key: 'opodatkih' }
   ];
-
-  // Detecta screen size
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-      if (window.innerWidth >= 768) {
-        setIsMenuOpen(false);
-      }
-    };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   const handlePageChange = (key) => {
     onPageChange(key);
