@@ -39,9 +39,17 @@ Podatki, kateri so javne narave, so pridobljeni iz naslednjih virov:
 
 ## Arhitektura
 
-Spletna rešitev je zgrajena iz treh delov: React + Vite frontend, FastAPI backend in PostgreSQL + PostGIS podatkovna baza
+Spletna rešitev je zgrajena iz treh delov: Vite + React frontend, FastAPI backend in PostgreSQL + PostGIS podatkovna baza
 asdf
 
+Struktura projekta je naslednja:
+```
+├── backend/        <-- FastAPI
+├── frontend/       <-- Vite + React
+├── db/             <-- PostgreSQL + PostGIS
+├── dokumentacija/  <-- diagrami
+└── README.md
+```
 
 ------------------------
 
@@ -112,7 +120,7 @@ python -m uvicorn app.main:app --reload
 ```
 
 ### 4. Frontend
-Frontend temelji na React + Vite v jeziku JavaScript
+Frontend temelji na Vite + React v JavaScript-u
 
 
 Za vspostavitev je potrebno zagnati naslednje ukaze iz root direktorija:
