@@ -13,7 +13,9 @@ CREATE MATERIALIZED VIEW stats.mv_najemne_statistike AS (
 
 -- KORAK 1: PRIPRAVA OSNOVNIH NAJEMNIH PODATKOV
 -- ============================================
-WITH najemni_podatki AS (
+WITH konstante AS (
+    SELECT DATE '2008-01-01' as MIN_DATUM
+),WITH najemni_podatki AS (
     SELECT 
         -- Identifikatorji regij
         n.obcina,
@@ -91,10 +93,10 @@ WITH najemni_podatki AS (
         AND np.datum_uveljavitve IS NOT NULL
         AND n.vrsta_nepremicnine IN (1, 2) -- ni vkljucenih sob (16) ker mislim da bi prevec vplivalo na podatke
         AND np.datum_zacetka_najemanja IS NOT NULL
-        AND np.datum_zacetka_najemanja > DATE '2008-01-01'
-        AND (np.datum_zakljucka_najema IS NULL OR np.datum_zakljucka_najema > DATE '2008-01-01')
-        AND np.datum_uveljavitve > DATE '2008-01-01'
-        AND np.datum_sklenitve > DATE '2008-01-01'
+        AND np.datum_zacetka_najemanja > k.MIN_DATUM
+        AND (np.datum_zakljucka_najema IS NULL OR np.datum_zakljucka_najema > k.MIN_DATUM)
+        AND np.datum_uveljavitve > k.MIN_DATUM
+        AND np.datum_sklenitve > k.MIN_DATUM
 ),
 
 -- KORAK 2: RAZŠIRITEV NA VSA LETA NAJEMA
