@@ -1,5 +1,5 @@
 from .logging_utils import setup_logger
-from sqlalchemy import QueuePool, create_engine, text
+from sqlalchemy import text
 from .sql_utils import get_sql_query, execute_sql_count
 from .database import get_engine
 
@@ -13,7 +13,7 @@ class DeduplicationService:
     To se izvršuje ENKRAT na koncu celotnega procesa vnosa za vsa leta.
     """
     
-    def __init__(self,):
+    def __init__(self):
         self.engine = get_engine()
  
     

@@ -23,7 +23,7 @@ stats_service = StatisticsService()
 # DATA INGESTION ENDPOINTI
 # =============================================================================
 
-async def ingest_data(
+def ingest_data(
     background_tasks: BackgroundTasks,  
     data_type: str = Query("kpp", description="Tip podatkov (np ali kpp)"),
     start_year: int = Query(None, description="Začetno leto"),
@@ -76,7 +76,7 @@ async def ingest_data(
         )
 
 
-async def fill_deduplicated_tables(
+def fill_deduplicated_tables(
     background_tasks: BackgroundTasks,
     data_type: str = Query(None, description="Tip podatkov (np, kpp, ali vsi za np + kpp)")
 ):
@@ -121,7 +121,7 @@ async def fill_deduplicated_tables(
         )
 
 
-async def ingest_energetske_izkaznice(
+def ingest_energetske_izkaznice(
     background_tasks: BackgroundTasks,
     url: str = Query(None, description="Opcijski direktni URL do CSV datoteke")
 ):
@@ -310,7 +310,7 @@ def get_cluster_del_stavbe(
 # STATISTIKE ENDPOINTI
 # =============================================================================
 
-async def posodobi_statistike(background_tasks: BackgroundTasks):
+def posodobi_statistike(background_tasks: BackgroundTasks):
     """
     Napolni/posodobi VSE statistike
     
