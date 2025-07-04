@@ -1,12 +1,11 @@
 import asyncio
 import os
-import requests
 import pandas as pd
 import tempfile
 import zipfile
 import shutil
-import json
 import aiohttp
+import aiofiles
 
 from sqlalchemy import text
 from typing import Dict, Any
@@ -25,7 +24,7 @@ class DataIngestionService:
     
     def __init__(self):
         self.engine = get_engine()
-        self.executor = ThreadPoolExecutor(max_workers=2)
+        self.executor = ThreadPoolExecutor(max_workers=4)
 
     async def download_data(self, filter_year: str, data_type: str) -> str:
         """Prenese podatke iz API-ja in vrne pot do prenesene datoteke."""
@@ -87,9 +86,9 @@ class DataIngestionService:
                     temp_dir = tempfile.mkdtemp()
                     zip_path = os.path.join(temp_dir, f"{data_type}_downloaded_data.zip")
                     
-                    with open(zip_path, 'wb') as f:
+                    async with aiofiles.open(zip_path, 'wb') as f:
                         async for chunk in file_response.content.iter_chunked(8192):
-                            f.write(chunk)
+                            await f.write(chunk)
                     
                     file_size = os.path.getsize(zip_path)
                     logger.info(f"Datoteka prenešena, velikost: {file_size} bajtov")

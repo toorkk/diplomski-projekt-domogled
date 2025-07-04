@@ -159,8 +159,6 @@ def get_del_stavbe_geojson(
     bbox: str = Query(..., description="Bounding box 'west,south,east,north'"),
     zoom: float = Query(default=10, description="Zoom level za clustering"),
     data_source: str = Query(default="np", description="Data source: 'np' za najemne 'kpp' za kupoprodajne"),
-    municipality: str = Query(None, description="Filter po občini (opcijsko)"),  
-    sifko: int = Query(None, description="Filter po šifri katastrske občine (opcijsko)"),
 
     filter_leto: int = Query(None, description="Filter po letu posla (opcijsko)"),
     min_cena: float = Query(None, description="Minimalna cena/najemnina (opcijsko)"),
