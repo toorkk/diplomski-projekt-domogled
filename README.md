@@ -99,7 +99,7 @@ docker-compose up -d
 
 ### 3. Backend
 FastAPI backend. Temelji na Python-u, potrebem vsaj Python 3.8
-
+ 
 
 Za vspostavitev je potrebno zagnati naslednje ukaze iz root direktorija:
 ```
