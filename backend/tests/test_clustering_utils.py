@@ -13,11 +13,8 @@ from app.clustering_utils import (
 def test_calculate_cluster_resolution():
     """Test izračuna cluster resolution"""
     # Test da funkcija vrne pričakovane vrednosti
-    result = calculate_cluster_resolution(12.0)
-    assert abs(result - 0.01) < 0.0001  # Uporabi tolerance namesto exact match
-    
-    # Test da manjši zoom da večji cluster
-    assert calculate_cluster_resolution(6.0) > calculate_cluster_resolution(15.0)
+    assert calculate_cluster_resolution(12.0) == pytest.approx(0.01)  # base case
+    assert calculate_cluster_resolution(6.0) > calculate_cluster_resolution(15.0)  # manjši zoom = večji clustri
 
 def test_serialize_to_json_basic():
     """Test osnovne serializacije"""
@@ -45,7 +42,7 @@ def test_serialize_to_json_decimal():
     setattr(mock_obj, "price", Decimal("150000.50"))
     
     result = serialize_to_json(mock_obj)
-    assert abs(result["price"] - 150000.5) < 0.01  # Uporabi tolerance
+    assert result["price"] == pytest.approx(150000.5)  # Uporabi pytest.approx
 
 def test_serialize_to_json_none():
     """Test serializacije None vrednosti"""
