@@ -1,8 +1,20 @@
-# Domogled.si
-Spletna rešitev za interaktivno vizualizacijo in analizo nepremičninskih prodajnih in oddajnih poslov.
+# Domogled.si 
 
-Rešitev je dostopna na naslednji domeni:
-[domogled.si](https://domogled.si/).
+<br />
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/0d124197-4ab5-4a4d-b9db-c4bb0b2a8282" alt="domogled-header" width="300">
+</div>
+<br />
+
+Domogled je spletna rešitev za analizo slovenskega nepremičninskega trga, ki omogoča interaktiven pregled nad prodajnimi in oddajnimi posli nepremičnin v Sloveniji. Aplikacija ponuja vizualizacijo podatkov na zemljevidu ter statistične analize, namenjene je primarno posameznikom, ki iščejo vpogled v trenutno stanje in trende nepremičninskega trga.
+
+<br />
+
+Rešitev je dostopna na naslednji domeni: [domogled.si](https://www.domogled.si/).
+
+<br />
+
+Domogled sma razvila [Anže Hameršak](https://github.com/toorkk) in [Vasja Rimele](https://github.com/vaskolinko) kot del Zaključnega diplomskega projekta
 
 ------------------------
 
@@ -18,6 +30,10 @@ Glavne funkcionalnosti:
 - Podroben prikaz informacij o prodani/oddani nepremičnini, ki vključuje: 
 pretekle posle, karakteristike nepremičnine za določen posel (spreminjane karakteristik med različnimi posli), energetska izkaznica dela stavbe/stavbe, dodatni deli stavb vključeni v nepremičninski posel.
 
+![domogled-1](https://github.com/user-attachments/assets/c9230c6f-80b8-4344-8320-c7a1dab2585c)
+![domogled-2](https://github.com/user-attachments/assets/ab9862ac-951f-4b4e-a642-b9e071171baa)
+![domogled-3](https://github.com/user-attachments/assets/3d235345-285f-4542-8e45-5c7219b01d18)
+
 
 ### Statistični zemljevid
 
@@ -27,6 +43,9 @@ Glavne funkcionalnosti ki so na razpolago za vsako občino (tudi katastrske obč
 - Prikaz statističnih trendov skozi leta, deljene na hiše/stanovanja ki vključuje enake informacije kot statistike za zadnjih 12 mesecev.
 - Statistike za celotno Slovenijo
 
+![domogled-4](https://github.com/user-attachments/assets/c17ca47e-d6d6-4f91-9418-cad183387513)
+![domogled-5](https://github.com/user-attachments/assets/97b616f2-fb91-43cc-8486-ac726f4f4e30)
+
 ------------------------
 
 ## Viri podatkov
@@ -34,6 +53,14 @@ Glavne funkcionalnosti ki so na razpolago za vsako občino (tudi katastrske obč
 Podatki, kateri so javne narave, so pridobljeni iz naslednjih virov:
 - Informacije o prodajnih in najemnih poslih ter podatki o delih stavb: [Javni Geodetski Podatki](https://ipi.eprostor.gov.si/jgp/data)
 - Informacije o energetskih izkaznicah za posamezne stavbe in dele stavb: [Register Energetskih Izkaznic](https://www.energetika-portal.si/podrocja/energetika/energetske-izkaznice-stavb/register-energetskih-izkaznic/)
+
+------------------------
+
+## Struktura Podatkov
+
+
+![ER-diagram](https://github.com/user-attachments/assets/6efb059d-2260-44bb-859f-8135f28ba6e9)
+
 
 ------------------------
 
@@ -61,13 +88,8 @@ Struktura projekta je naslednja:
 - Docker
 - Git
 
-### 1. Kloniranje repozitorija
-```
-git clone https://github.com/toorkk/diplomski-projekt-domogled.git
-cd .\diplomski-projekt-domogled\
-```
 
-### 2. Baza
+### 1. Podatkovna baza
 
 PostgreSQL baza z PostGIS se namesti z Docker containerjem.
 
@@ -97,7 +119,7 @@ cd .\db\
 docker-compose up -d
 ```
 
-### 3. Backend
+### 2. Zaledni sistem
 FastAPI backend. Temelji na Python-u, potrebem vsaj Python 3.8
  
 
@@ -119,7 +141,7 @@ cd .\backend\
 python -m uvicorn app.main:app --reload
 ```
 
-### 4. Frontend
+### 3. Uporabniški vmesnik
 Frontend temelji na Vite + React v JavaScript-u
 
 
