@@ -2,15 +2,16 @@ from typing import Dict, Any
 from sqlalchemy import create_engine, text
 from .logging_utils import setup_logger
 from .sql_utils import get_sql_query
+from .database import get_engine
 
 logger = setup_logger("statistics", "statistics.log", "STATS")
 
 
 class StatisticsService:
     
-    def __init__(self, db_url: str):
-        self.db_url = db_url
-        self.engine = create_engine(db_url)
+    def __init__(self):
+        self.engine = get_engine()
+
 
     def refresh_all_statistics(self) -> Dict[str, Any]:
         """

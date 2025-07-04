@@ -8,26 +8,16 @@ from sqlalchemy import QueuePool, create_engine, text
 from typing import Dict, Any
 import shutil
 from .sql_utils import execute_sql_file, execute_sql_count
+from .database import get_engine
 
 
 logger = setup_logger("ei_ingestion", "energetska_izkaznica_ingestion.log", "EI")
 
 
 class EnergetskaIzkaznicaIngestionService:
-    def __init__(self, db_url: str):
-        self.db_url = db_url
-        self.engine = create_engine(
-            db_url,
-            poolclass=QueuePool,
-            pool_size=5,
-            max_overflow=10,
-            pool_pre_ping=True,
-            pool_recycle=300,  # 5 minut
-            connect_args={
-                "connect_timeout": 60,
-                "options": "-c statement_timeout=300000"  # 5 minut za SQL
-            }
-        )
+    def __init__(self):
+        self.engine = get_engine()
+
 
     def generate_current_url(self) -> str:
         """Generiraj URL za trenutni mesec in leto."""

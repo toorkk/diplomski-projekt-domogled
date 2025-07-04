@@ -1,10 +1,8 @@
-import os
 from fastapi import Depends, HTTPException, Path, Query, BackgroundTasks
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from .database import get_db, DATABASE_URL
+from .database import get_db
 from .zemljevid_service import DelStavbeService
 from .data_ingestion import DataIngestionService
 from .deduplication import DeduplicationService
@@ -12,13 +10,13 @@ from .energetska_izkaznica_ingestion import EnergetskaIzkaznicaIngestionService
 from .statistics_service import StatisticsService
 
 
-ingestion_service = DataIngestionService(DATABASE_URL)
+ingestion_service = DataIngestionService()
 
-deduplication_service = DeduplicationService(DATABASE_URL)
+deduplication_service = DeduplicationService()
 
-ei_ingestion_service = EnergetskaIzkaznicaIngestionService(DATABASE_URL)
+ei_ingestion_service = EnergetskaIzkaznicaIngestionService()
 
-stats_service = StatisticsService(DATABASE_URL)
+stats_service = StatisticsService()
 
 
 # =============================================================================
@@ -68,11 +66,6 @@ async def ingest_data(
                 "params": {
                     "data_type": data_type,
                     "years": list(range(start_year, end_year + 1))
-                },
-                "next_step": {
-                    "message": "Ko je vnos končan, zaženi deduplication",
-                    "endpoint": "/api/deduplication/ingest",
-                    "note": "Deduplication gre skozi vse leta in se more zagnat po tem ko je vnos podatkov ČISTO končan. Reflektiral bo samo leta ki so trenutno naložena v bazo"
                 }
             }
         )
@@ -89,7 +82,7 @@ async def fill_deduplicated_tables(
 ):
     """
     API endpoint za ustvarjanje deduplicirane tabele po končanem vnosu podatkov.
-    Zaženi to ENKRAT po tem, ko so vsi podatki za vsa leta vnešeni.
+    Zaženi to po tem, ko so vsi podatki za vsa leta vnešeni.
     """
     try:
         if data_type and data_type.lower() not in ["np", "kpp", "vsi"]:

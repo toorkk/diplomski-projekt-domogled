@@ -1,16 +1,20 @@
+import asyncio
 import os
 import requests
 import pandas as pd
 import tempfile
 import zipfile
 import shutil
-
-from .logging_utils import YearTypeFilter, setup_logger
-from sqlalchemy import QueuePool, create_engine, text
-from typing import Dict, Any
 import json
+import aiohttp
 
+from sqlalchemy import text
+from typing import Dict, Any
+from concurrent.futures import ThreadPoolExecutor
+
+from .database import get_engine
 from .sql_utils import get_sql_query, execute_sql_count
+from .logging_utils import YearTypeFilter, setup_logger
 
 year_filter = YearTypeFilter()
 
@@ -19,26 +23,13 @@ logger = setup_logger("data_ingestion", "data_ingestion.log", "INGEST", year_fil
 
 class DataIngestionService:
     
-    def __init__(self, db_url: str):
-        self.db_url = db_url
-        self.engine = create_engine(
-            db_url,
-            poolclass=QueuePool,
-            pool_size=5,
-            max_overflow=10,
-            pool_pre_ping=True,
-            pool_recycle=300,  # 5 minut
-            connect_args={
-                "connect_timeout": 60,
-                "options": "-c statement_timeout=300000"  # 5 minut za SQL
-            }
-        )    
-    
+    def __init__(self):
+        self.engine = get_engine()
+        self.executor = ThreadPoolExecutor(max_workers=2)
 
     async def download_data(self, filter_year: str, data_type: str) -> str:
         """Prenese podatke iz API-ja in vrne pot do prenesene datoteke."""
         try:
-
             # parametri ki jih zahteva api
             filter_param = "DRZAVA"
             filter_value = "1"
@@ -60,60 +51,61 @@ class DataIngestionService:
                 "Accept": "*/*"
             }
             
-            # Pridobivanje URL-ja za prenos iz API-ja
-            response = requests.get(api_url, params=params, headers=headers)
             
-            if response.status_code != 200:
-                logger.error(f"API zahteva je bila neuspešna, status: {response.status_code}, odgovor: {response.text}")
-                raise Exception(f"API zahteva je bila neuspešna, status: {response.status_code}")
-            
-            # Razčlenitev JSON odgovora
-            try:
-                json_data = response.json()
+            async with aiohttp.ClientSession() as session:
+
+                # Pridobivanje URL-ja za prenos iz API-ja
+                async with session.get(api_url, params=params, headers=headers) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        logger.error(f"API zahteva je bila neuspešna, status: {response.status}, odgovor: {error_text}")
+                        raise Exception(f"API zahteva je bila neuspešna, status: {response.status}, odgovor: {error_text}")
+                    
+                    try:
+                        json_data = await response.json()
+                        
+                        if "url" not in json_data:
+                            logger.error(f"URL za prenos ni bil najden v odzivu: {json_data}")
+                            raise Exception("URL za prenos ni bil najden v odzivu")
+                        
+                        download_url = json_data["url"]
+                        logger.info(f"Najden URL za prenos: {download_url}")
+                        
+                    except Exception as e:
+                        error_text = await response.text()
+                        logger.error(f"Odziv ni veljaven JSON: {error_text[:500]}")
+                        raise Exception("Odziv ni veljaven JSON")
                 
-                # Pridobivanje URL-ja za prenos
-                if "url" not in json_data:
-                    logger.error(f"URL za prenos ni bil najden v odzivu: {json_data}")
-                    raise Exception("URL za prenos ni bil najden v odzivu")
-                
-                download_url = json_data["url"]
-                logger.info(f"Najden URL za prenos: {download_url}")
-                
+
                 # Prenos ZIP datoteke
                 logger.info("Prenašanje ZIP datoteke...")
-                file_response = requests.get(download_url, headers=headers, stream=True)
-                
-                if file_response.status_code != 200:
-                    logger.error(f"Prenos datoteke ni uspel, status: {file_response.status_code}")
-                    raise Exception(f"Prenos datoteke ni uspel, status: {file_response.status_code}")
-                
-                # Ustvarjanje začasnega direktorija in shranjevanje datoteke
-                temp_dir = tempfile.mkdtemp()
-                zip_path = os.path.join(temp_dir, f"{data_type}_downloaded_data.zip")
-                
-                with open(zip_path, 'wb') as f:
-                    for chunk in file_response.iter_content(chunk_size=8192):
-                        f.write(chunk)
-                
-                file_size = os.path.getsize(zip_path)
-                logger.info(f"Datoteka prenešena, velikost: {file_size} bajtov")
-                
-                # Preverjanje, ali je ZIP datoteka veljavna
-                try:
-                    with zipfile.ZipFile(zip_path, 'r') as zip_test:
-                        file_list = zip_test.namelist()
-                        logger.info(f"Uspešno potrjeno, da je datoteka ZIP. Vsebuje {len(file_list)} datoteke")
-                except zipfile.BadZipFile:
-                    logger.error("Prenesena datoteka ni veljavna ZIP datoteka")
-                    raise Exception("Prenesena datoteka ni veljavna ZIP datoteka")
-                
-                logger.info(f"Podatki uspešno preneseni: {zip_path}")
-                return zip_path
-                
-            except json.JSONDecodeError:
-                logger.error(f"Odziv ni veljaven JSON: {response.text[:500]}")
-                raise Exception("Odziv ni veljaven JSON")
-                
+                async with session.get(download_url, headers=headers) as file_response:
+                    if file_response.status != 200:
+                        logger.error(f"Prenos datoteke ni uspel, status: {file_response.status}")
+                        raise Exception(f"Prenos datoteke ni uspel, status: {file_response.status}")
+                    
+                    temp_dir = tempfile.mkdtemp()
+                    zip_path = os.path.join(temp_dir, f"{data_type}_downloaded_data.zip")
+                    
+                    with open(zip_path, 'wb') as f:
+                        async for chunk in file_response.content.iter_chunked(8192):
+                            f.write(chunk)
+                    
+                    file_size = os.path.getsize(zip_path)
+                    logger.info(f"Datoteka prenešena, velikost: {file_size} bajtov")
+                    
+                    # Preverjanje, ali je ZIP datoteka veljavna
+                    try:
+                        with zipfile.ZipFile(zip_path, 'r') as zip_test:
+                            file_list = zip_test.namelist()
+                            logger.info(f"Uspešno potrjeno, da je datoteka ZIP. Vsebuje {len(file_list)} datoteke")
+                    except zipfile.BadZipFile:
+                        logger.error("Prenesena datoteka ni veljavna ZIP datoteka")
+                        raise Exception("Prenesena datoteka ni veljavna ZIP datoteka")
+                    
+                    logger.info(f"Podatki uspešno preneseni: {zip_path}")
+                    return zip_path
+                    
         except Exception as e:
             logger.error(f"Napaka pri prenosu podatkov: {str(e)}")
             raise
@@ -176,8 +168,6 @@ class DataIngestionService:
             logger.error(f"Napaka pri ekstrahiranju datotek: {str(e)}")
             raise
     
-
-
 
     def import_to_staging(self, csv_files: Dict[str, str]):
         """Uvozi CSV podatke v staging tabele."""
@@ -366,6 +356,9 @@ class DataIngestionService:
     async def run_ingestion(self, filter_year: str, data_type: str = "np") -> Dict[str, Any]:
         """Zažene celoten proces vnosa podatkov."""
         try:
+            #za async izvajanje
+            loop = asyncio.get_event_loop()
+
             # logger
             year_filter.current_year = filter_year
             year_filter.current_type = data_type
@@ -386,18 +379,30 @@ class DataIngestionService:
             logger.info("=" * 50)
             
             # Uvozi v staging tabele
-            self.import_to_staging(csv_files)
+            await loop.run_in_executor(
+                self.executor,
+                self.import_to_staging,
+                csv_files
+            )
 
             logger.info("=" * 50)
             
             # Pretvori v core tabele
-            self.transform_to_core(filter_year, data_type)
-
+            await loop.run_in_executor(
+                self.executor,
+                self.transform_to_core,
+                filter_year,
+                data_type
+            )
             logger.info("=" * 50)
             
             #počisti temp direktorij
-            self.cleanup(temp_dir)
-            
+            await loop.run_in_executor(
+                self.executor,
+                self.cleanup,
+                temp_dir
+            )            
+
             return {"status": "success", "message": f"Vnos podatkov tipa {data_type} uspešno zaključen"}
             
         except Exception as e:
