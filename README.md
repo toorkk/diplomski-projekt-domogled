@@ -16,6 +16,23 @@ Rešitev je dostopna na naslednji domeni: [domogled.si](https://www.domogled.si/
 
 Domogled sma razvila [Anže Hameršak](https://github.com/toorkk) in [Vasja Rimele](https://github.com/vaskolinko) kot del Zaključnega diplomskega projekta
 
+## Kazalo
+
+- [Pregled projekta](#pregled-projekta)
+  - [Nepremičninski zemljevid](#nepremičninski-zemljevid)
+  - [Statistični zemljevid](#statistični-zemljevid)
+- [Viri podatkov](#viri-podatkov)
+- [Struktura podatkov](#struktura-podatkov)
+- [Arhitektura](#arhitektura)
+- [Namestitev in zagon](#namestitev-in-zagon)
+  - [Predpogoji](#predpogoji)
+  - [1. Podatkovna baza](#1-podatkovna-baza)
+  - [2. Zaledni sistem](#2-zaledni-sistem)
+  - [3. Uporabniški vmesnik](#3-uporabniški-vmesnik)
+- [Domogled API](#domogled-api)
+  - [Vnos podatkov](#vnos-podatkov)
+  - [Pridobivanje podatkov](#pridobivanje-podatkov)
+
 ------------------------
 
 ## Pregled projekta
@@ -56,7 +73,7 @@ Podatki, kateri so javne narave, so pridobljeni iz naslednjih virov:
 
 ------------------------
 
-## Struktura Podatkov
+## Struktura podatkov
 
 
 ![ER-diagram](https://github.com/user-attachments/assets/6efb059d-2260-44bb-859f-8135f28ba6e9)
@@ -67,7 +84,6 @@ Podatki, kateri so javne narave, so pridobljeni iz naslednjih virov:
 ## Arhitektura
 
 Spletna rešitev je zgrajena iz treh delov: Vite + React frontend, FastAPI backend in PostgreSQL + PostGIS podatkovna baza
-asdf
 
 Struktura projekta je naslednja:
 ```
