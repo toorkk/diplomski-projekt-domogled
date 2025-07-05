@@ -21,6 +21,7 @@ Domogled sva razvila [Anže Hameršak](https://github.com/toorkk) in [Vasja Rime
 - [Pregled projekta](#pregled-projekta)
   - [Nepremičninski zemljevid](#nepremičninski-zemljevid)
   - [Statistični zemljevid](#statistični-zemljevid)
+- [Diagram primerov uporabe](#diagram-primerov-uporabe)
 - [Viri podatkov](#viri-podatkov)
 - [Struktura podatkov](#struktura-podatkov)
 - [Arhitektura](#arhitektura)
@@ -62,6 +63,13 @@ Glavne funkcionalnosti ki so na razpolago za vsako občino (tudi katastrske obč
 
 ![domogled-4](https://github.com/user-attachments/assets/c17ca47e-d6d6-4f91-9418-cad183387513)
 ![domogled-5](https://github.com/user-attachments/assets/97b616f2-fb91-43cc-8486-ac726f4f4e30)
+
+------------------------
+
+## Diagram primerov uporabe
+
+
+![DPU-diagram](https://github.com/user-attachments/assets/d692f35b-d7b2-4ad0-ad59-c5fe8852fb0a)
 
 ------------------------
 
