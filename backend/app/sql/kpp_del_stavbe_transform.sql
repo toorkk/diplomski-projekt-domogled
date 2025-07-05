@@ -1,11 +1,3 @@
--- Dodajte indekse za optimizacijo LIKE pogojev
-CREATE INDEX IF NOT EXISTS idx_dejanska_raba_gin ON core.kpp_del_stavbe 
-USING gin (dejanska_raba gin_trgm_ops);
-
-CREATE INDEX IF NOT EXISTS idx_tip_rabe ON core.kpp_del_stavbe (tip_rabe) 
-WHERE tip_rabe IS NULL OR LENGTH(TRIM(tip_rabe)) = 0;
-
--- Vaša originalna koda ostane enaka
 INSERT INTO core.kpp_del_stavbe (
     posel_id,
     sifra_ko,
@@ -94,7 +86,6 @@ AND id_posla IS NOT NULL
 AND (opombe_o_nepremicnini IS NULL OR opombe_o_nepremicnini NOT ILIKE '%prodani solastniški deleži%');
 
 
--- NOSONAR sql:S2077
 UPDATE core.kpp_del_stavbe 
 SET tip_rabe = CASE 
 
