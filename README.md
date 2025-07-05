@@ -14,7 +14,7 @@ Rešitev je dostopna na naslednji domeni: [domogled.si](https://www.domogled.si/
 
 <br />
 
-Domogled sma razvila [Anže Hameršak](https://github.com/toorkk) in [Vasja Rimele](https://github.com/vaskolinko) kot del Zaključnega diplomskega projekta
+Domogled sva razvila [Anže Hameršak](https://github.com/toorkk) in [Vasja Rimele](https://github.com/vaskolinko) kot del Zaključnega diplomskega projekta
 
 ## Kazalo
 
