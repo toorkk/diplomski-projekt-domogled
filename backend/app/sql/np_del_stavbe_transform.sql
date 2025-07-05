@@ -1,10 +1,11 @@
--- indeksa za optimizacijo LIKE pogojev za np_del_stavbe tabelo
+-- Dodajte indekse za optimizacijo LIKE pogojev za np_del_stavbe tabelo
 CREATE INDEX IF NOT EXISTS idx_np_dejanska_raba_gin ON core.np_del_stavbe 
 USING gin (dejanska_raba gin_trgm_ops);
 
 CREATE INDEX IF NOT EXISTS idx_np_tip_rabe ON core.np_del_stavbe (tip_rabe) 
 WHERE tip_rabe IS NULL OR LENGTH(TRIM(tip_rabe)) = 0;
 
+-- Vaša originalna koda ostane enaka
 INSERT INTO core.np_del_stavbe (
 posel_id, 
 sifra_ko,
@@ -84,7 +85,7 @@ AND stevilka_dela_stavbe IS NOT NULL
 AND id_posla IS NOT NULL;
 
 
--- NOSONAR: LIKE conditions optimized with GIN trigram index (idx_np_dejanska_raba_gin)
+-- NOSONAR sql:S2077
 UPDATE core.np_del_stavbe 
 SET tip_rabe = CASE 
 
