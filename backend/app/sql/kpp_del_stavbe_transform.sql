@@ -92,7 +92,7 @@ AND stevilka_dela_stavbe IS NOT NULL
 AND id_posla IS NOT NULL
 AND (opombe_o_nepremicnini IS NULL OR opombe_o_nepremicnini NOT ILIKE '%prodani solastniški deleži%');
 
-
+-- NOSONAR: LIKE conditions optimized with GIN trigram index (idx_dejanska_raba_gin)
 UPDATE core.kpp_del_stavbe 
 SET tip_rabe = CASE 
 
