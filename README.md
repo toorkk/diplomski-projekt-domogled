@@ -16,7 +16,7 @@ Rešitev je dostopna na naslednji domeni: [domogled.si](https://www.domogled.si/
 
 Domogled sva razvila [Anže Hameršak](https://github.com/toorkk) in [Vasja Rimele](https://github.com/vaskolinko) kot del Zaključnega diplomskega projekta
 
-## Kazalo
+## Kazalo vsebine
 
 - [Pregled projekta](#pregled-projekta)
   - [Nepremičninski zemljevid](#nepremičninski-zemljevid)
