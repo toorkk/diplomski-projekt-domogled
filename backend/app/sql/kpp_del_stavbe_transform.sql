@@ -1,3 +1,10 @@
+-- Indeksi za LIKE pogoje
+CREATE INDEX IF NOT EXISTS idx_dejanska_raba_gin ON core.kpp_del_stavbe 
+USING gin (dejanska_raba gin_trgm_ops);
+
+CREATE INDEX IF NOT EXISTS idx_tip_rabe ON core.kpp_del_stavbe (tip_rabe) 
+WHERE tip_rabe IS NULL OR LENGTH(TRIM(tip_rabe)) = 0;
+
 INSERT INTO core.kpp_del_stavbe (
     posel_id,
     sifra_ko,
