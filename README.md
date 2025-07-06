@@ -74,21 +74,17 @@ Glavne funkcionalnosti ki so na razpolago za vsako občino (tudi katastrske obč
 
 Razdelitev dela in vodenje projekta je potekalo s pomočjo orodja Trello, ki nam je omogočilo transparentno sledenje napredka in učinkovito koordinacijo med razvijalcema. Celoten razvoj je bil strukturiran in razdeljen na 4 sprinte, vsak z jasno definiranimi cilji in časovnim okvirjem.
 
-Za organizacijo in vodenje smo uporabljali princip Scrum z delovnim oknom, ki je bilo razdeljeno na tri glavne stolpce:
+Za organizacijo in vodenje sva uporabljala princip vodenja Scrum z delovnim oknom, v katerem sva taske premikala po treh glavnih stolpcih:
 
-**To Do** - Vsi naloge in funkcionalnosti, ki jih je potrebno implementirati v trenutnem sprintu. Vsaka naloga je bila podrobno opisana z določenimi kriteriji za dokončanje.
+**TO DO** - Vsi naloge in funkcionalnosti, ki jih je potrebno implementirati v trenutnem sprintu. Vsaka naloga je bila opisana z določenimi kriteriji za dokončanje.
 
-**Doing** - Naloge, ki so trenutno v izvajanju. Ta stolpec je omogočal jasen pregled nad tem, kdo dela na kateri nalogi in preprečeval podvajanje dela.
+**DOING** - Naloge, ki so trenutno v izvajanju. Ta stolpec je omogočal jasen pregled nad tem, kdo dela na kateri nalogi in preprečeval podvajanje dela.
 
-**Done** - Dokončane naloge, ki so bile uspešno implementirane, testirane in integrirane v glavno kodno bazo.
+**DONE** - Dokončane naloge, ki so bile uspešno implementirane.
 
-Vsak sprint je trajal približno 2-3 tedne in je vključeval:
-- Načrtovanje sprintov z določitvijo prioritet
-- Dnevne stand-up sestanke za usklajevanje napredka
-- Pregled in retrospektivo ob koncu vsakega sprinta
-- Kontinuirano testiranje in integracijo kode
+Sprinti 1 do 3 so trajali vsak po 1 ali 2 tedna, zadnji oz. sprint 4 pa je trajal približno 3 tedne.
 
-Ta pristop nam je omogočil agilno prilagajanje spremembam, hitro odkrivanje in reševanje težav ter zagotovil, da sta oba razvijalca vedno seznanjena s trenutnim stanjem projekta.
+Ta pristop nama je omogočil agilno prilagajanje spremembam, hitro odkrivanje in reševanje težav ter zagotovil, da sta oba razvijalca vedno seznanjena s trenutnim stanjem projekta.
 
 ------------------------
 
