@@ -72,7 +72,7 @@ Glavne funkcionalnosti ki so na razpolago za vsako občino (tudi katastrske obč
 
 ## Vodenje dela in organizacija
 
-Razdelitev dela in vodenje projekta je potekalo s pomočjo orodja Trello, ki nam je omogočilo transparentno sledenje napredka in učinkovito koordinacijo med razvijalcema. Celoten razvoj je bil strukturiran in razdeljen na 4 sprinte, vsak z jasno definiranimi cilji in časovnim okvirjem.
+Razdelitev dela in vodenje projekta je potekalo s pomočjo orodja Trello, ki nama je omogočilo transparentno sledenje napredka in učinkovito koordinacijo med razvijalcema. Celoten razvoj je bil strukturiran in razdeljen na 4 sprinte, vsak z jasno definiranimi cilji in časovnim okvirjem.
 
 Za organizacijo in vodenje sva uporabljala princip vodenja Scrum z delovnim oknom, v katerem sva taske premikala po treh glavnih stolpcih:
 
