@@ -86,6 +86,11 @@ Sprinti 1 do 3 so trajali vsak po 1 ali 2 tedna, zadnji oz. sprint 4 pa je traja
 
 Ta pristop nama je omogočil agilno prilagajanje spremembam, hitro odkrivanje in reševanje težav ter zagotovil, da sta oba razvijalca vedno seznanjena s trenutnim stanjem projekta.
 
+
+![Trello](https://github.com/user-attachments/assets/4dc9827a-6235-4224-aa46-af9057593c8a)
+
+
+
 ------------------------
 
 ## Diagram primerov uporabe
