@@ -301,7 +301,7 @@ GET /api/statistike/vse-obcine-cene-m2-zadnjih-12m
 
 ### Unit testi
 
-Za zagotavljanje kakovosti in zanesljivosti zalednega sistema smo implementirali obsežne unit teste. Testi pokrivajo vse glavne API endpoint-e in funkcionalnosti backend sistema. Testirali smo različne scenarije, vključno z uspešnimi klici, napačnimi parametri, validacijo podatkov in obravnavo napak. Unit testi omogočajo hitro odkrivanje napak pri razvoju novih funkcionalnosti in zagotavljajo, da spremembe ne vplivajo na obstoječe delovanje sistema.
+Za zagotavljanje kakovosti in zanesljivosti zalednega sistema sva implementirala obsežne unit teste. Testi pokrivajo vse glavne API endpoint-e in funkcionalnosti backend sistema. Testirala svo različne scenarije, vključno z uspešnimi klici, napačnimi parametri, validacijo podatkov in obravnavo napak. Unit testi omogočajo hitro odkrivanje napak pri razvoju novih funkcionalnosti in zagotavljajo, da spremembe ne vplivajo na obstoječe delovanje sistema.
 
 
 ![Unit-testi](https://github.com/user-attachments/assets/6aa3d75a-64a4-4ff3-8836-f926df7c6141)
