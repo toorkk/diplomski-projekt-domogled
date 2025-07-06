@@ -14,7 +14,30 @@ Rešitev je dostopna na naslednji domeni: [domogled.si](https://www.domogled.si/
 
 <br />
 
-Domogled sma razvila [Anže Hameršak](https://github.com/toorkk) in [Vasja Rimele](https://github.com/vaskolinko) kot del Zaključnega diplomskega projekta
+Domogled sva razvila [Anže Hameršak](https://github.com/toorkk) in [Vasja Rimele](https://github.com/vaskolinko) kot del Zaključnega diplomskega projekta
+
+## Kazalo vsebine
+
+- [Pregled projekta](#pregled-projekta)
+  - [Nepremičninski zemljevid](#nepremičninski-zemljevid)
+  - [Statistični zemljevid](#statistični-zemljevid)
+- [Vodenje dela in organizacija](#vodenje-dela-in-organizacija)
+- [Diagram primerov uporabe](#diagram-primerov-uporabe)
+- [Diagram zaporedja](#diagram-zaporedja)
+- [Viri podatkov](#viri-podatkov)
+- [Struktura podatkov](#struktura-podatkov)
+- [Arhitektura](#arhitektura)
+- [Namestitev in zagon](#namestitev-in-zagon)
+  - [Predpogoji](#predpogoji)
+  - [1. Podatkovna baza](#1-podatkovna-baza)
+  - [2. Zaledni sistem](#2-zaledni-sistem)
+  - [3. Uporabniški vmesnik](#3-uporabniški-vmesnik)
+- [Domogled API](#domogled-api)
+  - [Vnos podatkov](#vnos-podatkov)
+  - [Pridobivanje podatkov](#pridobivanje-podatkov)
+- [Testiranje](#testiranje)
+  - [Unit testi](#unit-testi)
+  - [Github Actions Workflow](#github-actions-workflow)
 
 ------------------------
 
@@ -48,6 +71,45 @@ Glavne funkcionalnosti ki so na razpolago za vsako občino (tudi katastrske obč
 
 ------------------------
 
+## Vodenje dela in organizacija
+
+Razdelitev dela in vodenje projekta je potekalo s pomočjo orodja Trello, ki nama je omogočilo transparentno sledenje napredka in učinkovito koordinacijo med razvijalcema. Celoten razvoj je bil strukturiran in razdeljen na 4 sprinte, vsak z jasno definiranimi cilji in časovnim okvirjem.
+
+Za organizacijo in vodenje sva uporabljala princip vodenja Scrum z delovnim oknom, v katerem sva taske premikala po treh glavnih stolpcih:
+
+**TO DO** - Vsi naloge in funkcionalnosti, ki jih je potrebno implementirati v trenutnem sprintu. Vsaka naloga je bila opisana z določenimi kriteriji za dokončanje.
+
+**DOING** - Naloge, ki so trenutno v izvajanju. Ta stolpec je omogočal jasen pregled nad tem, kdo dela na kateri nalogi in preprečeval podvajanje dela.
+
+**DONE** - Dokončane naloge, ki so bile uspešno implementirane.
+
+Sprinti 1 do 3 so trajali vsak po 1 ali 2 tedna, zadnji oz. sprint 4 pa je trajal približno 3 tedne.
+
+Ta pristop nama je omogočil agilno prilagajanje spremembam, hitro odkrivanje in reševanje težav ter zagotovil, da sta oba razvijalca vedno seznanjena s trenutnim stanjem projekta.
+
+
+![Trello](https://github.com/user-attachments/assets/4dc9827a-6235-4224-aa46-af9057593c8a)
+
+
+
+------------------------
+
+## Diagram primerov uporabe
+
+
+![DPU-diagram](https://github.com/user-attachments/assets/83ed036a-79d3-41b6-8a89-d135aeebf2e8)
+
+
+------------------------
+
+## Diagram zaporedja
+
+![sequence-diagram-1](https://github.com/user-attachments/assets/7323b93c-8177-404f-be32-3155d01c235f)
+
+
+------------------------
+
+
 ## Viri podatkov
 
 Podatki, kateri so javne narave, so pridobljeni iz naslednjih virov:
@@ -56,7 +118,7 @@ Podatki, kateri so javne narave, so pridobljeni iz naslednjih virov:
 
 ------------------------
 
-## Struktura Podatkov
+## Struktura podatkov
 
 
 ![ER-diagram](https://github.com/user-attachments/assets/6efb059d-2260-44bb-859f-8135f28ba6e9)
@@ -67,7 +129,6 @@ Podatki, kateri so javne narave, so pridobljeni iz naslednjih virov:
 ## Arhitektura
 
 Spletna rešitev je zgrajena iz treh delov: Vite + React frontend, FastAPI backend in PostgreSQL + PostGIS podatkovna baza
-asdf
 
 Struktura projekta je naslednja:
 ```
@@ -233,3 +294,32 @@ GET /api/statistike/vse-obcine-posli-zadnjih-12m
 ```
 GET /api/statistike/vse-obcine-cene-m2-zadnjih-12m
 ```
+
+------------------------
+
+## Testiranje
+
+### Unit testi
+
+Za zagotavljanje kakovosti in zanesljivosti zalednega sistema smo implementirali obsežne unit teste. Testi pokrivajo vse glavne API endpoint-e in funkcionalnosti backend sistema. Testirali smo različne scenarije, vključno z uspešnimi klici, napačnimi parametri, validacijo podatkov in obravnavo napak. Unit testi omogočajo hitro odkrivanje napak pri razvoju novih funkcionalnosti in zagotavljajo, da spremembe ne vplivajo na obstoječe delovanje sistema.
+
+
+![Unit-testi](https://github.com/user-attachments/assets/6aa3d75a-64a4-4ff3-8836-f926df7c6141)
+
+
+
+### Github Actions Workflow
+
+Vsi unit testi se samodejno zaženejo ob vsakem push-u ali pull request-u v glavne veje (main, develop) preko GitHub Actions workflow-a. Proces testiranja vključuje:
+
+- Nastavitev Python 3.11 okolja
+- Namestitev vseh potrebnih odvisnosti
+- Kreacijo mock podatkov za testiranje
+- Zagon vseh unit testov z verbose izpisom
+- Generiranje poročila o pokritosti kode
+- Pošiljanje rezultatov pokritosti na Codecov
+
+![Actions-Workflow](https://github.com/user-attachments/assets/024ccdcf-afdd-40ab-bbcd-be95d4381ab3)
+
+
+Ta avtomatiziran pristop zagotavlja, da so vsi novi prispevki k repozitoriju temeljito testirani pred integracijo v glavno kodno bazo.
