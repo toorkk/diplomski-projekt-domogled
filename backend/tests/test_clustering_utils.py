@@ -42,7 +42,7 @@ def test_serialize_to_json_decimal():
     setattr(mock_obj, "price", Decimal("150000.50"))
     
     result = serialize_to_json(mock_obj)
-    assert result["price"] == pytest.approx(150000.5)  # Uporabi pytest.approx
+    assert result["price"] == pytest.approx(150000.5)  
 
 def test_serialize_to_json_none():
     """Test serializacije None vrednosti"""

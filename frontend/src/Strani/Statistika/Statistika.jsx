@@ -4,9 +4,8 @@ import StatisticsZemljevid from "./StatisticsZemljevid.jsx";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { API_CONFIG } from '../Zemljevid/MapConstants.jsx';
 
-
 // ========================================
-// POMOŽNE KOMPONENTE (Izvoz kompleksnosti)
+// POMOŽNE KOMPONENTE (Izboljšane)
 // ========================================
 
 // Univerzalna tooltip komponenta
@@ -68,38 +67,228 @@ ChartTypeSwitcher.propTypes = {
     activeTab: PropTypes.string.isRequired
 };
 
-// NOVA MINIMAL PROPERTY GRID KOMPONENTA
-const PropertyGrid = ({ data, activeTab, propertyType }) => {
+// NOVA KOMPONENTA - Izboljšan prikaz izbrane regije (z barvnim kodiranjem glede na activeTab)
+const RegionHeader = ({ selectedRegion, getRegionTitle, getRegionType, activeTab, onReset }) => {
+    const isDefault = !selectedRegion;
+    
+    // Določi barve glede na activeTab za VSE regije (vključno s Slovenijo)
+    const getColors = () => {
+        if (activeTab === 'prodaja') {
+            return {
+                background: 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200',
+                icon: 'bg-blue-100 text-blue-600',
+                badge: 'bg-blue-100 text-blue-700',
+                info: 'bg-blue-50 rounded-lg border border-blue-100',
+                infoText: 'text-blue-700'
+            };
+        } else {
+            return {
+                background: 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200',
+                icon: 'bg-emerald-100 text-emerald-600',
+                badge: 'bg-emerald-100 text-emerald-700',
+                info: 'bg-emerald-50 rounded-lg border border-emerald-100',
+                infoText: 'text-emerald-700'
+            };
+        }
+    };
+    
+    const colors = getColors();
+    
+    return (
+        <div className={`${colors.background} border-2 rounded-lg p-4 mb-6 transition-all duration-300`}>
+            <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                    {/* Ikona glede na tip regije */}
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${colors.icon}`}>
+                        {getRegionType() === 'Kataster' ? (
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                            </svg>
+                        ) : getRegionType() === 'Občina' ? (
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                        ) : (
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        )}
+                    </div>
+
+                    <div>
+                        <div className="flex items-center space-x-2">
+                            <span className={`text-xs font-semibold uppercase tracking-wider px-2 py-1 rounded-full ${colors.badge}`}>
+                                {getRegionType()}
+                            </span>
+                            <span className={`
+                                text-xs font-medium px-2 py-1 rounded-full
+                                ${activeTab === 'prodaja' 
+                                    ? 'bg-blue-100 text-blue-700' 
+                                    : 'bg-emerald-100 text-emerald-700'
+                                }
+                            `}>
+                                {activeTab === 'prodaja' ? 'Prodaja' : 'Najem'}
+                            </span>
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 mt-1">
+                            {getRegionTitle()}
+                        </h3>
+                        <p className="text-sm text-gray-600 mt-1">
+                            {isDefault 
+                                ? `Povprečni podatki za vso Slovenijo - ${activeTab === 'najem' ? 'najem' : 'prodaja'}` 
+                                : `Statistični podatki za ${activeTab === 'najem' ? 'najem' : 'prodajo'}`
+                            }
+                        </p>
+                    </div>
+                </div>
+
+                {/* Reset gumb - samo če ni default */}
+                {!isDefault && onReset && (
+                    <button
+                        onClick={onReset}
+                        className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-white/50 rounded-lg transition-colors"
+                        title="Resetiraj na Slovenijo"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        <span>Resetiraj</span>
+                    </button>
+                )}
+            </div>
+
+            {/* Dodatne informacije za navigacijo */}
+            {isDefault && (
+                <div className={`mt-3 p-3 ${colors.info}`}>
+                    <div className={`flex items-center space-x-2 ${colors.infoText}`}>
+                        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-sm font-medium">
+                            Klikni na zemljevid za podrobne statistike občine ali katastra
+                        </span>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+RegionHeader.propTypes = {
+    selectedRegion: PropTypes.object,
+    getRegionTitle: PropTypes.func.isRequired,
+    getRegionType: PropTypes.func.isRequired,
+    activeTab: PropTypes.string.isRequired,
+    onReset: PropTypes.func
+};
+
+// NOVA KOMPONENTA - Breadcrumb navigacija
+const RegionBreadcrumb = ({ selectedObcina, selectedMunicipality, onObcinaSelect, onMunicipalitySelect }) => {
+    if (!selectedObcina && !selectedMunicipality) return null;
+
+    return (
+        <div className="flex items-center space-x-2 text-sm text-gray-600 mb-4">
+            <button 
+                onClick={() => {
+                    onObcinaSelect?.(null);
+                    onMunicipalitySelect?.(null);
+                }}
+                className="hover:text-blue-600 transition-colors"
+            >
+                Slovenija
+            </button>
+            
+            {selectedObcina && (
+                <>
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                    <button 
+                        onClick={() => onMunicipalitySelect?.(null)}
+                        className={`${selectedMunicipality ? 'hover:text-blue-600 transition-colors' : 'font-medium text-gray-900'}`}
+                    >
+                        {selectedObcina.name}
+                    </button>
+                </>
+            )}
+            
+            {selectedMunicipality && selectedObcina && (
+                <>
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                    <span className="font-medium text-gray-900">
+                        {selectedMunicipality.name}
+                    </span>
+                </>
+            )}
+        </div>
+    );
+};
+
+RegionBreadcrumb.propTypes = {
+    selectedObcina: PropTypes.object,
+    selectedMunicipality: PropTypes.object,
+    onObcinaSelect: PropTypes.func,
+    onMunicipalitySelect: PropTypes.func
+};
+
+// POSODOBLJENA PropertyGrid z boljšimi vizualnimi indikatorji
+const PropertyGrid = ({ data, activeTab, propertyType, regionName, regionType }) => {
     if (!data) return null;
 
     const getValue = (source, key) => data[source]?.[key];
     const isApartment = propertyType === 'stanovanje';
 
     return (
-        <div className="bg-white border border-gray-200 hover:border-gray-300 transition-colors rounded-lg">
-            {/* Minimal Header */}
-            <div className="p-4 border-b border-gray-100">
-                <div className="flex items-center space-x-3">
+        <div className="bg-white border border-gray-200 hover:border-gray-300 transition-all duration-200 rounded-lg shadow-sm hover:shadow-md">
+            {/* Header z regionom */}
+            <div className="p-4 border-b border-gray-100 bg-gray-50">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                        <div className={`
+                            w-10 h-10 flex items-center justify-center rounded-lg
+                            ${activeTab === 'prodaja'
+                                ? 'bg-blue-100 text-blue-600'
+                                : 'bg-emerald-100 text-emerald-600'
+                            }
+                        `}>
+                            {isApartment ? (
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                            ) : (
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                                </svg>
+                            )}
+                        </div>
+                        <div>
+                            <h4 className="text-lg font-semibold text-gray-900">
+                                {propertyType === 'stanovanje' ? 'Stanovanje' : 'Hiša'}
+                            </h4>
+                            <div className="flex items-center space-x-2 mt-1">
+                                <span className="text-xs text-gray-500 font-medium">
+                                    {regionName || 'Slovenija'}
+                                </span>
+                                <span className="text-xs text-gray-400">•</span>
+                                <span className="text-xs text-gray-500">
+                                    Zadnjih 12 mesecev
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* Status indikator */}
                     <div className={`
-                        w-10 h-10 flex items-center justify-center
-                        ${activeTab === 'prodaja'
-                            ? 'bg-blue-100 text-blue-600'
-                            : 'bg-emerald-100 text-emerald-600'
+                        px-2 py-1 rounded-full text-xs font-medium
+                        ${activeTab === 'prodaja' 
+                            ? 'bg-blue-100 text-blue-700' 
+                            : 'bg-emerald-100 text-emerald-700'
                         }
                     `}>
-                        {isApartment ? (
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                            </svg>
-                        ) : (
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                            </svg>
-                        )}
+                        {activeTab === 'prodaja' ? 'Prodaja' : 'Najem'}
                     </div>
-                    <h4 className="text-lg font-semibold text-gray-900">
-                        {propertyType === 'stanovanje' ? 'Stanovanje' : 'Hiša'}
-                    </h4>
                 </div>
             </div>
 
@@ -110,7 +299,7 @@ const PropertyGrid = ({ data, activeTab, propertyType }) => {
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-                                Cena na m²
+                                Povp. cena za m²
                             </div>
                             <div className="text-xl font-bold text-gray-900 mt-1">
                                 {getValue('cene', 'povprecna_cena_m2')
@@ -121,7 +310,7 @@ const PropertyGrid = ({ data, activeTab, propertyType }) => {
                         </div>
                         <div>
                             <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-                                Skupna cena
+                                Povp. cena
                             </div>
                             <div className="text-xl font-bold text-gray-900 mt-1">
                                 {getValue('cene', 'povprecna_skupna_cena')
@@ -136,7 +325,7 @@ const PropertyGrid = ({ data, activeTab, propertyType }) => {
                     <div className="grid grid-cols-3 gap-4 pt-2 border-t border-gray-100">
                         <div>
                             <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-                                Velikost
+                                Povp. velikost
                             </div>
                             <div className="text-lg font-semibold text-gray-800 mt-1">
                                 {getValue('lastnosti', 'povprecna_velikost_m2')
@@ -147,7 +336,7 @@ const PropertyGrid = ({ data, activeTab, propertyType }) => {
                         </div>
                         <div>
                             <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-                                {activeTab === 'najem' ? 'Oddano' : 'Prodano'}
+                                {activeTab === 'najem' ? 'Št. oddaj' : 'Št. prodaj'}
                             </div>
                             <div className="text-lg font-semibold text-gray-800 mt-1">
                                 {getValue('aktivnost', activeTab === 'najem' ? 'aktivna_v_letu' : 'stevilo_poslov') || 'N/A'}
@@ -155,7 +344,7 @@ const PropertyGrid = ({ data, activeTab, propertyType }) => {
                         </div>
                         <div>
                             <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-                                Starost
+                                Povp. starost
                             </div>
                             <div className="text-lg font-semibold text-gray-800 mt-1">
                                 {getValue('lastnosti', 'povprecna_starost_stavbe')
@@ -174,10 +363,12 @@ const PropertyGrid = ({ data, activeTab, propertyType }) => {
 PropertyGrid.propTypes = {
     data: PropTypes.object,
     activeTab: PropTypes.oneOf(['prodaja', 'najem']).isRequired,
-    propertyType: PropTypes.oneOf(['stanovanje', 'hisa']).isRequired
+    propertyType: PropTypes.oneOf(['stanovanje', 'hisa']).isRequired,
+    regionName: PropTypes.string,
+    regionType: PropTypes.string
 };
 
-// Ovojnica za grafe
+// Ovojnica za grafe - POVEČANA VIŠINA
 const ChartWrapper = ({ title, children, showSwitcher = false, chartType, setChartType, chartTypeKey, activeTab }) => (
     <div className="bg-white border border-gray-200 rounded-lg p-4">
         <div className="flex justify-between items-center mb-4">
@@ -191,7 +382,7 @@ const ChartWrapper = ({ title, children, showSwitcher = false, chartType, setCha
                 />
             )}
         </div>
-        <div className="h-64">
+        <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
                 {children}
             </ResponsiveContainer>
@@ -311,7 +502,7 @@ const prepareActivityChartData = (statisticsData, activeTab) => {
 };
 
 // ========================================
-// GLAVNA KOMPONENTA (Drastično poenostavljeno)
+// GLAVNA KOMPONENTA (Izboljšana)
 // ========================================
 
 export default function Statistika({ selectedRegionFromNavigation }) {
@@ -319,7 +510,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
     const [selectedMunicipality, setSelectedMunicipality] = useState(null);
     const [selectedObcina, setSelectedObcina] = useState(null);
     const [activeTab, setActiveTab] = useState('prodaja');
-    const [showWelcomeMessage, setShowWelcomeMessage] = useState(true); // NOVO STANJE
+    const [showWelcomeMessage, setShowWelcomeMessage] = useState(true);
     const [chartType, setChartType] = useState({
         price: 'stanovanje',
         totalPrice: 'stanovanje',
@@ -361,11 +552,19 @@ export default function Statistika({ selectedRegionFromNavigation }) {
         fetchStatistics('SLOVENIJA', 'slovenija');
     }, [fetchStatistics]);
 
+    // NOVA funkcija za reset
+    const handleReset = useCallback(() => {
+        setSelectedObcina(null);
+        setSelectedMunicipality(null);
+        setShowWelcomeMessage(false);
+        fetchSloveniaStatistics();
+    }, [fetchSloveniaStatistics]);
+
     // ✅ POPRAVLJENA funkcija za izbiro katastrov - uporabi SIFKO
     const handleMunicipalitySelect = useCallback((municipalityData) => {
         setSelectedMunicipality(municipalityData);
 
-        // SKRIJ WELCOME MESSAGE KO SE IZBERE OBČINA
+        // SKRIJ WELCOME MESSAGE KO SE IZBERE KATASTER
         setShowWelcomeMessage(false);
 
         // NE resetiraj selectedObcina če je preserveObcina = true
@@ -508,31 +707,48 @@ export default function Statistika({ selectedRegionFromNavigation }) {
 
                         {/* Vsebina */}
                         <div className="h-full">
-                            {/* Glava */}
-                            <div className="bg-white text-black p-4 border-b border-gray-200 text-center">
-                                <h2 className="text-xl font-bold">Statistični podatki za {getRegionTitle()}</h2>
-                                <p className="text-gray-600 text-sm">
-                                    {getRegionType()} - Podatki za {activeTab === 'najem' ? 'najem' : 'prodajo'}
-                                    {!selectedRegion && (
-                                        <span className="ml-2 text-blue-600">(Klikni na zemljevid za podrobnosti o občini ali katastru)</span>
-                                    )}
-                                </p>
+                            {/* NOVA - Izboljšana glava z RegionHeader */}
+                            <div className="p-6">
+                                <RegionBreadcrumb
+                                    selectedObcina={selectedObcina}
+                                    selectedMunicipality={selectedMunicipality}
+                                    onObcinaSelect={handleObcinaSelect}
+                                    onMunicipalitySelect={handleMunicipalitySelect}
+                                />
+                                
+                                <RegionHeader
+                                    selectedRegion={selectedRegion}
+                                    getRegionTitle={getRegionTitle}
+                                    getRegionType={getRegionType}
+                                    activeTab={activeTab}
+                                    onReset={selectedRegion ? handleReset : null}
+                                />
                             </div>
 
-                            <div className="pt-10 px-6 pb-6">
+                            <div className="pt-4 px-6 pb-6">
                                 {apiState.loading ? (
                                     <div className="text-center py-8">
-                                        <div className="text-lg text-gray-600">Nalagam statistike...</div>
+                                        <div className="flex flex-col items-center space-y-3">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                            <div className="text-lg text-gray-600">Nalagam statistike za {getRegionTitle()}...</div>
+                                        </div>
                                     </div>
                                 ) : apiState.error ? (
                                     <div className="text-center py-8">
-                                        <div className="text-lg text-red-600 mb-2">Napaka pri nalaganju statistik</div>
-                                        <div className="text-sm text-gray-500">{apiState.error}</div>
+                                        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                                            <div className="text-lg text-red-600 mb-2">Napaka pri nalaganju statistik</div>
+                                            <div className="text-sm text-gray-500">{apiState.error}</div>
+                                            <button 
+                                                onClick={() => selectedRegion ? handleReset() : fetchSloveniaStatistics()}
+                                                className="mt-3 px-4 py-2 bg-red-100 text-red-700 rounded-md text-sm hover:bg-red-200 transition-colors"
+                                            >
+                                                Poskusi znova
+                                            </button>
+                                        </div>
                                     </div>
                                 ) : apiState.data ? (
-                                    <div className="space-y-10">
-
-                                        {/* Mreže nepremičnin z MINIMAL DESIGN */}
+                                    <div className="space-y-8">
+                                        {/* POSODOBLJENE Mreže nepremičnin z regionName */}
                                         <div className="flex justify-center">
                                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-6xl w-full">
                                                 {apiState.data[activeTab]?.stanovanje?.zadnjih12m && (
@@ -540,6 +756,8 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                                         data={apiState.data[activeTab].stanovanje.zadnjih12m}
                                                         activeTab={activeTab}
                                                         propertyType="stanovanje"
+                                                        regionName={getRegionTitle()}
+                                                        regionType={getRegionType()}
                                                     />
                                                 )}
 
@@ -548,6 +766,8 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                                         data={apiState.data[activeTab].hisa.zadnjih12m}
                                                         activeTab={activeTab}
                                                         propertyType="hisa"
+                                                        regionName={getRegionTitle()}
+                                                        regionType={getRegionType()}
                                                     />
                                                 )}
                                             </div>
@@ -555,25 +775,41 @@ export default function Statistika({ selectedRegionFromNavigation }) {
 
                                         {/* Prikaži sporočilo če ni podatkov */}
                                         {!apiState.data[activeTab]?.stanovanje?.zadnjih12m && !apiState.data[activeTab]?.hisa?.zadnjih12m && (
-                                            <div className="text-center py-8 text-gray-500">
-                                                Ni podatkov za {activeTab} v tej regiji
+                                            <div className="text-center py-8">
+                                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                                                    <div className="text-yellow-800 font-medium mb-1">
+                                                        Ni podatkov za {activeTab}
+                                                    </div>
+                                                    <div className="text-yellow-600 text-sm">
+                                                        V regiji {getRegionTitle()} ni dovolj podatkov za prikaz statistik {activeTab === 'prodaja' ? 'prodaje' : 'najema'}.
+                                                    </div>
+                                                </div>
                                             </div>
                                         )}
                                     </div>
                                 ) : (
-                                    <div className="text-center py-8 text-gray-500">
-                                        Ni podatkov za {activeTab} v tej regiji
+                                    <div className="text-center py-8">
+                                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+                                            <div className="text-gray-600">
+                                                Ni podatkov za {activeTab} v regiji {getRegionTitle()}
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                             </div>
 
-                            {/* NOVA SEKCIJA - Nepremičninski trendi */}
+                            {/* NOVA SEKCIJA - Nepremičninski trendi z boljšim naslovom */}
                             {hasData && apiState.data && (
-                                <div className="bg-white text-black p-4 border-b border-gray-200 text-center">
-                                    <h2 className="text-xl font-bold">Nepremičninski trendi za {getRegionTitle()}</h2>
-                                    <p className="text-gray-600 text-sm">
-                                        Analiza gibanja cen, starosti in aktivnosti na trgu {activeTab === 'najem' ? 'najema' : 'prodaje'} v obdobju zadnjih let
-                                    </p>
+                                <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200 p-6">
+                                    <div className="text-center mb-2">
+                                        <h2 className="text-2xl font-bold text-gray-900">
+                                            Nepremičninski trendi za {getRegionTitle()}
+                                        </h2>
+                                        <p className="text-gray-600 mt-2">
+                                            Analiza gibanja cen, starosti in aktivnosti na trgu {activeTab === 'najem' ? 'najema' : 'prodaje'} v obdobju zadnjih let
+                                        </p>
+                                        
+                                    </div>
                                 </div>
                             )}
 
@@ -612,7 +848,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                                 {/* Grafikon celotne cene */}
                                                 {chartData.totalPrice.length > 0 && (
                                                     <ChartWrapper
-                                                        title="Povprečna celotna cena po letih"
+                                                        title="Povprečna cena nepremičnine po letih"
                                                         showSwitcher={true}
                                                         chartType={chartType}
                                                         setChartType={setChartType}
@@ -657,7 +893,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                                 {/* Grafikon velikosti */}
                                                 {chartData.size.length > 0 && (
                                                     <ChartWrapper
-                                                        title="Povprečna velikost po letih"
+                                                        title="Povprečna velikost nepremičnine po letih"
                                                         showSwitcher={true}
                                                         chartType={chartType}
                                                         setChartType={setChartType}
