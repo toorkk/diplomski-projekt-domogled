@@ -101,6 +101,14 @@ Ta pristop nama je omogočil agilno prilagajanje spremembam, hitro odkrivanje in
 
 ------------------------
 
+## Sequence diagram
+
+![sequence-diagram-1](https://github.com/user-attachments/assets/7323b93c-8177-404f-be32-3155d01c235f)
+
+
+------------------------
+
+
 ## Viri podatkov
 
 Podatki, kateri so javne narave, so pridobljeni iz naslednjih virov:
