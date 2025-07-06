@@ -33,6 +33,9 @@ Domogled sva razvila [Anže Hameršak](https://github.com/toorkk) in [Vasja Rime
 - [Domogled API](#domogled-api)
   - [Vnos podatkov](#vnos-podatkov)
   - [Pridobivanje podatkov](#pridobivanje-podatkov)
+- [Testiranje](#testiranje)
+  - [Unit testi](#unit-testi)
+  - [Github Actions Workflow](#github-actions-workflow)
 
 ------------------------
 
@@ -68,8 +71,7 @@ Glavne funkcionalnosti ki so na razpolago za vsako občino (tudi katastrske obč
 
 ## Diagram primerov uporabe
 
-
-![DPU-diagram](https://github.com/user-attachments/assets/d692f35b-d7b2-4ad0-ad59-c5fe8852fb0a)
+Tukaj boste dodali sliko diagrama primerov uporabe, ki prikazuje glavne funkcionalnosti aplikacije in interakcije uporabnikov s sistemom.
 
 ------------------------
 
@@ -257,3 +259,29 @@ GET /api/statistike/vse-obcine-posli-zadnjih-12m
 ```
 GET /api/statistike/vse-obcine-cene-m2-zadnjih-12m
 ```
+
+------------------------
+
+## Testiranje
+
+### Unit testi
+
+Za zagotavljanje kakovosti in zanesljivosti zalednega sistema smo implementirali obsežne unit teste. Testi pokrivajo vse glavne API endpoint-e in funkcionalnosti backend sistema. Testirali smo različne scenarije, vključno z uspešnimi klici, napačnimi parametri, validacijo podatkov in obravnavo napak. Unit testi omogočajo hitro odkrivanje napak pri razvoju novih funkcionalnosti in zagotavljajo, da spremembe ne vplivajo na obstoječe delovanje sistema.
+
+
+![Unit-testi](https://github.com/user-attachments/assets/6aa3d75a-64a4-4ff3-8836-f926df7c6141)
+
+
+
+### Github Actions Workflow
+
+Vsi unit testi se samodejno zaženejo ob vsakem push-u ali pull request-u v glavne veje (main, develop) preko GitHub Actions workflow-a. Proces testiranja vključuje:
+
+- Nastavitev Python 3.11 okolja
+- Namestitev vseh potrebnih odvisnosti
+- Kreacijo mock podatkov za testiranje
+- Zagon vseh unit testov z verbose izpisom
+- Generiranje poročila o pokritosti kode
+- Pošiljanje rezultatov pokritosti na Codecov
+
+Ta avtomatiziran pristop zagotavlja, da so vsi novi prispevki k repozitoriju temeljito testirani pred integracijo v glavno kodno bazo.
