@@ -21,6 +21,7 @@ Domogled sva razvila [Anže Hameršak](https://github.com/toorkk) in [Vasja Rime
 - [Pregled projekta](#pregled-projekta)
   - [Nepremičninski zemljevid](#nepremičninski-zemljevid)
   - [Statistični zemljevid](#statistični-zemljevid)
+- [Vodenje dela in organizacija](#vodenje-dela-in-organizacija)
 - [Diagram primerov uporabe](#diagram-primerov-uporabe)
 - [Viri podatkov](#viri-podatkov)
 - [Struktura podatkov](#struktura-podatkov)
@@ -69,9 +70,33 @@ Glavne funkcionalnosti ki so na razpolago za vsako občino (tudi katastrske obč
 
 ------------------------
 
+## Vodenje dela in organizacija
+
+Razdelitev dela in vodenje projekta je potekalo s pomočjo orodja Trello, ki nam je omogočilo transparentno sledenje napredka in učinkovito koordinacijo med razvijalcema. Celoten razvoj je bil strukturiran in razdeljen na 4 sprinte, vsak z jasno definiranimi cilji in časovnim okvirjem.
+
+Za organizacijo in vodenje smo uporabljali princip Scrum z delovnim oknom, ki je bilo razdeljeno na tri glavne stolpce:
+
+**To Do** - Vsi naloge in funkcionalnosti, ki jih je potrebno implementirati v trenutnem sprintu. Vsaka naloga je bila podrobno opisana z določenimi kriteriji za dokončanje.
+
+**Doing** - Naloge, ki so trenutno v izvajanju. Ta stolpec je omogočal jasen pregled nad tem, kdo dela na kateri nalogi in preprečeval podvajanje dela.
+
+**Done** - Dokončane naloge, ki so bile uspešno implementirane, testirane in integrirane v glavno kodno bazo.
+
+Vsak sprint je trajal približno 2-3 tedne in je vključeval:
+- Načrtovanje sprintov z določitvijo prioritet
+- Dnevne stand-up sestanke za usklajevanje napredka
+- Pregled in retrospektivo ob koncu vsakega sprinta
+- Kontinuirano testiranje in integracijo kode
+
+Ta pristop nam je omogočil agilno prilagajanje spremembam, hitro odkrivanje in reševanje težav ter zagotovil, da sta oba razvijalca vedno seznanjena s trenutnim stanjem projekta.
+
+------------------------
+
 ## Diagram primerov uporabe
 
-Tukaj boste dodali sliko diagrama primerov uporabe, ki prikazuje glavne funkcionalnosti aplikacije in interakcije uporabnikov s sistemom.
+
+![DPU-diagram](https://github.com/user-attachments/assets/83ed036a-79d3-41b6-8a89-d135aeebf2e8)
+
 
 ------------------------
 
