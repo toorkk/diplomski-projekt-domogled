@@ -284,4 +284,7 @@ Vsi unit testi se samodejno zaženejo ob vsakem push-u ali pull request-u v glav
 - Generiranje poročila o pokritosti kode
 - Pošiljanje rezultatov pokritosti na Codecov
 
+![Actions-Workflow](https://github.com/user-attachments/assets/024ccdcf-afdd-40ab-bbcd-be95d4381ab3)
+
+
 Ta avtomatiziran pristop zagotavlja, da so vsi novi prispevki k repozitoriju temeljito testirani pred integracijo v glavno kodno bazo.
