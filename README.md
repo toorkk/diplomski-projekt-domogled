@@ -38,6 +38,7 @@ Domogled sva razvila [Anže Hameršak](https://github.com/toorkk) in [Vasja Rime
 - [Testiranje](#testiranje)
   - [Unit testi](#unit-testi)
   - [Github Actions Workflow](#github-actions-workflow)
+  - [SonarCloud analiza](#sonarcloud-analiza)
 
 ------------------------
 
@@ -323,3 +324,15 @@ Vsi unit testi se samodejno zaženejo ob vsakem push-u ali pull request-u v glav
 
 
 Ta avtomatiziran pristop zagotavlja, da so vsi novi prispevki k repozitoriju temeljito testirani pred integracijo v glavno kodno bazo.
+
+### SonarCloud analiza
+
+Za zagotavljanje visoke kakovosti kode in odkrivanje potencialnih problemov sva implementirala SonarCloud analizo, ki se samodejno izvaja ob vsakem push-u na repozitorij. SonarCloud je napredna platforma za statično analizo kode, ki omogoča odkrivanje code smell-ov, varnostnih ranljivosti, bug-ov in drugih problemov v kodi.
+
+Analiza pokriva naslednje aspekte:
+- **Kakovost kode**: Pregleda strukturo kode, kompleksnost, podvajanje kode in spoštovanje best practices
+- **Varnost**: Identificira potencialne varnostne ranljivosti in probleme
+- **Zanesljivost**: Odkrije potencialne bug-e in probleme, ki bi lahko povzročili nedelovanje aplikacije
+- **Maintainability**: Ocenjuje, kako enostavno je vzdrževati in razširjati kodo
+
+SonarCloud analiza je integrirana v GitHub Actions workflow in se izvaja vzporedno s testi. Rezultati analize so vidni v SonarCloud dashboard-u in omogočajo kontinuirano spremljanje kakovosti kode skozi celoten razvojni cikel.
