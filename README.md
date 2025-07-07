@@ -23,6 +23,7 @@ Domogled sva razvila [Anže Hameršak](https://github.com/toorkk) in [Vasja Rime
   - [Statistični zemljevid](#statistični-zemljevid)
 - [Vodenje dela in organizacija](#vodenje-dela-in-organizacija)
 - [Diagram primerov uporabe](#diagram-primerov-uporabe)
+- [Diagram uvajanja](#diagram-uvajanja)
 - [Diagram zaporedja](#diagram-zaporedja)
 - [Viri podatkov](#viri-podatkov)
 - [Struktura podatkov](#struktura-podatkov)
@@ -99,6 +100,13 @@ Ta pristop nama je omogočil agilno prilagajanje spremembam, hitro odkrivanje in
 
 
 ![DPU-diagram](https://github.com/user-attachments/assets/83ed036a-79d3-41b6-8a89-d135aeebf2e8)
+
+
+------------------------
+
+## Diagram uvajanja
+
+![deployment2](https://github.com/user-attachments/assets/b63860fa-0938-43ac-97e2-ef7c56e316fb)
 
 
 ------------------------
