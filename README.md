@@ -345,5 +345,7 @@ Analiza pokriva naslednje aspekte:
 
 SonarCloud analiza je integrirana v GitHub Actions workflow in se izvaja vzporedno s testi. Rezultati analize so vidni v SonarCloud dashboard-u in omogočajo kontinuirano spremljanje kakovosti kode skozi celoten razvojni cikel.
 
+OPOMBA: Količino issues-ov se je težko izogniti saj je večina napak poveza s PropTypes katere je nesmiselno implementirati.
+
 ![sonar](https://github.com/user-attachments/assets/3608b902-594d-4976-8af3-b3d2bfdba00f)
 
