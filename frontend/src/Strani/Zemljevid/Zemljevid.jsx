@@ -276,7 +276,6 @@ export default function Zemljevid({ onNavigateToStatistics }) {
         // Pridobi statistike za občino
         fetchAndSetStatistics('obcina', obcinaName, dataSourceTypeRef.current);
 
-        // ODSTRANJENO: Zoom na občino - sedaj se samo izbere brez zoomanja
 
     }, [selectedObcina, fetchAndSetStatistics]);
 
@@ -298,7 +297,7 @@ export default function Zemljevid({ onNavigateToStatistics }) {
         }
     }, []);
 
-    const handleRegionReset = useCallback(() => {
+   const handleRegionReset = useCallback(() => {
         if (popupManager.current) {
             popupManager.current.handleMunicipalityReset();
         }
@@ -312,18 +311,11 @@ export default function Zemljevid({ onNavigateToStatistics }) {
             layerManager.current.updateObcinaHover(null);
         }
 
-        // OPCIJSKO: Lahko obdržimo zoom reset ali ga odstranimo
-        map.current.flyTo({
-            center: MAP_CONFIG.INITIAL_CENTER,
-            zoom: MAP_CONFIG.INITIAL_ZOOM,
-            duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION
-        });
-
-        // Po resetu preveri ali naj se nepremičnine prikažejo
+        // Takoj preveri ali naj se nepremičnine prikažejo za trenutni pogled
         setTimeout(() => {
             const currentFilters = activeFiltersRef.current;
             fetchPropertiesForCurrentView(currentFilters);
-        }, MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION + 100);
+        }, 100);
     }, [fetchPropertiesForCurrentView]);
 
     // ===========================================
