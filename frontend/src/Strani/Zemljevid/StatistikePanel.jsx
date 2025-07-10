@@ -42,16 +42,12 @@ const PROPERTY_CONFIG = {
 };
 
 // Pomožne funkcije
-const getRegionInfo = (selectedMunicipality, selectedObcina) => {
-    if (selectedMunicipality) {
-        return { name: selectedMunicipality.name, type: 'Kataster' };
-    }
+const getRegionInfo = (selectedObcina) => {
     return { name: selectedObcina.name, type: 'Občina' };
 };
 
-const getStatistics = (selectedMunicipality, municipalityStatistics, obcinaStatistics, dataSourceType) => {
-    const rawStats = selectedMunicipality ? municipalityStatistics : obcinaStatistics;
-    return formatStatistics(rawStats, dataSourceType);
+const getStatistics = (obcinaStatistics, dataSourceType) => {
+    return formatStatistics(obcinaStatistics, dataSourceType);
 };
 
 const isTransactionTypeRental = (tipPosla) => {
@@ -208,9 +204,7 @@ const MobilePanel = ({ regionName, regionType, stats, statisticsLoading, onGoToS
 
 // Glavna komponenta
 export default function StatistikePanel({
-    selectedMunicipality,
     selectedObcina,
-    municipalityStatistics,
     obcinaStatistics,
     statisticsLoading,
     dataSourceType,
@@ -222,13 +216,13 @@ export default function StatistikePanel({
     const [isOpen, setIsOpen] = useState(false);
     const isMobile = useIsMobile();
 
-    if (!selectedMunicipality && !selectedObcina) {
+    if (!selectedObcina) {
         return null;
     }
 
     const hasActiveFilters = Object.keys(activeFilters).length > 0;
-    const regionInfo = getRegionInfo(selectedMunicipality, selectedObcina);
-    const stats = getStatistics(selectedMunicipality, municipalityStatistics, obcinaStatistics, dataSourceType);
+    const regionInfo = getRegionInfo(selectedObcina);
+    const stats = getStatistics(obcinaStatistics, dataSourceType);
 
     const commonProps = {
         regionName: regionInfo.name,

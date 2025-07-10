@@ -1,4 +1,3 @@
-// components/PopupManager.jsx
 import maplibregl from "maplibre-gl";
 import { LAYER_IDS, UI_CONFIG, TIMEOUTS } from './MapConstants.jsx';
 import { getApiDataSource } from './MapUtils.jsx';

@@ -9,7 +9,6 @@ import {
 import {
     getColorScheme,
     createPriceExpression,
-    createMunicipalityOutlineStyle,
     createClusterColorExpression
 } from './MapUtils.jsx';
 
@@ -19,16 +18,8 @@ const LAYER_STYLES = {
         DEFAULT: { width: 1.2, opacity: 0.6 },
         SELECTED: { width: 3.0, opacity: 1.0 },
         HOVER: { width: 2.5, opacity: 0.9 }
-    },
-    MUNICIPALITY: {
-        DEFAULT: { width: 1.0, opacity: 0.7 },
-        SELECTED: { width: 2.5, opacity: 1.0 },
-        HOVER: { width: 2.0, opacity: 1.0 }
     }
 };
-
-// Filtri za specifične občine
-const SUPPORTED_OBCINE = ['LJUBLJANA', 'MARIBOR'];
 
 // Pomožne funkcije za stiliziranje
 const createLineStyle = (colorExpression, widthExpression, opacityExpression) => ({
@@ -173,73 +164,9 @@ class LayerManager {
         this.map.setFilter(LAYER_IDS.OBCINE.FILL, filter);
     }
 
-    // === KATASTRI SLOJI ===
-
-    // Filtriraj podatke katastra za specifične občine
-    filterMunicipalitiesData(municipalitiesData) {
-        return {
-            ...municipalitiesData,
-            features: municipalitiesData.features.filter(feature => {
-                const obcina = feature.properties.OBCINA;
-                return SUPPORTED_OBCINE.includes(obcina);
-            })
-        };
-    }
-
-    // Dodaj sloje za katastre (samo Ljubljana in Maribor)
-    addMunicipalitiesLayers(municipalitiesData) {
-        if (this.hasSource(SOURCE_IDS.MUNICIPALITIES)) {
-            return;
-        }
-
-        try {
-            const filteredData = this.filterMunicipalitiesData(municipalitiesData);
-            this.addMunicipalitiesSource(filteredData);
-            this.addMunicipalitiesFillLayer();
-            this.addMunicipalitiesOutlineLayer();
-        } catch (error) {
-            throw new Error(`Napaka pri dodajanju slojev katastra: ${error.message}`);
-        }
-    }
-
-    addMunicipalitiesSource(filteredData) {
-        this.map.addSource(SOURCE_IDS.MUNICIPALITIES, {
-            type: 'geojson',
-            data: filteredData
-        });
-    }
-
-    addMunicipalitiesFillLayer() {
-        this.map.addLayer({
-            id: LAYER_IDS.MUNICIPALITIES.FILL,
-            type: 'fill',
-            source: SOURCE_IDS.MUNICIPALITIES,
-            paint: {
-                'fill-color': 'transparent',
-                'fill-opacity': 0
-            },
-            layout: { 'visibility': 'visible' }
-        });
-    }
-
-    addMunicipalitiesOutlineLayer() {
-        this.map.addLayer({
-            id: LAYER_IDS.MUNICIPALITIES.OUTLINE,
-            type: 'line',
-            source: SOURCE_IDS.MUNICIPALITIES,
-            paint: createLineStyle(
-                COLOR_SCHEME.MUNICIPALITY.DEFAULT,
-                ZOOM_STYLES.MUNICIPALITIES.LINE_WIDTH,
-                ZOOM_STYLES.MUNICIPALITIES.LINE_OPACITY
-            ),
-            layout: { 'visibility': 'visible' }
-        });
-    }
-
     // Posodobi vidnost slojev glede na zoom
     updateLayerVisibilityByZoom(currentZoom) {
         this.updateObcineVisibility();
-        this.updateMunicipalitiesVisibility(currentZoom);
     }
 
     updateObcineVisibility() {
@@ -251,73 +178,13 @@ class LayerManager {
         
         // Oznake samo pri nižjih zoom nivojih
         if (this.hasLayer(LAYER_IDS.OBCINE.LABELS)) {
-            const showLabels = this.map.getZoom() < ZOOM_LEVELS.OBCINE_THRESHOLD;
+            const showLabels = this.map.getZoom() < ZOOM_LEVELS.OBCINE_LABELS_THRESHOLD;
             this.setLayerVisibility(LAYER_IDS.OBCINE.LABELS, showLabels);
-        }
-    }
-
-    updateMunicipalitiesVisibility(currentZoom) {
-        if (!this.hasLayer(LAYER_IDS.MUNICIPALITIES.FILL)) return;
-
-        const showMunicipalities = currentZoom >= ZOOM_LEVELS.MUNICIPALITY_DETAIL;
-        
-        this.setLayerVisibility(LAYER_IDS.MUNICIPALITIES.FILL, showMunicipalities);
-        this.setLayerVisibility(LAYER_IDS.MUNICIPALITIES.OUTLINE, showMunicipalities);
-        
-        if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.LABELS)) {
-            this.setLayerVisibility(LAYER_IDS.MUNICIPALITIES.LABELS, showMunicipalities);
         }
     }
 
     setLayerVisibility(layerId, visible) {
         this.map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
-    }
-
-    // Posodobi izbiro katastra
-    updateMunicipalitySelection(selectedSifko = null) {
-        if (!this.hasLayer(LAYER_IDS.MUNICIPALITIES.OUTLINE)) return;
-
-        this.updateMunicipalityStyle(selectedSifko, {
-            colorSelected: COLOR_SCHEME.MUNICIPALITY.SELECTED,
-            colorDefault: COLOR_SCHEME.MUNICIPALITY.DEFAULT,
-            styles: LAYER_STYLES.MUNICIPALITY
-        });
-
-        this.updateMunicipalityFilter(selectedSifko);
-    }
-
-    // Posodobi hover stanje katastra
-    updateMunicipalityHover(hoveredSifko = null) {
-        if (!this.hasLayer(LAYER_IDS.MUNICIPALITIES.OUTLINE)) return;
-
-        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-color',
-            createSelectionExpression('SIFKO', hoveredSifko, COLOR_SCHEME.MUNICIPALITY.HOVER, COLOR_SCHEME.MUNICIPALITY.DEFAULT)
-        );
-        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-width',
-            createSelectionExpression('SIFKO', hoveredSifko, LAYER_STYLES.MUNICIPALITY.HOVER.width, LAYER_STYLES.MUNICIPALITY.DEFAULT.width)
-        );
-        this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-opacity',
-            createSelectionExpression('SIFKO', hoveredSifko, LAYER_STYLES.MUNICIPALITY.HOVER.opacity, LAYER_STYLES.MUNICIPALITY.DEFAULT.opacity)
-        );
-    }
-
-    updateMunicipalityStyle(selectedId, config) {
-        const layerId = LAYER_IDS.MUNICIPALITIES.OUTLINE;
-        
-        this.map.setPaintProperty(layerId, 'line-color',
-            createSelectionExpression('SIFKO', selectedId, config.colorSelected, config.colorDefault)
-        );
-        this.map.setPaintProperty(layerId, 'line-width',
-            createSelectionExpression('SIFKO', selectedId, config.styles.SELECTED.width, config.styles.DEFAULT.width)
-        );
-        this.map.setPaintProperty(layerId, 'line-opacity',
-            createSelectionExpression('SIFKO', selectedId, config.styles.SELECTED.opacity, config.styles.DEFAULT.opacity)
-        );
-    }
-
-    updateMunicipalityFilter(selectedSifko) {
-        const filter = selectedSifko ? ['!=', ['get', 'SIFKO'], selectedSifko] : null;
-        this.map.setFilter(LAYER_IDS.MUNICIPALITIES.FILL, filter);
     }
 
     // === NEPREMIČNINE SLOJI ===
@@ -538,7 +405,6 @@ class LayerManager {
     // Počisti vse sloje
     cleanup() {
         this.cleanupObcineLayers();
-        this.cleanupMunicipalityLayers();
         this.removePropertiesLayers();
         this.removeClustersLayers();
     }
@@ -549,14 +415,6 @@ class LayerManager {
             obcineLayers.push(LAYER_IDS.OBCINE.LABELS);
         }
         this.removeLayerAndSource(obcineLayers, SOURCE_IDS.OBCINE);
-    }
-
-    cleanupMunicipalityLayers() {
-        const municipalityLayers = [LAYER_IDS.MUNICIPALITIES.FILL, LAYER_IDS.MUNICIPALITIES.OUTLINE];
-        if (this.hasLayer(LAYER_IDS.MUNICIPALITIES.LABELS)) {
-            municipalityLayers.push(LAYER_IDS.MUNICIPALITIES.LABELS);
-        }
-        this.removeLayerAndSource(municipalityLayers, SOURCE_IDS.MUNICIPALITIES);
     }
 }
 

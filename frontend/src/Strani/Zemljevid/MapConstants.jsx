@@ -1,5 +1,3 @@
-// constants/mapConstants.js
-
 // API konfiguracija
 export const API_CONFIG = {
     BASE_URL: import.meta.env.VITE_BACKEND_URL,
@@ -43,29 +41,19 @@ export const COLOR_SCHEME = {
         CLUSTER: ['#8ec5ff', '#7ab8ff', '#6ba3ff', '#5c94ff']
     },
     NAJEM: {
-    CIRCLE: '#00d492',
-    STROKE: '#4a5565',
-    CLUSTER: ['#33dd9f', '#00d492', '#00b87a', '#009c62']
-    },
-    MUNICIPALITY: {
-        DEFAULT: '#808080',    // Svetla siva - manj opazna
-        SELECTED: '#000000',   // Modra - usklajena s temo
-        HOVER: '#000000'       // Temnejša modra - jasno vidna
+        CIRCLE: '#00d492',
+        STROKE: '#4a5565',
+        CLUSTER: ['#33dd9f', '#00d492', '#00b87a', '#009c62']
     },
     OBCINA: {
-        DEFAULT: '#808080',    // Zelo svetla siva - prozorna
+        DEFAULT: '#808080',    // Svetla siva - manj opazna
         SELECTED: '#000000',   // Črna barva za selected
-        HOVER: '#000000'       // Temnejša modra za hover
+        HOVER: '#000000'       // Črna barva za hover
     }
 };
 
 // Layer IDs
 export const LAYER_IDS = {
-    MUNICIPALITIES: {
-        FILL: 'municipalities-fill',
-        OUTLINE: 'municipalities-outline',
-        LABELS: 'municipalities-labels'
-    },
     OBCINE: {
         FILL: 'obcine-fill',
         OUTLINE: 'obcine-outline',
@@ -87,7 +75,6 @@ export const LAYER_IDS = {
 
 // Source IDs
 export const SOURCE_IDS = {
-    MUNICIPALITIES: 'municipalities',
     OBCINE: 'obcine',
     PROPERTIES: 'properties',
     CLUSTERS: 'clusters',
@@ -97,7 +84,6 @@ export const SOURCE_IDS = {
 // UPDATED: Zoom leveli za new logic
 export const ZOOM_LEVELS = {
     OBCINE_LABELS_THRESHOLD: 9,     // When to show občine labels
-    MUNICIPALITY_DETAIL: 11,        // When to show katastri for Ljubljana/Maribor
     AUTO_LOAD_PROPERTIES: 7        // When to auto-load properties
 };
 
@@ -119,56 +105,6 @@ export const ZOOM_STYLES = {
             8, 6,
             12, 8,
             16, 10
-        ]
-    },
-    MUNICIPALITIES: {
-        LINE_WIDTH: [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            6, 0.3,    // Tanjše default črte
-            8, 0.5,
-            10, 0.7,
-            12, 0.9,
-            14, 1.1
-        ],
-        LINE_OPACITY: [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            6, 0.4,    // Bolj prozorne
-            8, 0.6,
-            10, 0.7,
-            12, 0.8
-        ],
-        // Hover debelina
-        HOVER_LINE_WIDTH: [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            6, 1.2,    // Občutno debelejše za hover
-            8, 1.5,
-            10, 1.8,
-            12, 2.2,
-            14, 2.5
-        ],
-        LABEL_SIZE: [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            8, 0,
-            9, 10,
-            11, 12,
-            13, 14,
-            15, 16
-        ],
-        LABEL_OPACITY: [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            8, 0,
-            9, 0.7,
-            11, 1
         ]
     },
     

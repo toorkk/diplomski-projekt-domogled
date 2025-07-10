@@ -1,4 +1,3 @@
-# backend/tests/test_clustering_utils.py
 import pytest
 from unittest.mock import Mock
 from decimal import Decimal

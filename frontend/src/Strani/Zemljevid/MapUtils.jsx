@@ -1,4 +1,3 @@
-// utils/mapUtils.jsx
 import maplibregl from "maplibre-gl";
 import { DATA_SOURCE_CONFIG, COLOR_SCHEME, API_CONFIG } from './MapConstants.jsx';
 
@@ -115,7 +114,7 @@ export const buildClusterDetailsUrl = (clusterId, dataSource, zoom, filters = {}
     return `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CLUSTER_DETAILS}/${clusterId}/properties?${params.toString()}`;
 };
 
-// NOVO: API funkcija za pridobivanje statistik
+// API funkcija za pridobivanje statistik
 export const fetchStatistics = async (tipRegije, regija) => {
     try {
         // Spremeni ime regije v uppercase pred pošiljanjem
@@ -136,7 +135,7 @@ export const fetchStatistics = async (tipRegije, regija) => {
     }
 };
 
-// NOVO: Utility funkcija za formatiranje statistik
+// Utility funkcija za formatiranje statistik
 export const formatStatistics = (statistics, dataSourceType) => {
     if (!statistics || !statistics.splosne_statistike || !statistics.splosne_statistike.pregled) {
         return null;
@@ -291,30 +290,6 @@ export const calculateExpansionRadius = (zoom, baseRadius = 0.005) => {
 };
 
 // Maplibre stili
-export const createMunicipalityOutlineStyle = (selectedSifko = null) => ({
-    'line-color': [
-        'case',
-        ['==', ['get', 'SIFKO'], selectedSifko || -1],
-        COLOR_SCHEME.MUNICIPALITY.SELECTED,
-        COLOR_SCHEME.MUNICIPALITY.DEFAULT
-    ],
-    'line-width': [
-        'case',
-        ['==', ['get', 'SIFKO'], selectedSifko || -1],
-        3,
-        [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            6, 0.5,
-            8, 0.8,
-            10, 1,
-            12, 1.2,
-            14, 1.5
-        ]
-    ]
-});
-
 export const createClusterColorExpression = (colorScheme) => ([
     'interpolate',
     ['linear'],
@@ -344,23 +319,6 @@ export const handleApiError = (error, context) => {
     console.error(`Error in ${context}:`, error);
     throw error;
 };
-
-// Kataster utilities
-export const getMunicipalityName = (municipalityFeature) => {
-  const name = municipalityFeature.properties.NAZIV || municipalityFeature.properties.IMEKO;
-  const code = municipalityFeature.properties.SIFKO;
-  
-  if (name && code) {
-    return `${name} (${code})`;
-  } else if (name) {
-    return name;
-  } else if (code) {
-    return `KO ${code}`;
-  } else {
-    return 'Neznana občina';
-  }
-};
-
 
 // Občina utilities
 export const getObcinaName = (obcinaFeature) => {
