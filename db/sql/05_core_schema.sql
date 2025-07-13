@@ -1,7 +1,7 @@
 CREATE SCHEMA IF NOT EXISTS core;
 
 
-DROP TABLE IF EXISTS core.np_posel;
+DROP TABLE IF EXISTS core.np_posel CASCADE;
 CREATE TABLE core.np_posel (
   posel_id                     INTEGER         PRIMARY KEY,
   vrsta_posla                  SMALLINT,
@@ -29,7 +29,7 @@ CREATE TABLE core.np_posel (
 );
 
 
-DROP TABLE IF EXISTS core.kpp_posel;
+DROP TABLE IF EXISTS core.kpp_posel CASCADE;
 CREATE TABLE core.kpp_posel (
     posel_id                INTEGER         PRIMARY KEY,
     vrsta_posla             SMALLINT,
