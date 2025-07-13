@@ -67,7 +67,7 @@ ChartTypeSwitcher.propTypes = {
     activeTab: PropTypes.string.isRequired
 };
 
-// NOVA KOMPONENTA - Izboljšan prikaz izbrane regije (z barvnim kodiranjem glede na activeTab)
+// Izboljšan prikaz izbrane regije (z barvnim kodiranjem glede na activeTab)
 const RegionHeader = ({ selectedRegion, getRegionTitle, getRegionType, activeTab, onReset }) => {
     const isDefault = !selectedRegion;
 
@@ -182,7 +182,7 @@ RegionHeader.propTypes = {
     onReset: PropTypes.func
 };
 
-// NOVA KOMPONENTA - Breadcrumb navigacija
+// Breadcrumb navigacija
 const RegionBreadcrumb = ({ selectedObcina, selectedMunicipality, onObcinaSelect, onMunicipalitySelect }) => {
     if (!selectedObcina && !selectedMunicipality) return null;
 
@@ -233,7 +233,7 @@ RegionBreadcrumb.propTypes = {
     onMunicipalitySelect: PropTypes.func
 };
 
-// POSODOBLJENA PropertyGrid z boljšimi vizualnimi indikatorji
+// PropertyGrid z boljšimi vizualnimi indikatorji
 const PropertyGrid = ({ data, activeTab, propertyType, regionName, regionType }) => {
     if (!data) return null;
 
@@ -295,7 +295,7 @@ const PropertyGrid = ({ data, activeTab, propertyType, regionName, regionType })
             {/* Stats in clean grid */}
             <div className="p-4">
                 <div className="space-y-4">
-                    {/* Price section */}
+                    {/* Cena sekcija */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">
@@ -368,7 +368,7 @@ PropertyGrid.propTypes = {
     regionType: PropTypes.string
 };
 
-// Ovojnica za grafe - POVEČANA VIŠINA
+// Ovojnica za grafe 
 const ChartWrapper = ({ title, children, showSwitcher = false, chartType, setChartType, chartTypeKey, activeTab }) => (
     <div className="bg-white border border-gray-200 rounded-lg p-4">
         <div className="flex justify-between items-center mb-4">
@@ -403,7 +403,7 @@ ChartWrapper.propTypes = {
 // KOMPAKTNA WELCOME MESSAGE KOMPONENTA
 const WelcomeOverlay = ({ onDismiss }) => (
     <>
-        {/* Overlay background - znižan z-index da ne prekrije header-ja */}
+        {/* Overlay background */}
         <div
             className="absolute inset-0 bg-black/40 z-30"
             onClick={onDismiss}
@@ -418,7 +418,7 @@ const WelcomeOverlay = ({ onDismiss }) => (
             }}
         />
 
-        {/* Compact message - znižan z-index da ne prekrije header-ja */}
+        {/* Compact message */}
         <div className="absolute inset-0 z-30 flex items-center justify-center p-4">
             <div className="bg-white rounded-lg shadow-xl border border-gray-200 p-6 max-w-md w-full">
                 <div className="flex items-start space-x-3">
@@ -462,7 +462,7 @@ WelcomeOverlay.propTypes = {
 };
 
 // ========================================
-// POMOŽNE FUNKCIJE (Poenostavitev logike)
+// POMOŽNE FUNKCIJE
 // ========================================
 
 const formatters = {
@@ -479,26 +479,40 @@ const formatters = {
     age: (value) => `${Math.round(value)} let`
 };
 
+// funkcija z letnim filtriranjem
 const prepareUniversalChartData = (statisticsData, activeTab, chartType, dataType, valueKeys) => {
     const typeData = statisticsData?.[activeTab]?.[chartType]?.letno || [];
-    return typeData.map(d => ({
-        leto: d.leto,
-        povprecna: d[dataType]?.[valueKeys.povprecna] || null,
-    })).sort((a, b) => a.leto - b.leto);
+    
+    // Določi minimalno leto glede na activeTab
+    const minYear = activeTab === 'prodaja' ? 2009 : 2013;
+    
+    return typeData
+        .filter(d => d.leto >= minYear) //FILTRACIJA PO LETU
+        .map(d => ({
+            leto: d.leto,
+            povprecna: d[dataType]?.[valueKeys.povprecna] || null,
+        }))
+        .sort((a, b) => a.leto - b.leto);
 };
 
+// funkcija za aktivnost z letnim filtriranjem
 const prepareActivityChartData = (statisticsData, activeTab) => {
     const mergeData = (stanovanja, hise) => {
         const dataMap = new Map();
         const field = activeTab === 'najem' ? 'aktivna_v_letu' : 'stevilo_poslov';
+        
+        // Določi minimalno leto glede na activeTab
+        const minYear = activeTab === 'prodaja' ? 2009 : 2013;
 
-        [...stanovanja, ...hise].forEach(d => {
-            if (!dataMap.has(d.leto)) {
-                dataMap.set(d.leto, { leto: d.leto, stanovanja: 0, hise: 0 });
-            }
-            const type = stanovanja.includes(d) ? 'stanovanja' : 'hise';
-            dataMap.get(d.leto)[type] = d.aktivnost?.[field] || 0;
-        });
+        [...stanovanja, ...hise]
+            .filter(d => d.leto >= minYear) // FILTRACIJA PO LETU
+            .forEach(d => {
+                if (!dataMap.has(d.leto)) {
+                    dataMap.set(d.leto, { leto: d.leto, stanovanja: 0, hise: 0 });
+                }
+                const type = stanovanja.includes(d) ? 'stanovanja' : 'hise';
+                dataMap.get(d.leto)[type] = d.aktivnost?.[field] || 0;
+            });
 
         return Array.from(dataMap.values()).sort((a, b) => a.leto - b.leto);
     };
@@ -509,7 +523,7 @@ const prepareActivityChartData = (statisticsData, activeTab) => {
 };
 
 // ========================================
-// GLAVNA KOMPONENTA (Izboljšana)
+// GLAVNA KOMPONENTA
 // ========================================
 
 export default function Statistika({ selectedRegionFromNavigation }) {
@@ -567,7 +581,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
         fetchSloveniaStatistics();
     }, [fetchSloveniaStatistics]);
 
-    // ✅ POPRAVLJENA funkcija za izbiro katastrov - uporabi SIFKO
+    // funkcija za izbiro katastrov - uporabi SIFKO
     const handleMunicipalitySelect = useCallback((municipalityData) => {
         setSelectedMunicipality(municipalityData);
 
@@ -580,7 +594,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
         }
 
         if (municipalityData) {
-            // ✅ NOVA KODA - uporabi SIFKO direktno namesto parsanja imena
+            // uporabi SIFKO direktno
             fetchStatistics(municipalityData.sifko, 'katastrska_obcina');
         } else {
             // Če ni izbrane občine, naloži statistike za Slovenijo
@@ -603,7 +617,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
         }
     }, [fetchStatistics, fetchSloveniaStatistics]);
 
-    // ✅ POPRAVLJEN samodejno nalaganje iz navigacije
+    // samodejno nalaganje iz navigacije
     useEffect(() => {
         if (!selectedRegionFromNavigation) {
             // Če ni podane regije iz navigacije, naloži statistike za Slovenijo
@@ -618,14 +632,14 @@ export default function Statistika({ selectedRegionFromNavigation }) {
             setSelectedObcina(null);
             // SKRIJ WELCOME MESSAGE KO SE NAVIGIRA IZ DRUGE STRANI
             setShowWelcomeMessage(false);
-            // ✅ NOVA KODA - uporabi SIFKO namesto imena
+            // uporabi SIFKO 
             fetchStatistics(sifko, 'katastrska_obcina');
         } else if (type === 'obcina') {
             setSelectedObcina({ name, obcinaId });
             setSelectedMunicipality(null);
             // SKRIJ WELCOME MESSAGE KO SE NAVIGIRA IZ DRUGE STRANI
             setShowWelcomeMessage(false);
-            fetchStatistics(name, 'obcina'); // ✅ Občine ostanejo enako
+            fetchStatistics(name, 'obcina'); 
         }
     }, [selectedRegionFromNavigation, fetchStatistics, fetchSloveniaStatistics]);
 
@@ -714,7 +728,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
 
                         {/* Vsebina */}
                         <div className="h-full">
-                            {/* NOVA - Izboljšana glava z RegionHeader */}
+                            {/* Izboljšana glava z RegionHeader */}
                             <div className="p-6">
                                 <RegionBreadcrumb
                                     selectedObcina={selectedObcina}
@@ -755,7 +769,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                     </div>
                                 ) : apiState.data ? (
                                     <div className="space-y-8">
-                                        {/* POSODOBLJENE Mreže nepremičnin z regionName */}
+                                        {/* Mreže nepremičnin z regionName */}
                                         <div className="flex justify-center">
                                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-6xl w-full">
                                                 {apiState.data[activeTab]?.stanovanje?.zadnjih12m && (
@@ -805,7 +819,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                 )}
                             </div>
 
-                            {/* NOVA SEKCIJA - Nepremičninski trendi z boljšim naslovom */}
+                            {/*Nepremičninski trendi */}
                             {hasData && apiState.data && (
                                 <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200 p-6">
                                     <div className="text-center mb-2">
@@ -813,7 +827,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                             Nepremičninski trendi za {getRegionTitle()}
                                         </h2>
                                         <p className="text-gray-600 mt-2">
-                                            Analiza gibanja cen, starosti in aktivnosti na trgu {activeTab === 'najem' ? 'najema' : 'prodaje'} v obdobju zadnjih let
+                                            Analiza gibanja cen, starosti in aktivnosti na trgu {activeTab === 'najem' ? 'najema' : 'prodaje'} v obdobju {activeTab === 'prodaja' ? 'od 2009' : 'od 2013'} naprej
                                         </p>
 
                                     </div>
@@ -839,7 +853,19 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                                     >
                                                         <LineChart data={chartData.price}>
                                                             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                                            <XAxis dataKey="leto" stroke="#666" tick={{ fontSize: 11 }} />
+                                                            <XAxis 
+                                                                dataKey="leto" 
+                                                                stroke="#666" 
+                                                                tick={{ fontSize: 11 }}
+                                                                interval="preserveStartEnd"
+                                                                tickFormatter={(value, index) => {
+                                                                    // Prikaži vsako 2. leto + prvo in zadnje
+                                                                    if (index === 0 || index === chartData.price.length - 1 || index % 2 === 0) {
+                                                                        return value;
+                                                                    }
+                                                                    return '';
+                                                                }}
+                                                            />
                                                             <YAxis stroke="#666" tick={{ fontSize: 11 }} tickFormatter={(value) => `€${value}`} />
                                                             <Tooltip content={<UniversalTooltip formatter={formatters.currency} />} />
                                                             <Legend />
@@ -864,7 +890,19 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                                     >
                                                         <LineChart data={chartData.totalPrice}>
                                                             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                                            <XAxis dataKey="leto" stroke="#666" tick={{ fontSize: 11 }} />
+                                                            <XAxis 
+                                                                dataKey="leto" 
+                                                                stroke="#666" 
+                                                                tick={{ fontSize: 11 }}
+                                                                interval="preserveStartEnd"
+                                                                tickFormatter={(value, index) => {
+                                                                    // Prikaži vsako 2. leto + prvo in zadnje
+                                                                    if (index === 0 || index === chartData.totalPrice.length - 1 || index % 2 === 0) {
+                                                                        return value;
+                                                                    }
+                                                                    return '';
+                                                                }}
+                                                            />
                                                             {/* POPRAVLJENA Y-os - uporabi pametno formatiranje */}
                                                             <YAxis
                                                                 stroke="#666"
@@ -892,7 +930,19 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                                     <ChartWrapper title={`Število ${activeTab === 'najem' ? 'najemov' : 'prodaj'} po letih`}>
                                                         <LineChart data={chartData.activity}>
                                                             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                                            <XAxis dataKey="leto" stroke="#666" tick={{ fontSize: 11 }} />
+                                                            <XAxis 
+                                                                dataKey="leto" 
+                                                                stroke="#666" 
+                                                                tick={{ fontSize: 11 }}
+                                                                interval="preserveStartEnd"
+                                                                tickFormatter={(value, index) => {
+                                                                    // Prikaži vsako 2. leto + prvo in zadnje
+                                                                    if (index === 0 || index === chartData.activity.length - 1 || index % 2 === 0) {
+                                                                        return value;
+                                                                    }
+                                                                    return '';
+                                                                }}
+                                                            />
                                                             <YAxis stroke="#666" tick={{ fontSize: 11 }} />
                                                             <Tooltip content={<UniversalTooltip />} />
                                                             <Legend />
@@ -914,7 +964,19 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                                     >
                                                         <LineChart data={chartData.size}>
                                                             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                                            <XAxis dataKey="leto" stroke="#666" tick={{ fontSize: 11 }} />
+                                                            <XAxis 
+                                                                dataKey="leto" 
+                                                                stroke="#666" 
+                                                                tick={{ fontSize: 11 }}
+                                                                interval="preserveStartEnd"
+                                                                tickFormatter={(value, index) => {
+                                                                    // Prikaži vsako 2. leto + prvo in zadnje
+                                                                    if (index === 0 || index === chartData.size.length - 1 || index % 2 === 0) {
+                                                                        return value;
+                                                                    }
+                                                                    return '';
+                                                                }}
+                                                            />
                                                             <YAxis stroke="#666" tick={{ fontSize: 11 }} tickFormatter={(value) => `${value} m²`} />
                                                             <Tooltip content={<UniversalTooltip formatter={formatters.area} />} />
                                                             <Legend />
@@ -944,7 +1006,19 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                                     >
                                                         <LineChart data={chartData.age}>
                                                             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                                            <XAxis dataKey="leto" stroke="#666" tick={{ fontSize: 11 }} />
+                                                            <XAxis 
+                                                                dataKey="leto" 
+                                                                stroke="#666" 
+                                                                tick={{ fontSize: 11 }}
+                                                                interval="preserveStartEnd"
+                                                                tickFormatter={(value, index) => {
+                                                                    // Prikaži vsako 2. leto + prvo in zadnje
+                                                                    if (index === 0 || index === chartData.age.length - 1 || index % 2 === 0) {
+                                                                        return value;
+                                                                    }
+                                                                    return '';
+                                                                }}
+                                                            />
                                                             <YAxis stroke="#666" tick={{ fontSize: 11 }} tickFormatter={(value) => `${value} let`} />
                                                             <Tooltip content={<UniversalTooltip formatter={formatters.age} />} />
                                                             <Legend />

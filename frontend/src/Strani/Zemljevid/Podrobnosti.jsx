@@ -451,7 +451,6 @@ const TabButton = ({ isActive, onClick, text }) => (
 );
 
 // Komponenta za podobne nepremičnine
-// Komponenta za podobne nepremičnine - celotna izboljšana verzija
 const SimilarPropertiesSection = ({ propertyId, dataSource }) => {
   const { podobneNepremicnine, loading, error } = useSimilarProperties(propertyId, dataSource);
 
@@ -531,7 +530,6 @@ const SimilarPropertyCard = ({ nepremicnina, dataSource, formatPrice, getEnergyC
             {nepremicnina.naslov}
           </div>
           <div className="text-xs text-gray-500 mt-1">
-            ID: {nepremicnina.del_stavbe_id}
           </div>
         </div>
         
