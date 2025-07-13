@@ -458,19 +458,6 @@ const SimilarPropertiesSection = ({ propertyId, dataSource }) => {
     return `€${Math.round(price).toLocaleString('sl-SI')}`;
   };
 
-  const getEnergyClassColorForSimilar = (razred) => {
-    const colors = {
-      'A': 'bg-green-100 text-green-800',
-      'B': 'bg-green-50 text-green-700',
-      'C': 'bg-yellow-100 text-yellow-800',
-      'D': 'bg-orange-100 text-orange-800',
-      'E': 'bg-red-100 text-red-800',
-      'F': 'bg-red-200 text-red-900',
-      'G': 'bg-red-300 text-red-900'
-    };
-    return colors[razred] || 'bg-gray-100 text-gray-800';
-  };
-
   if (loading) {
     return (
       <PropertySection title="Podobne nepremičnine">
@@ -510,7 +497,7 @@ const SimilarPropertiesSection = ({ propertyId, dataSource }) => {
             nepremicnina={nepremicnina}
             dataSource={dataSource}
             formatPrice={formatPriceForSimilar}
-            getEnergyClassColor={getEnergyClassColorForSimilar}
+            getEnergyClassColor={getEnergyClassColor}
           />
         ))}
       </div>
@@ -843,9 +830,9 @@ const PosliContent = ({ posli, selectedPoselId, poselRefs, selectPosel, dataSour
 const PoselCard = ({ posel, isSelected, priceInfo, connectedPartsCount, dataSource, onClick, isDesktop }) => (
   <button
     onClick={onClick}
-    className={`w-full text-left rounded-lg cursor-pointer transition-colors bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isSelected
+    className={`w-full text-left rounded-lg cursor-pointer transition-colors bg-white ${isSelected
         ? 'border-2 border-gray-600 p-3'
-        : `hover:bg-gray-100 border border-gray-300 p-3 ${isDesktop ? 'm-px mb-3' : ''}`
+        : `hover:bg-gray-100 border-2 border-gray-300 p-3 mb-3`
       }`}
     aria-pressed={isSelected}
     aria-label={`Posel ${dataSource === 'kpp' ? 'z dne' : 'za obdobje'} ${dataSource === 'kpp'

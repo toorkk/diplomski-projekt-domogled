@@ -19,12 +19,12 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
   const getDefaultRanges = () => {
     if (dataSourceType === 'prodaja') {
       return {
-        cena: { min: 0, max: 1000000, step: 10000, label: 'Cena (€)' },
+        cena: { min: 0, max: 10000000, step: 10000, label: 'Cena (€)' },
         povrsina: { min: 0, max: 500, step: 5, label: 'Površina (m²)' }
       };
     } else {
       return {
-        cena: { min: 0, max: 3000, step: 50, label: 'Najemnina (€/mesec)' },
+        cena: { min: 0, max: 30000, step: 50, label: 'Najemnina (€/mesec)' },
         povrsina: { min: 0, max: 300, step: 5, label: 'Površina (m²)' }
       };
     }
@@ -34,7 +34,6 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
 
   // Posodobi filtre ko se spremenijo aktivni filtri iz parent komponente
   useEffect(() => {
-    // Če so aktivni filtri prazni (reset iz parent komponente), počisti obrazec
     if (Object.keys(activeFilters).length === 0) {
       setFilters({
         filter_leto: 2025,
@@ -44,7 +43,6 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
         max_povrsina: null
       });
     } else {
-      // Posodobi obrazec da se ujema z zunanjim stanjem
       setFilters({
         filter_leto: activeFilters.filter_leto || 2025,
         min_cena: activeFilters.min_cena || null,
@@ -57,18 +55,15 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
 
   // Ohrani filtre ko se spremeni tip podatkov (prodaja/najem)
   useEffect(() => {
-    // Filtriramo samo ne-prazne vrednosti
     const cleanedFilters = Object.fromEntries(
       Object.entries(filters).filter(([_, v]) => v !== null && v !== '')
     );
 
-    // Pošljemo trenutne filtre parentu za validacijo
     if (onFiltersChange) {
       onFiltersChange(cleanedFilters);
     }
   }, [dataSourceType]); 
 
-  // Obravnavanje sprememb filtrov
   const handleFilterChange = (key, value) => {
     const newFilters = {
       ...filters,
@@ -76,7 +71,6 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
     };
     setFilters(newFilters);
 
-    // Pošlje samo ne-prazne vrednosti parentu
     const cleanedFilters = Object.fromEntries(
       Object.entries(newFilters).filter(([_, v]) => v !== null && v !== '')
     );
@@ -86,7 +80,6 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
     }
   };
 
-  // Reset vseh filtrov
   const handleReset = () => {
     const resetFilters = {
       filter_leto: 2025,
@@ -98,14 +91,12 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
     setFilters(resetFilters);
 
     if (onFiltersChange) {
-      onFiltersChange({}); // Pošlje prazen objekt za reset
+      onFiltersChange({});
     }
   };
 
-  // Preveri ali so aktivni kakšni filtri
   const hasActiveFilters = Object.values(filters).some(value => value !== null && value !== '');
 
-  // Formatiranje prikazane cene glede na tip podatkov
   const formatCenaLabel = (value) => {
     if (dataSourceType === 'prodaja') {
       return value >= 1000 ? `${(value / 1000).toFixed(0)}k €` : `${value} €`;
@@ -114,7 +105,6 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
     }
   };
 
-  // Pripravi besedilo za prikaz aktivnih filtrov
   const getActiveFiltersText = () => {
     const activeFiltersList = [];
     
@@ -137,11 +127,10 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
     return activeFiltersList;
   };
 
-  // Mobilna verzija filtra
   if (isMobile) {
     return (
       <>
-        {/* Okrogel gumb za odpiranje filtra na mobilnih napravah */}
+        {/* gumb filtra na mobilnih napravah */}
         <button
           onClick={() => setIsOpen(true)}
           className="fixed bottom-4 left-4 bg-white shadow-lg border border-gray-200 hover:bg-gray-50 transition-all duration-300 flex items-center justify-center z-10"
@@ -166,14 +155,10 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
                 d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
               />
             </svg>
-            {/* Indikator aktivnih filtrov */}
-            {hasActiveFilters && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full"></div>
-            )}
           </div>
         </button>
 
-        {/* Mobilni filter container - prikaže se z dna zaslona */}
+        {/* Mobilni filter container */}
         {isOpen && (
           <div className="fixed bottom-0 left-0 right-0 z-50">
             <div
@@ -182,13 +167,10 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
                 height: '500px'
               }}
             >
-              {/* Naslovnica s tipko za zapiranje */}
+              {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
                 <div className="flex items-center space-x-2">
                   <h2 className="text-lg font-semibold text-gray-800">Filtri</h2>
-                  {hasActiveFilters && (
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  )}
                 </div>
                 <button
                   onClick={() => setIsOpen(false)}
@@ -200,7 +182,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
                 </button>
               </div>
 
-              {/* Vsebina filtrov z možnostjo drsenja */}
+              {/* filtri */}
               <div className="flex-1 overflow-y-auto p-4">
                 <div className="space-y-4">
                   {/* Filter za leto */}
@@ -302,16 +284,15 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
     );
   }
 
-  // Namizna verzija filtra
+  // Namizna verzija
   return (
     <div className="fixed bottom-4 left-4 z-10 flex flex-col">
-      {/* Glavni filter container z razširjanjem navzgor */}
       <div className="bg-white shadow-xl border border-gray-200 rounded-xl transition-all duration-300 w-96 flex flex-col overflow-hidden">
         
-        {/* Vsebina filtrov - prikaže se samo ko je odprt */}
+        {/* Vsebina filtrov */}
         {isOpen && (
           <div className="border-b border-gray-100">
-            {/* Naslovnica */}
+            {/* Header */}
             <div className="bg-white px-4 py-3 border-b border-gray-100">
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
@@ -319,7 +300,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
               </div>
             </div>
 
-            {/* Vnosna polja za filtre */}
+            {/* Filtri */}
             <div className="p-4">
               <div className="space-y-4">
                 {/* Filter za leto */}
@@ -442,7 +423,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
           </div>
         )}
 
-        {/* Kompaktni gumb za odpiranje/zapiranje filtra */}
+        {/* gumb za odpiranje/zapiranje filtra */}
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="hover:bg-gray-50 transition-all duration-300 p-4 w-full rounded-xl"
@@ -463,10 +444,6 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
                   d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
                 />
               </svg>
-              {/* Indikator aktivnih filtrov */}
-              {hasActiveFilters && (
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full"></div>
-              )}
             </div>
             
             <div className="flex flex-col items-start min-w-0 flex-1">

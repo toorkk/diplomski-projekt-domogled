@@ -292,7 +292,6 @@ class DataIngestionService:
                 with self.engine.connect() as conn:
                     trans = conn.begin()
                     try:
-                        # Uporabimo originalno SQL poizvedbo
                         sql_query = get_sql_query(f'{table_prefix}_posel_transform.sql')
                         result = conn.execute(text(sql_query))
                         logger.info(f"Transformacija {table_prefix}_posel: vplivala na {result.rowcount} vrstic")
