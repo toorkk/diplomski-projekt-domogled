@@ -115,7 +115,7 @@ export default function IntroModal({ isVisible, onClose }) {
                                     </div>
                                     <p className="text-sm text-gray-600 mb-3">Uporabite iskalno polje za iskanje lokacij in naslovov</p>
                                     <img 
-                                        src="./src/Strani/Zemljevid/SlikeIntro/Iskalnik.PNG" 
+                                        src="/Iskalnik.PNG" 
                                         alt="Iskanje interface"
                                         className="w-full object-contain rounded border shadow-sm"
                                         style={{ maxHeight: '300px' }}
@@ -129,7 +129,7 @@ export default function IntroModal({ isVisible, onClose }) {
                                     </div>
                                     <p className="text-sm text-gray-600 mb-3">Kliknite na krogce za podrobnosti nepremičnine</p>
                                     <img 
-                                        src="./src/Strani/Zemljevid/SlikeIntro/Nepremičnina.PNG" 
+                                        src="/Nepremičnina.PNG" 
                                         alt="Podrobnosti nepremičnine"
                                         className="w-full object-contain rounded border shadow-sm"
                                         style={{ maxHeight: '300px' }}
@@ -143,7 +143,7 @@ export default function IntroModal({ isVisible, onClose }) {
                                     </div>
                                     <p className="text-sm text-gray-600 mb-3">Filtrirajte po ceni, velikosti in tipu nepremičnine</p>
                                     <img 
-                                        src="./src/Strani/Zemljevid/SlikeIntro/Filter.PNG" 
+                                        src="/Filter.PNG" 
                                         alt="Filtri interface"
                                         className="w-full object-contain rounded border shadow-sm"
                                         style={{ maxHeight: '300px' }}
@@ -157,7 +157,7 @@ export default function IntroModal({ isVisible, onClose }) {
                                     </div>
                                     <p className="text-sm text-gray-600 mb-3">S klikom na občino ali kataster navigiraj do nepremičnin in pridobi statistike</p>
                                     <img 
-                                        src="./src/Strani/Zemljevid/SlikeIntro/StatistikaPanel.PNG" 
+                                        src="/StatistikaPanel.PNG" 
                                         alt="Statistike panel"
                                         className="w-full object-contain rounded border shadow-sm"
                                         style={{ maxHeight: '300px' }}
