@@ -84,7 +84,7 @@ export const SOURCE_IDS = {
 // UPDATED: Zoom leveli za new logic
 export const ZOOM_LEVELS = {
     OBCINE_LABELS_THRESHOLD: 9,     // When to show občine labels
-    AUTO_LOAD_PROPERTIES: 7        // When to auto-load properties
+    AUTO_LOAD_PROPERTIES: 6        // When to auto-load properties
 };
 
 // Zoom-dependent styling
