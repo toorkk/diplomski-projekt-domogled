@@ -199,7 +199,7 @@ class StatisticsLayerManager {
     }
 
     // ========================================
-    // OPTIMIZIRANA updateLayerVisibilityByZoom
+    //  updateLayerVisibilityByZoom
     // ========================================
 
     // Helper metoda za določitev ali naj se prikaže municipalities
@@ -237,14 +237,11 @@ class StatisticsLayerManager {
             selectedObcinaName
         );
 
-        // POPRAVKA: Občine fill layer naj bo viden:
-        // 1. Pri nizkem zoom-u (kot prej)
-        // 2. Če je izbrana občina (ne glede na to ali ima katastre)
         const shouldShowObcineFill = isLowZoom || !!this.selectedObcinaName;
 
         return {
             obcine: {
-                fill: shouldShowObcineFill, // Spremenjeno - viden tudi za občine brez katastrov
+                fill: shouldShowObcineFill, // viden tudi za občine brez katastrov
                 outline: true, // Vedno vidne za kontekst
                 labels: isLowZoom
             },
@@ -263,7 +260,7 @@ class StatisticsLayerManager {
         this._setLayerVisibility(LAYER_IDS.OBCINE.OUTLINE, config.obcine.outline);
         this._setLayerVisibility(LAYER_IDS.OBCINE.LABELS, config.obcine.labels);
 
-        // Nastavi municipalities
+        // Nastavi katastre
         this._setLayerVisibility(LAYER_IDS.MUNICIPALITIES.FILL, config.municipalities.fill);
         this._setLayerVisibility(LAYER_IDS.MUNICIPALITIES.OUTLINE, config.municipalities.outline);
         this._setLayerVisibility(LAYER_IDS.MUNICIPALITIES.LABELS, config.municipalities.labels);
@@ -292,18 +289,18 @@ class StatisticsLayerManager {
             });
 
 
-            // Dodaj fill sloj - NEPROSOJNI katastri
+            // Dodaj fill sloj - katastri
             this.map.addLayer({
                 id: LAYER_IDS.MUNICIPALITIES.FILL,
                 type: 'fill',
                 source: SOURCE_IDS.MUNICIPALITIES,
                 paint: {
-                    // SPREMEMBA: Popolnoma neprosojni katastri
-                    'fill-color': '#ffffff', // Bela barva namesto rgba
-                    'fill-opacity': 1.0 // Popolnoma neprosojni
+
+                    'fill-color': '#ffffff', 
+                    'fill-opacity': 1.0 
                 },
                 layout: {
-                    'visibility': 'none' // Na začetku skrit
+                    'visibility': 'none' 
                 }
             });
 
@@ -315,7 +312,7 @@ class StatisticsLayerManager {
                 paint: {
                     'line-color': COLOR_SCHEME.MUNICIPALITY.DEFAULT,
                     'line-width': ZOOM_STYLES.MUNICIPALITIES.LINE_WIDTH,
-                    'line-opacity': 1.0 // SPREMEMBA: Tudi obrobe popolnoma neprosojne
+                    'line-opacity': 1.0 // Tudi obrobe popolnoma neprosojne
                 },
                 layout: {
                     'visibility': 'none' // Na začetku skrit
@@ -328,7 +325,7 @@ class StatisticsLayerManager {
         }
     }
 
-    // POPRAVLJENA metoda za barvanje katastrov z boljšim error handling-om
+    // metoda za barvanje katastrov z boljšim error handling-om
     updateMunicipalitiesFillColors(colorExpression) {
         if (!this.map.getLayer(LAYER_IDS.MUNICIPALITIES.FILL)) {
             console.warn('Municipalities fill layer not found');
@@ -352,13 +349,13 @@ class StatisticsLayerManager {
 
             // Aplikacija color expression
             this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-color', colorExpression);
-            // SPREMEMBA: Vedno popolnoma neprosojni
+            // Vedno popolnoma neprosojni
             this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-opacity', 1.0);
 
 
         } catch (error) {
             console.error('Error updating municipality fill colors:', error);
-            // Fallback na osnovne barve - NEPROSOJNE
+            // Fallback na osnovne barve 
             this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-color', COLOR_MAPPING_CONFIG.DEFAULT_FALLBACK || '#ffffff');
             this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-opacity', 1.0);
         }
@@ -382,7 +379,7 @@ class StatisticsLayerManager {
             ZOOM_STYLES.MUNICIPALITIES.LINE_WIDTH
         ]);
 
-        // SPREMEMBA: Vedno popolnoma neprosojne obrobe
+        // Vedno popolnoma neprosojne obrobe
         this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-opacity', 1.0);
 
         // Posodobi filter klikov za katastre - samo če ni izbrane občine
@@ -415,7 +412,7 @@ class StatisticsLayerManager {
             ZOOM_STYLES.MUNICIPALITIES.LINE_WIDTH
         ]);
 
-        // SPREMEMBA: Vedno popolnoma neprosojne obrobe
+        // Vedno popolnoma neprosojne obrobe
         this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.OUTLINE, 'line-opacity', 1.0);
     }
 

@@ -5,7 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { API_CONFIG } from '../Zemljevid/MapConstants.jsx';
 
 // ========================================
-// POMOŽNE KOMPONENTE (Izboljšane)
+// POMOŽNE KOMPONENTE 
 // ========================================
 
 // Univerzalna tooltip komponenta
