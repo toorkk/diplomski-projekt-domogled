@@ -53,8 +53,7 @@
 }
 
 @media (max-width: 768px) {
-    .maplibregl-ctrl-group .maplibregl-ctrl-zoom-in,
-    .maplibregl-ctrl-group .maplibregl-ctrl-zoom-out {
+    .maplibregl-ctrl-top-right .maplibregl-ctrl-group {
         display: none !important;
     }
 }
