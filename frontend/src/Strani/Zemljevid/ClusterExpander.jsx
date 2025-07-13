@@ -7,7 +7,6 @@ import {
     calculateClusterCenter,
     calculateExpansionRadius,
     getDataSourceType,
-    logPropertyArrangement,
     handleApiError
 } from './MapUtils.jsx';
 import LayerManager from './LayerManager.jsx';
@@ -24,19 +23,16 @@ class ClusterExpander {
     updateDataSourceType(newType) {
         this.collapseAllClusters();
         this.currentDataSourceType = newType;
-        console.log(`ClusterExpander: Data source changed to: ${newType}`);
     }
 
     // Add method to update filters
     updateFilters(newFilters) {
         this.currentFilters = newFilters || {};
-        console.log(`ClusterExpander: Filters updated:`, this.currentFilters);
     }
 
     async handleClusterClick(lngLat, clusterProperties) {
         const clusterId = clusterProperties.cluster_id;
 
-        this._logClusterClickDebug(clusterProperties);
 
         // Toggle expansion
         if (this.expandedClusters.has(clusterId)) {
@@ -49,7 +45,6 @@ class ClusterExpander {
 
         // Check if cluster is expandable
         if (!this._isExpandableCluster(clusterId)) {
-            console.log('Non-expandable cluster type detected');
             return false;
         }
 
@@ -66,14 +61,9 @@ class ClusterExpander {
         const dataSource = this._getClusterDataSource(clusterProperties);
         const currentZoom = this.map.getZoom();
 
-        console.log(`=== EXPANDING CLUSTER ${clusterId} ===`);
-        console.log('Data source:', dataSource);
-        console.log('Zoom:', currentZoom);
-        console.log('Filters:', this.currentFilters); // Log filters
 
         try {
             const url = buildClusterDetailsUrl(clusterId, dataSource, currentZoom, this.currentFilters);
-            console.log('Cluster details URL with filters:', url); // Debug log
             
             const response = await fetch(url);
 
@@ -90,7 +80,6 @@ class ClusterExpander {
             await this._createExpandedVisualization(clusterId, data.features, clusterProperties, dataSource);
             this.expandedClusters.add(clusterId);
             
-            console.log(`✓ Successfully expanded cluster ${clusterId} with ${data.features.length} properties`);
             return true;
 
         } catch (error) {
@@ -119,19 +108,18 @@ class ClusterExpander {
         // Setup event handlers
         this._setupExpandedLayerHandlers(layerId, textLayerId);
 
-        console.log(`Created expanded visualization for ${clusterId}`);
     }
 
     _arrangePropertiesInCircles(properties, centerCoords) {
         const totalProperties = properties.length;
 
-        console.log(`Arranging ${totalProperties} properties in circle(s)`);
 
         if (totalProperties <= CLUSTER_CONFIG.EXPANSION.SINGLE_CIRCLE_MAX) {
-            console.log('Using single circle layout');
+
             return this._arrangeInSingleCircle(properties, centerCoords);
+
         } else {
-            console.log('Using dual circle layout');
+
             return this._arrangeInDualCircles(properties, centerCoords);
         }
     }
@@ -145,7 +133,6 @@ class ClusterExpander {
             const offsetLng = centerLng + (radius * Math.cos(angle));
             const offsetLat = centerLat + (radius * Math.sin(angle));
 
-            logPropertyArrangement(index, [offsetLng, offsetLat], 'single');
 
             return {
                 ...prop,
@@ -171,7 +158,6 @@ class ClusterExpander {
         );
         const outerCircleCount = totalProperties - innerCircleCount;
 
-        console.log(`Dual circles: ${innerCircleCount} inner, ${outerCircleCount} outer`);
 
         const modifiedProperties = [];
 
@@ -181,7 +167,6 @@ class ClusterExpander {
             const offsetLng = centerLng + (innerRadius * Math.cos(angle));
             const offsetLat = centerLat + (innerRadius * Math.sin(angle));
 
-            logPropertyArrangement(i, [offsetLng, offsetLat], 'inner');
 
             modifiedProperties.push({
                 ...properties[i],
@@ -201,8 +186,6 @@ class ClusterExpander {
 
             const offsetLng = centerLng + (outerRadius * Math.cos(adjustedAngle));
             const offsetLat = centerLat + (outerRadius * Math.sin(adjustedAngle));
-
-            logPropertyArrangement(propertyIndex, [offsetLng, offsetLat], 'outer');
 
             modifiedProperties.push({
                 ...properties[propertyIndex],
@@ -251,7 +234,6 @@ class ClusterExpander {
     }
 
     collapseCluster(clusterId) {
-        console.log(`Collapsing cluster ${clusterId}...`);
 
         const layerId = `${LAYER_IDS.EXPANDED.PREFIX}${clusterId}`;
         const textLayerId = `${layerId}${LAYER_IDS.EXPANDED.TEXT_SUFFIX}`;
@@ -271,16 +253,13 @@ class ClusterExpander {
         this.layerManager.removeExpandedClusterLayers(clusterId);
         this.expandedClusters.delete(clusterId);
 
-        console.log(`Collapsed cluster ${clusterId}`);
     }
 
     collapseAllClusters() {
-        console.log('Collapsing all expanded clusters...');
         const clustersToCollapse = Array.from(this.expandedClusters);
         clustersToCollapse.forEach(clusterId => {
             this.collapseCluster(clusterId);
         });
-        console.log(`Collapsed ${clustersToCollapse.length} clusters`);
     }
 
     isClusterExpanded(clusterId) {
@@ -294,26 +273,16 @@ class ClusterExpander {
 
     _getClusterDataSource(clusterProperties) {
         if (clusterProperties.data_source) {
-            console.log(`Using data_source from cluster properties: ${clusterProperties.data_source}`);
             return clusterProperties.data_source;
         }
         
         const fallback = this.currentDataSourceType === 'prodaja' ? 'kpp' : 'np';
-        console.log(`Using fallback data_source: ${fallback}`);
         return fallback;
     }
 
-    _logClusterClickDebug(clusterProperties) {
-        console.log('=== CLUSTER CLICK DEBUG ===');
-        console.log('Cluster properties:', clusterProperties);
-        console.log('Cluster data_source property:', clusterProperties.data_source);
-        console.log('ClusterExpander currentDataSourceType:', this.currentDataSourceType);
-        console.log('ClusterExpander currentFilters:', this.currentFilters);
-    }
 
     cleanup() {
         this.collapseAllClusters();
-        console.log('ClusterExpander cleaned up');
     }
 }
 

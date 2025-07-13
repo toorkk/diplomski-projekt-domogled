@@ -1,4 +1,3 @@
-// managers/StatisticsLayerManager.js
 import {
     LAYER_IDS,
     SOURCE_IDS,
@@ -292,7 +291,6 @@ class StatisticsLayerManager {
                 data: municipalitiesData
             });
 
-            console.log(`📊 Dodanih katastrov: ${municipalitiesData.features.length}`);
 
             // Dodaj fill sloj - NEPROSOJNI katastri
             this.map.addLayer({
@@ -357,7 +355,6 @@ class StatisticsLayerManager {
             // SPREMEMBA: Vedno popolnoma neprosojni
             this.map.setPaintProperty(LAYER_IDS.MUNICIPALITIES.FILL, 'fill-opacity', 1.0);
 
-            console.log('Municipality colors updated successfully');
 
         } catch (error) {
             console.error('Error updating municipality fill colors:', error);

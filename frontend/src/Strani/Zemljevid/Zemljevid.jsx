@@ -94,7 +94,6 @@ export default function Zemljevid({ onNavigateToStatistics }) {
     // ===========================================
 
     const handlePropertySelect = useCallback((propertyData) => {
-        console.log('Property selected:', propertyData);
         setSelectedProperty({ ...propertyData });
         setShowPropertyDetails(true);
     }, []);
@@ -122,8 +121,7 @@ export default function Zemljevid({ onNavigateToStatistics }) {
             if (tipRegije === 'obcina') {
                 setObcinaStatistics(statistics);
             }
-        } catch (error) {
-            console.error('Error fetching statistics:', error);
+
         } finally {
             setStatisticsLoading(false);
         }
@@ -137,8 +135,8 @@ export default function Zemljevid({ onNavigateToStatistics }) {
 
         // Preverite ali je zoom dovolj visok za prikaz nepremičnin
         if (currentZoom < ZOOM_LEVELS.AUTO_LOAD_PROPERTIES) {
-            console.log(`Zoom ${currentZoom} prenizek za prikaz nepremičnin (potreben: ${ZOOM_LEVELS.AUTO_LOAD_PROPERTIES})`);
-            // Počistite obstoječe nepremičnine
+
+            // Počisti obstoječe nepremičnine
             if (layerManager.current) {
                 layerManager.current.removePropertiesLayers();
                 layerManager.current.removeClustersLayers();
@@ -156,10 +154,8 @@ export default function Zemljevid({ onNavigateToStatistics }) {
             const bounds = map.current.getBounds();
             const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
 
-            console.log(`Loading properties for current view - zoom: ${currentZoom}, bbox: ${bbox}, type: ${currentDataSourceType}, filters:`, filters);
 
             const url = buildPropertiesUrl(bbox, currentZoom, apiDataSource, null, null, filters);
-            console.log(`API URL: ${url}`);
 
             const response = await fetch(url);
             if (!response.ok) {
@@ -168,14 +164,8 @@ export default function Zemljevid({ onNavigateToStatistics }) {
 
             const geojson = await response.json();
 
-            console.log(`API response:`, geojson);
-            console.log(`Total features returned: ${geojson.features.length}`);
-
             const individualFeatures = geojson.features.filter(f => f.properties.type === 'individual');
             const clusterFeatures = geojson.features.filter(f => f.properties.type === 'cluster');
-
-            console.log('Individual features:', individualFeatures.length);
-            console.log('Cluster features:', clusterFeatures.length);
 
             if (layerManager.current) {
                 layerManager.current.addPropertiesLayers(individualFeatures, currentDataSourceType);
@@ -185,8 +175,6 @@ export default function Zemljevid({ onNavigateToStatistics }) {
             if (popupManager.current) {
                 popupManager.current.setupEventHandlers(handlePropertySelect);
             }
-
-            console.log(`Loaded ${geojson.features.length} properties for current view`);
 
         } catch (error) {
             handleApiError(error, 'loading properties for current view');
@@ -200,7 +188,6 @@ export default function Zemljevid({ onNavigateToStatistics }) {
     // ===========================================
 
     const handleFiltersChange = useCallback((newFilters) => {
-        console.log('Filters changed:', newFilters);
 
         const currentDataSourceType = dataSourceTypeRef.current;
         const validatedFilters = validateFilters(newFilters, currentDataSourceType);
@@ -211,14 +198,12 @@ export default function Zemljevid({ onNavigateToStatistics }) {
         }
 
         // Bbox loading
-        console.log('Auto-reloading view data with new filters:', validatedFilters);
         setTimeout(() => {
             fetchPropertiesForCurrentView(validatedFilters);
         }, 100);
     }, [fetchPropertiesForCurrentView]);
 
     const handleDataSourceChange = useCallback((newType) => {
-        console.log(`Changing data source type to: ${newType}`);
 
         if (popupManager.current) {
             popupManager.current.updateDataSourceType(newType);
@@ -236,7 +221,6 @@ export default function Zemljevid({ onNavigateToStatistics }) {
         }
 
         // Bbox loading
-        console.log(`Auto-reloading view data, new type: ${newType}`);
         setTimeout(() => {
             fetchPropertiesForCurrentView({});
         }, 100);
@@ -251,13 +235,6 @@ export default function Zemljevid({ onNavigateToStatistics }) {
 
         const obcinaId = getObcinaId(obcinaFeature);
         const obcinaName = getObcinaName(obcinaFeature);
-
-        if (selectedObcina?.obcinaId === obcinaId) {
-            console.log(`Občina ${obcinaName} already selected - ignoring click`);
-            return;
-        }
-
-        console.log('Občina clicked (selection only):', obcinaName, 'ID:', obcinaId);
 
         // Pocisti občina hover ko jo izberes
         setHoveredRegion(null);
@@ -282,7 +259,6 @@ export default function Zemljevid({ onNavigateToStatistics }) {
     const handleSearch = useCallback((searchResult) => {
         if (!map.current) return;
 
-        console.log('Search result:', searchResult);
 
         if (searchResult.coordinates?.length === 2) {
             const [lng, lat] = searchResult.coordinates;
@@ -292,9 +268,7 @@ export default function Zemljevid({ onNavigateToStatistics }) {
                 duration: MAP_CONFIG.SEARCH_DURATION,
                 essential: true
             });
-        } else if (searchResult.query) {
-            console.log("No location found for search query");
-        }
+        } 
     }, []);
 
    const handleRegionReset = useCallback(() => {
@@ -326,13 +300,11 @@ export default function Zemljevid({ onNavigateToStatistics }) {
         if (!map.current || obcineLoaded || !layerManager.current) return;
 
         try {
-            console.log('Loading občine layer...');
 
             layerManager.current.addObcineLayers(obcineData);
             setupObcinaEventHandlers();
 
             setObcineLoaded(true);
-            console.log('Občine layer loaded successfully');
 
         } catch (error) {
             console.error('Error loading občine:', error);
@@ -420,7 +392,6 @@ export default function Zemljevid({ onNavigateToStatistics }) {
             clearTimeout(timeoutId);
             timeoutId = setTimeout(() => {
                 const currentFilters = activeFiltersRef.current;
-                console.log('Zoom-triggered property loading with filters:', currentFilters);
 
                 // Bbox loading
                 fetchPropertiesForCurrentView(currentFilters);
@@ -538,7 +509,6 @@ export default function Zemljevid({ onNavigateToStatistics }) {
                 // NOVO: Naloži nepremičnine ob začetnem nalaganju
                 setTimeout(() => {
                     const currentFilters = activeFiltersRef.current;
-                    console.log('Initial property loading with filters:', currentFilters);
                     fetchPropertiesForCurrentView(currentFilters);
                 }, 100);
             });

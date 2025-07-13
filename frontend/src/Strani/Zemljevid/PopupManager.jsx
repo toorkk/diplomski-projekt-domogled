@@ -31,19 +31,16 @@ class PopupManager {
     }
 
     updateDataSourceType(newType) {
-        console.log(`PopupManager: Data source changing from ${this.currentDataSourceType} to ${newType}`);
 
         this.clusterExpander.collapseAllClusters();
         this.currentDataSourceType = newType;
         this.clusterExpander.updateDataSourceType(newType);
 
-        console.log(`PopupManager: Data source changed to: ${newType}`);
     }
 
     updateFilters(newFilters) {
         this.currentFilters = newFilters || {};
         this.clusterExpander.updateFilters(this.currentFilters);
-        console.log(`PopupManager: Filters updated:`, this.currentFilters);
     }
 
     setupEventHandlers(onPropertySelect) {
@@ -92,7 +89,6 @@ class PopupManager {
     _setupExpandedPropertyHandlers() {
         const handler = (e) => {
             const { lngLat, properties } = e.detail;
-            console.log('Handling expanded property click via custom event');
             
             if (this._isMobileDevice()) {
                 this._handleMobilePropertyClick(properties);
@@ -137,7 +133,6 @@ class PopupManager {
 
 
     _handleMobilePropertyClick(properties) {
-        console.log('PopupManager: Handling mobile property click - opening details directly');
         
         if (!this.onPropertySelectCallback) {
             console.warn('PopupManager: No property select callback available');
@@ -154,7 +149,6 @@ class PopupManager {
 
     async _handleClusterClick(lngLat, clusterProperties) {
         const clusterId = clusterProperties.cluster_id;
-        console.log(`PopupManager: Handling cluster click for ${clusterId}`);
 
         try {
             const wasExpanded = await this.clusterExpander.handleClusterClick(lngLat, clusterProperties);
@@ -164,14 +158,12 @@ class PopupManager {
                 this._zoomToCluster(lngLat, clusterProperties);
             }
         } catch (error) {
-            console.error('Error handling cluster click:', error);
             // V primeru napake se tudi samo približaj
             this._zoomToCluster(lngLat, clusterProperties);
         }
     }
 
     _zoomToCluster(lngLat) {
-        console.log(`PopupManager: Zooming to cluster at`, lngLat);
 
         const currentZoom = this.map.getZoom();
         let zoomIncrement;
@@ -193,7 +185,6 @@ class PopupManager {
 
         const finalZoom = Math.min(targetZoom, maxZoom);
 
-        console.log(`PopupManager: Zooming from ${this.map.getZoom()} to ${targetZoom}`);
 
         this.map.flyTo({
             center: [lngLat.lng, lngLat.lat],
@@ -250,31 +241,26 @@ class PopupManager {
 
     // Cleanup metode za razlicne scenarije
     handleMunicipalityChange() {
-        console.log('PopupManager: Municipality change detected - cleaning up clusters');
         this.clusterExpander.collapseAllClusters();
         this._closeCurrentPopup();
     }
 
     handleMunicipalityReset() {
-        console.log('PopupManager: Municipality reset detected - cleaning up everything');
         this.clusterExpander.collapseAllClusters();
         this._closeCurrentPopup();
     }
 
     handleZoomChange() {
-        console.log('PopupManager: Zoom change detected - cleaning up clusters');
         this.clusterExpander.collapseAllClusters();
         // zapre clustre na zoomu ne pa popupe
     }
 
     handleDataReload() {
-        console.log('PopupManager: Data reload detected - cleaning up clusters');
         this.clusterExpander.collapseAllClusters();
         this._closeCurrentPopup();
     }
 
     handleFiltersChange(newFilters) {
-        console.log('PopupManager: Filters change detected - updating cluster expander');
         this.updateFilters(newFilters);
         this.clusterExpander.collapseAllClusters();
     }
@@ -318,7 +304,6 @@ class PopupManager {
     }
 
     cleanup() {
-        console.log('PopupManager: Starting cleanup...');
 
         // Pocisti clsuter expander
         if (this.clusterExpander) {
@@ -334,7 +319,6 @@ class PopupManager {
         // Resetira callback-e
         this.onPropertySelectCallback = null;
 
-        console.log('PopupManager: Cleanup completed');
     }
 }
 

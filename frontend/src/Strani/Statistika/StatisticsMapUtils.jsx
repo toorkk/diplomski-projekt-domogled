@@ -1,4 +1,3 @@
-// utils/StatisticsMapUtils.js
 import maplibregl from "maplibre-gl";
 
 // Bounds utility funkcije

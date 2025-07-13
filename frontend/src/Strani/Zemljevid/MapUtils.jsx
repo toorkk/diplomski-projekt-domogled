@@ -120,7 +120,6 @@ export const fetchStatistics = async (tipRegije, regija) => {
         // Spremeni ime regije v uppercase pred pošiljanjem
         const regijaUppercase = regija.toUpperCase();
         const url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.STATISTICS}/${tipRegije}/${encodeURIComponent(regijaUppercase)}`;
-        console.log(`Fetching statistics from: ${url}`);
         
         const response = await fetch(url);
         if (!response.ok) {
@@ -300,19 +299,7 @@ export const createClusterColorExpression = (colorScheme) => ([
     10000, colorScheme[3]
 ]);
 
-// Debugging utilities
-export const logClusterDebug = (clusterId, clusterProperties, dataSource) => {
-    console.log('=== CLUSTER DEBUG ===');
-    console.log('Cluster ID:', clusterId);
-    console.log('Cluster type:', clusterProperties.cluster_type);
-    console.log('Point count:', clusterProperties.point_count);
-    console.log('Data source:', dataSource);
-    console.log('Deduplicated IDs:', clusterProperties.deduplicated_ids);
-};
 
-export const logPropertyArrangement = (index, coords, type = 'single') => {
-    console.log(`${type} circle - Property ${index}: coords=[${coords[0].toFixed(6)}, ${coords[1].toFixed(6)}]`);
-};
 
 // Error handling utilities
 export const handleApiError = (error, context) => {

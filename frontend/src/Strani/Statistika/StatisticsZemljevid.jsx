@@ -84,7 +84,6 @@ export default function StatisticsZemljevid({
                 zoom: zoom
             };
 
-            console.log('Posodabljam trenutno stanje zemljevida:', newState);
             setCurrentMapState(newState);
         };
 
@@ -115,7 +114,6 @@ export default function StatisticsZemljevid({
             }))
             .sort((a, b) => a.name.localeCompare(b.name, 'sl'));
 
-        console.log('🔍 Vsi dosegljivi ID-ji občin:', options.map(opt => `${opt.id}: ${opt.name}`));
         return options;
     };
 
@@ -142,22 +140,17 @@ export default function StatisticsZemljevid({
 
     // Mobile dropdown handler - poenostavljen
     const handleObcinaDropdownChange = (obcinaId) => {
-        console.log('🔍 Mobile - Izbrana občina ID:', obcinaId);
         const allOptions = getObcineOptions();
-        console.log('🔍 Mobile - Iskanje občine z ID:', obcinaId, 'v opcijah:', allOptions.length);
 
         setSelectedObcinaDropdown(obcinaId);
 
         if (!obcinaId) {
-            console.log('🔍 Mobile - Resetiram izbiro občine');
             onObcinaSelect?.(null);
             return;
         }
 
         const obcinaOption = allOptions.find(opt => opt.id.toString() === obcinaId.toString());
         if (obcinaOption) {
-            console.log('🔍 Mobile - Našel občino:', obcinaOption.name);
-
             const obcinaIdValue = getObcinaId(obcinaOption.feature);
             const obcinaName = getObcinaName(obcinaOption.feature);
             const bounds = calculateBoundsFromGeometry(obcinaOption.feature.geometry);
@@ -168,19 +161,11 @@ export default function StatisticsZemljevid({
                 bounds: bounds
             };
 
-            console.log('🔍 Mobile - Pošiljam podatke o občini:', obcinaData);
-
             if (onObcinaSelect) {
                 onObcinaSelect(obcinaData);
-                console.log('🔍 Mobile - onObcinaSelect klican uspešno');
-            } else {
-                console.warn('❌ Mobile - onObcinaSelect callback ne obstaja!');
             }
 
             handleObcinaClick(obcinaOption.feature);
-        } else {
-            console.warn('❌ Mobile - Občina z ID', obcinaId, 'ni bila najdena');
-            console.log('🔍 Mobile - Dosegljivi ID-ji:', allOptions.map(opt => opt.id));
         }
     };
 
@@ -233,7 +218,6 @@ export default function StatisticsZemljevid({
                                 </div>
                                 <button
                                     onClick={() => {
-                                        console.log('🔍 Mobile - Kliknjen reset gumb');
                                         setSelectedObcinaDropdown('');
                                         onObcinaSelect?.(null);
                                         handleReset();
@@ -590,21 +574,13 @@ export default function StatisticsZemljevid({
         };
     }, [selectedObcina, selectedMunicipality, obcinePosliData, obcineCeneData, katastrskePosliData, katastrskeCeneData, activeTab, viewMode]);
 
-    // ✅ POENOSTAVLJEN handleMunicipalityClick
+    //  handleMunicipalityClick
     const handleMunicipalityClick = useCallback((municipalityFeature) => {
         if (!map.current || !municipalityFeature) return;
 
         const sifko = municipalityFeature.properties.SIFKO;
         const municipalityName = getMunicipalityName(municipalityFeature);
         const bounds = calculateBoundsFromGeometry(municipalityFeature.geometry);
-
-        console.log('🎯 Klik na kataster:', {
-            sifko,
-            municipalityName,
-            action: 'DIREKTNI_KLIK'
-        });
-
-        // ✅ NE shranjuj stanja - to bo naredil reset
 
         if (layerManager.current && selectedObcina) {
             layerManager.current.updateLayerVisibilityByZoom(map.current.getZoom(), true, selectedObcina.name);
@@ -618,10 +594,10 @@ export default function StatisticsZemljevid({
         });
     }, [onMunicipalitySelect, selectedObcina]);
 
-    // ✅ DODAJ flag za sledenje ali je klik direkten
+    // flag za sledenje ali je klik direkten
     const [isDirectClick, setIsDirectClick] = useState(false);
 
-    // ✅ POPRAVI handleObcinaClick - označi direktni klik
+    // handleObcinaClick - označi direktni klik
     const handleObcinaClick = useCallback((obcinaFeature) => {
         if (!map.current || !obcinaFeature) return;
 
@@ -632,27 +608,7 @@ export default function StatisticsZemljevid({
 
         const hasKatastre = obcinaHasKatastre(obcinaName);
 
-        // ✅ OZNAČI DA JE DIREKTNI KLIK
         setIsDirectClick(true);
-
-        // ✅ OBSEŽEN DEBUG - kaj se dogaja ob kliku
-        const currentCenter = map.current.getCenter();
-        const currentZoom = map.current.getZoom();
-        const actualCurrentState = {
-            center: [currentCenter.lng, currentCenter.lat],
-            zoom: currentZoom
-        };
-
-        console.log('🎯 === KLIK NA OBČINO DEBUG ===');
-        console.log('   Občina:', obcinaName);
-        console.log('   Ima katastre:', hasKatastre);
-        console.log('   Trenutno izbrana občina:', selectedObcina?.name || 'NIČ');
-        console.log('   selectedRegionFromNavigation:', selectedRegionFromNavigation);
-        console.log('   Dejansko stanje zemljevida:', actualCurrentState);
-        console.log('   Tracked currentMapState:', currentMapState);
-        console.log('   Shranjeno previousMapState:', previousMapState);
-        console.log('   🚩 OZNAČUJEM KOT DIREKTNI KLIK');
-        console.log('🎯 === KONEC DEBUG ===');
 
         const bounds = calculateBoundsFromGeometry(obcinaFeature.geometry);
 
@@ -672,9 +628,6 @@ export default function StatisticsZemljevid({
 
         // Zoom samo če ima občina katastre
         if (hasKatastre) {
-            console.log('🔍 ZOOM na občino z katastri (direktni klik):', obcinaName);
-            console.log('   Bounds za zoom:', bounds);
-
             map.current.fitBounds(bounds, {
                 padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
                 duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION,
@@ -683,14 +636,10 @@ export default function StatisticsZemljevid({
 
             map.current.setMaxBounds(bounds);
             addObcinaMask(obcinaId);
-        } else {
-            console.log('📍 Izbira občine brez katastrov (brez zoom-a):', obcinaName);
         }
 
-        // ✅ RESETIRAJ FLAG PO ZOOM-U
         setTimeout(() => {
             setIsDirectClick(false);
-            console.log('🚩 RESETIRAM isDirectClick flag');
         }, MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION + 100);
 
     }, [selectedObcina, onObcinaSelect, currentMapState, previousMapState, selectedRegionFromNavigation]);
@@ -752,6 +701,7 @@ export default function StatisticsZemljevid({
         } catch (error) {
             console.error('Napaka pri nalaganju občin:', error);
         }
+
     }, [obcineLoaded, setupEventHandlers]);
 
     const loadMunicipalities = useCallback(() => {
@@ -766,24 +716,8 @@ export default function StatisticsZemljevid({
         }
     }, [municipalitiesLoaded, setupEventHandlers]);
 
-    // ✅ DODAJ debug tudi za reset
     const handleReset = useCallback(() => {
-        console.log('🔄 === RESET DEBUG ===');
-        console.log('   selectedObcina:', selectedObcina);
-        console.log('   selectedMunicipality:', selectedMunicipality);
-        console.log('   previousMapState:', previousMapState);
-
         const shouldResetZoom = selectedObcina && obcinaHasKatastre(selectedObcina.name);
-        console.log('   shouldResetZoom:', shouldResetZoom);
-
-        if (map.current) {
-            const currentCenter = map.current.getCenter();
-            const currentZoom = map.current.getZoom();
-            console.log('   Trenutno stanje zemljevida:', {
-                center: [currentCenter.lng, currentCenter.lat],
-                zoom: currentZoom
-            });
-        }
 
         setHoveredRegion(null);
         setHoveredMunicipality(null);
@@ -809,14 +743,11 @@ export default function StatisticsZemljevid({
         updateRegionColors('obcine', activeTab, viewMode);
         updateRegionColors('municipalities', activeTab, viewMode);
 
-        // ✅ SAMO resetiraj zoom če je bila izbrana občina z katastri
         if (shouldResetZoom) {
             const resetTarget = {
                 center: previousMapState.center || MAP_CONFIG.INITIAL_CENTER,
                 zoom: previousMapState.zoom || MAP_CONFIG.INITIAL_ZOOM
             };
-
-            console.log('🔄 Resetiranje zoom na:', resetTarget);
 
             map.current.flyTo({
                 center: resetTarget.center,
@@ -824,7 +755,6 @@ export default function StatisticsZemljevid({
                 duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION
             });
         }
-        console.log('🔄 === KONEC RESET ===');
 
         onMunicipalitySelect?.(null);
         onObcinaSelect?.(null);
@@ -1013,16 +943,8 @@ export default function StatisticsZemljevid({
         }
     }, [selectedMunicipality, municipalitiesLoaded, selectedRegionFromNavigation, selectedObcina]);
 
-    // debug tudi za previousMapState nastavitev
     useEffect(() => {
-        // Samo če prihajamo iz navigacije in prej ni bilo nobene občine izbrane
         if (selectedRegionFromNavigation && !selectedObcina && !selectedMunicipality) {
-            console.log('=== NASTAVITEV PREVIOUS MAP STATE ===');
-            console.log('   selectedRegionFromNavigation:', selectedRegionFromNavigation);
-            console.log('   selectedObcina:', selectedObcina);
-            console.log('   selectedMunicipality:', selectedMunicipality);
-
-            // Če je zemljevid že naložen, shrani trenutno stanje
             if (map.current && map.current.loaded) {
                 const currentCenter = map.current.getCenter();
                 const currentZoom = map.current.getZoom();
@@ -1032,36 +954,21 @@ export default function StatisticsZemljevid({
                     zoom: currentZoom
                 };
 
-                console.log('💾 Shranjujem začetno stanje ob navigaciji:', initialState);
-                console.log('   Prejšnji previousMapState:', previousMapState);
                 setPreviousMapState(initialState);
             } else {
-                // Če zemljevid še ni naložen, uporabi defaultne vrednosti
-                console.log('💾 Zemljevid še ni naložen - uporabim default stanje');
-                console.log('   Default stanje:', {
-                    center: MAP_CONFIG.INITIAL_CENTER,
-                    zoom: MAP_CONFIG.INITIAL_ZOOM
-                });
                 setPreviousMapState({
                     center: MAP_CONFIG.INITIAL_CENTER,
                     zoom: MAP_CONFIG.INITIAL_ZOOM
                 });
             }
-            console.log('=== KONEC NASTAVITEV ===');
         }
     }, [selectedRegionFromNavigation, selectedObcina, selectedMunicipality, previousMapState]);
 
-    // preveri isDirectClick
     useEffect(() => {
         if (selectedObcina && obcineLoaded && layerManager.current &&
             selectedRegionFromNavigation?.autoZoomToRegion &&
             selectedRegionFromNavigation.type === 'obcina' &&
-            !isDirectClick) { // ne izvedi če je direktni klik
-
-            console.log('=== NAVIGACIJSKI ZOOM ===');
-            console.log('   Občina:', selectedObcina.name);
-            console.log('   isDirectClick:', isDirectClick);
-            console.log('   selectedRegionFromNavigation:', selectedRegionFromNavigation);
+            !isDirectClick) {
 
             const obcinaFeature = obcineData.features.find(
                 feature => getObcinaId(feature) === selectedObcina.obcinaId
@@ -1071,15 +978,9 @@ export default function StatisticsZemljevid({
                 const bounds = calculateBoundsFromGeometry(obcinaFeature.geometry);
                 const hasKatastre = obcinaHasKatastre(selectedObcina.name);
 
-                console.log('Navigacijski zoom za občino:', {
-                    name: selectedObcina.name,
-                    hasKatastre
-                });
-
                 if (hasKatastre) {
                     layerManager.current.updateLayerVisibilityByZoom(map.current.getZoom(), true, selectedObcina.name);
 
-                    console.log('NAVIGACIJSKI ZOOM na:', selectedObcina.name);
                     map.current.fitBounds(bounds, {
                         padding: MAP_CONFIG.MUNICIPALITY_ZOOM.PADDING,
                         duration: MAP_CONFIG.MUNICIPALITY_ZOOM.DURATION,
@@ -1089,15 +990,11 @@ export default function StatisticsZemljevid({
                     map.current.setMaxBounds(bounds);
                     addObcinaMask(selectedObcina.obcinaId);
                 } else {
-                    console.log('📍 Občina nima katastrov - samo refresh brez zoom-a');
                     layerManager.current.hideMunicipalities();
                 }
 
                 layerManager.current.updateObcinaSelection(selectedObcina.obcinaId, selectedObcina.name);
             }
-            console.log('🌍 === KONEC NAVIGACIJSKEGA ZOOM ===');
-        } else if (isDirectClick) {
-            console.log('⚠️ PRESKOČI navigacijski zoom - direktni klik');
         }
     }, [selectedObcina, obcineLoaded, selectedRegionFromNavigation, isDirectClick]);
 
@@ -1120,11 +1017,9 @@ export default function StatisticsZemljevid({
         }
     }, [selectedObcina]);
 
-    // GLAVNA INICIALIZACIJA LOGGING-OM
+    // GLAVNA INICIALIZACIJA
     useEffect(() => {
         if (!map.current && mapContainer.current) {
-            console.log('Inicializiram zemljevid...');
-
             map.current = new maplibregl.Map({
                 container: mapContainer.current,
                 style: MAP_CONFIG.STYLE_URL,
@@ -1133,19 +1028,17 @@ export default function StatisticsZemljevid({
                 minZoom: 2,
                 maxZoom: 15,
                 attributionControl: false,
-                scrollZoom: false,        // Onemogočeno zoomanje zemljevida
+                scrollZoom: false,
                 boxZoom: false,         
                 doubleClickZoom: false,  
                 touchZoomRotate: false,  
                 dragRotate: false,
                 keyboard: false,         
                 touchPitch: false,
-                dragPan: !isMobile
+                dragPan: false
             });
 
             map.current.on('load', () => {
-                console.log('Zemljevid naložen');
-
                 layerManager.current = new LayerManager(map.current);
                 loadObcine();
                 loadMunicipalities();
@@ -1158,7 +1051,6 @@ export default function StatisticsZemljevid({
                     }
                 });
 
-                // Nastavi začetno stanje
                 setCurrentMapState({
                     center: MAP_CONFIG.INITIAL_CENTER,
                     zoom: MAP_CONFIG.INITIAL_ZOOM

@@ -93,7 +93,6 @@ const useSimilarProperties = (propertyId, dataSource) => {
           setError(data.message || 'Napaka pri nalaganju podobnih nepremičnin');
         }
       } catch (err) {
-        console.error('Napaka pri nalaganju podobnih nepremičnin:', err);
         setError('Napaka pri nalaganju podobnih nepremičnin');
       } finally {
         setLoading(false);
