@@ -268,10 +268,10 @@ export default function Zemljevid({ onNavigateToStatistics }) {
                 duration: MAP_CONFIG.SEARCH_DURATION,
                 essential: true
             });
-        } 
+        }
     }, []);
 
-   const handleRegionReset = useCallback(() => {
+    const handleRegionReset = useCallback(() => {
         if (popupManager.current) {
             popupManager.current.handleMunicipalityReset();
         }
@@ -505,7 +505,7 @@ export default function Zemljevid({ onNavigateToStatistics }) {
             if (!isMobile) {
                 map.current.addControl(new maplibregl.NavigationControl(), UI_CONFIG.CONTROLS.POSITION);
             }
-        
+
 
             map.current.on('load', () => {
                 styleMapControls();
@@ -597,7 +597,10 @@ export default function Zemljevid({ onNavigateToStatistics }) {
             {/* Help gumb za ponovno odpiranje intro */}
             <button
                 onClick={() => setShowIntroModal(true)}
-                className="fixed top-10 left-2 z-40 w-12 h-12 bg-white hover:bg-gray-300 text-black rounded-full shadow-lg flex items-center justify-center transition-colors duration-200"
+                className={`fixed z-40 w-12 h-12 bg-white hover:bg-gray-300 text-black rounded-full shadow-lg flex items-center justify-center transition-colors duration-200 ${isMobile
+                        ? 'top-50 right-3' 
+                        : 'top-10 left-2'    
+                    }`}
                 title="Pomoč - kako uporabljati aplikacijo"
             >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -618,7 +621,7 @@ export default function Zemljevid({ onNavigateToStatistics }) {
             )}
 
             {/* IntroModal komponenta */}
-            <IntroModal 
+            <IntroModal
                 isVisible={showIntroModal}
                 onClose={handleCloseIntro}
             />

@@ -58,3 +58,10 @@
         display: none !important;
     }
 }
+
+@media (max-width: 768px) {
+    .maplibregl-ctrl-attrib {
+        display: none !important;
+    }
+}
+
