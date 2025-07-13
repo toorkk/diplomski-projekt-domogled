@@ -63,6 +63,49 @@ const usePodrobnostiData = (propertyId, dataSource) => {
   return { loading, property, error };
 };
 
+// Hook za podobne nepremičnine
+const useSimilarProperties = (propertyId, dataSource) => {
+  const [podobneNepremicnine, setPodobneNepremicnine] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchSimilarProperties = async () => {
+      if (!propertyId) return;
+      
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const response = await fetch(
+          `${API_CONFIG.BASE_URL}/property/${propertyId}/similar?data_source=${dataSource}&limit=3&radius_km=10`
+        );
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+          setPodobneNepremicnine(data.data.podobne_nepremicnine || []);
+        } else {
+          setError(data.message || 'Napaka pri nalaganju podobnih nepremičnin');
+        }
+      } catch (err) {
+        console.error('Napaka pri nalaganju podobnih nepremičnin:', err);
+        setError('Napaka pri nalaganju podobnih nepremičnin');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSimilarProperties();
+  }, [propertyId, dataSource]);
+
+  return { podobneNepremicnine, loading, error };
+};
+
 // Komponente za prikaz podatkov
 const DetailRow = ({ label, value, className = '' }) => {
   const displayValue = value || 'N/A';
@@ -407,6 +450,170 @@ const TabButton = ({ isActive, onClick, text }) => (
   </button>
 );
 
+// Komponenta za podobne nepremičnine
+// Komponenta za podobne nepremičnine - celotna izboljšana verzija
+const SimilarPropertiesSection = ({ propertyId, dataSource }) => {
+  const { podobneNepremicnine, loading, error } = useSimilarProperties(propertyId, dataSource);
+
+  const formatPriceForSimilar = (price) => {
+    if (!price) return 'N/A';
+    return `€${Math.round(price).toLocaleString('sl-SI')}`;
+  };
+
+  const getEnergyClassColorForSimilar = (razred) => {
+    const colors = {
+      'A': 'bg-green-100 text-green-800',
+      'B': 'bg-green-50 text-green-700',
+      'C': 'bg-yellow-100 text-yellow-800',
+      'D': 'bg-orange-100 text-orange-800',
+      'E': 'bg-red-100 text-red-800',
+      'F': 'bg-red-200 text-red-900',
+      'G': 'bg-red-300 text-red-900'
+    };
+    return colors[razred] || 'bg-gray-100 text-gray-800';
+  };
+
+  if (loading) {
+    return (
+      <PropertySection title="Podobne nepremičnine">
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full border-b-2 border-gray-600 h-8 w-8"></div>
+        </div>
+      </PropertySection>
+    );
+  }
+
+  if (error) {
+    return (
+      <PropertySection title="Podobne nepremičnine">
+        <div className="text-center py-4 text-gray-500 text-sm">
+          {error}
+        </div>
+      </PropertySection>
+    );
+  }
+
+  if (podobneNepremicnine.length === 0) {
+    return (
+      <PropertySection title="Podobne nepremičnine">
+        <div className="text-center py-4 text-gray-500 text-sm">
+          Ni podobnih nepremičnin v bližini
+        </div>
+      </PropertySection>
+    );
+  }
+
+  return (
+    <PropertySection title={`Podobne nepremičnine (${podobneNepremicnine.length})`}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {podobneNepremicnine.map((nepremicnina) => (
+          <SimilarPropertyCard 
+            key={nepremicnina.del_stavbe_id} 
+            nepremicnina={nepremicnina}
+            dataSource={dataSource}
+            formatPrice={formatPriceForSimilar}
+            getEnergyClassColor={getEnergyClassColorForSimilar}
+          />
+        ))}
+      </div>
+    </PropertySection>
+  );
+};
+
+// Ločena komponenta za posamezno podobno nepremičnino
+const SimilarPropertyCard = ({ nepremicnina, dataSource, formatPrice, getEnergyClassColor }) => {
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow">
+      <div className="space-y-3">
+        {/* Header z naslovom */}
+        <div className="border-b border-gray-200 pb-2">
+          <div className="font-medium text-gray-900 text-sm leading-tight">
+            {nepremicnina.naslov}
+          </div>
+          <div className="text-xs text-gray-500 mt-1">
+            ID: {nepremicnina.del_stavbe_id}
+          </div>
+        </div>
+        
+        {/* Glavne informacije - uporabljamo enak stil kot DetailRow */}
+        <div className="bg-gray-50 p-2 rounded text-sm">
+          <div className="space-y-2">
+            {/* Površina */}
+            <div className="flex justify-between items-center">
+              <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Površina:</div>
+              <div className="text-sm font-semibold text-gray-800">
+                {nepremicnina.povrsina ? `${nepremicnina.povrsina} m²` : 'N/A'}
+              </div>
+            </div>
+            
+            {/* Cena */}
+            <div className="flex justify-between items-center">
+              <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+                {dataSource === 'np' ? 'Najemnina:' : 'Cena:'}
+              </div>
+              <div className="text-sm font-semibold text-gray-800">
+                {formatPrice(nepremicnina.cena)}
+                {dataSource === 'np' && '/mes'}
+              </div>
+            </div>
+            
+            {/* Razdalja */}
+            <div className="flex justify-between items-center">
+              <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Razdalja:</div>
+              <div className="text-sm font-semibold text-gray-800">
+                {nepremicnina.distance_km} km
+              </div>
+            </div>
+            
+            {/* Leto izgradnje */}
+            <div className="flex justify-between items-center">
+              <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Leto:</div>
+              <div className="text-sm font-semibold text-gray-800">
+                {nepremicnina.leto_izgradnje || 'N/A'}
+              </div>
+            </div>
+            
+            {/* Občina */}
+            <div className="flex justify-between items-center">
+              <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Občina:</div>
+              <div className="text-sm font-semibold text-gray-800">
+                {nepremicnina.obcina}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Footer z energijskim razredom in similarity score */}
+        <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+          <div className="flex items-center space-x-2">
+            {nepremicnina.energijski_razred ? (
+              <div className={`font-medium px-2 py-1 rounded text-center min-w-[40px] text-xs ${getEnergyClassColor(nepremicnina.energijski_razred)}`}>
+                {nepremicnina.energijski_razred}
+              </div>
+            ) : (
+              <div className="text-xs text-gray-400">
+                Energijski razred: N/A
+              </div>
+            )}
+          </div>
+          
+          {/* Similarity score */}
+          <div className="text-xs text-gray-500">
+            Podobnost: 
+            <span className={`ml-1 font-medium px-2 py-1 rounded text-xs ${
+              nepremicnina.similarity_score >= 80 ? 'bg-green-100 text-green-800' :
+              nepremicnina.similarity_score >= 60 ? 'bg-yellow-100 text-yellow-800' :
+              'bg-gray-100 text-gray-800'
+            }`}>
+              {nepremicnina.similarity_score}%
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Glavna komponenta
 export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) {
   const [selectedEnergyIndex, setSelectedEnergyIndex] = useState(0);
@@ -498,6 +705,7 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
           dataSource={dataSource}
           connectedParts={connectedParts}
           onClose={onClose}
+          propertyId={propertyId}
         />
       ) : (
         <DesktopLayout
@@ -512,6 +720,7 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
           dataSource={dataSource}
           connectedParts={connectedParts}
           onClose={onClose}
+          propertyId={propertyId}
         />
       )}
     </>
@@ -519,7 +728,7 @@ export default function Podrobnosti({ propertyId, dataSource = 'np', onClose }) 
 }
 
 // Layout komponente
-const MobileLayout = ({ colors, representativeProperty, property, activeTab, setActiveTab, selectedPoselId, selectedEnergyIndex, setSelectedEnergyIndex, poselRefs, selectPosel, dataSource, connectedParts, onClose }) => (
+const MobileLayout = ({ colors, representativeProperty, property, activeTab, setActiveTab, selectedPoselId, selectedEnergyIndex, setSelectedEnergyIndex, poselRefs, selectPosel, dataSource, connectedParts, onClose, propertyId }) => (
   <div className="fixed inset-x-0 top-0 bottom-0 z-50 flex justify-center">
     <div className="absolute inset-0"></div>
     <div className="relative shadow-xl w-full h-full overflow-hidden flex flex-col">
@@ -553,6 +762,7 @@ const MobileLayout = ({ colors, representativeProperty, property, activeTab, set
               property={property}
               connectedParts={connectedParts}
               isMobile={true}
+              propertyId={propertyId}
             />
           )}
         </div>
@@ -561,7 +771,7 @@ const MobileLayout = ({ colors, representativeProperty, property, activeTab, set
   </div>
 );
 
-const DesktopLayout = ({ colors, representativeProperty, property, selectedPoselId, selectedEnergyIndex, setSelectedEnergyIndex, poselRefs, selectPosel, dataSource, connectedParts, onClose }) => (
+const DesktopLayout = ({ colors, representativeProperty, property, selectedPoselId, selectedEnergyIndex, setSelectedEnergyIndex, poselRefs, selectPosel, dataSource, connectedParts, onClose, propertyId }) => (
   <div className="fixed inset-x-0 top-29 bottom-3 z-50 flex justify-center">
     <div className="absolute inset-0"></div>
     <div className="relative rounded-lg shadow-xl w-full max-w-7xl h-full overflow-hidden border border-gray-200 flex flex-col">
@@ -578,6 +788,7 @@ const DesktopLayout = ({ colors, representativeProperty, property, selectedPosel
               property={property}
               connectedParts={connectedParts}
               isMobile={false}
+              propertyId={propertyId}
             />
           </div>
         </div>
@@ -701,7 +912,7 @@ const PoselNotes = ({ posel }) => (
   </div>
 );
 
-const DetailsContent = ({ representativeProperty, dataSource, selectedEnergyIndex, setSelectedEnergyIndex, property, connectedParts, isMobile }) => {
+const DetailsContent = ({ representativeProperty, dataSource, selectedEnergyIndex, setSelectedEnergyIndex, property, connectedParts, isMobile, propertyId }) => {
   const filteredConnectedParts = connectedParts.filter(part =>
     part.sifra_ko !== representativeProperty?.sifra_ko ||
     part.stevilka_stavbe !== representativeProperty?.stevilka_stavbe ||
@@ -731,7 +942,7 @@ const DetailsContent = ({ representativeProperty, dataSource, selectedEnergyInde
         <AdditionalPartsSection parts={filteredConnectedParts} representativeProperty={representativeProperty} dataSource={dataSource} />
       )}
 
-      <SimilarPropertiesSection />
+      <SimilarPropertiesSection propertyId={propertyId} dataSource={dataSource} />
     </div>
   );
 };
@@ -814,26 +1025,4 @@ const BuildingPart = ({ part, dataSource }) => (
       </div>
     )}
   </div>
-);
-
-const SimilarPropertiesSection = () => (
-  <PropertySection title="Podobne nepremičnine">
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-      {[1, 2, 3].map((i) => (
-        <div key={i} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-          <div className="space-y-2">
-            <div className="font-medium text-gray-800 text-sm">Naslov: trg ob reki {i}</div>
-            <div className="grid grid-cols-2 gap-1 text-xs">
-              <div className="text-gray-800">130 m²</div>
-              <div className="text-gray-800">€133.000</div>
-            </div>
-            <div className="grid grid-cols-2 gap-1 text-xs">
-              <div className="text-gray-800">Razdalja: 2 km</div>
-              <div className="text-gray-800">Energijski razred: B</div>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  </PropertySection>
 );

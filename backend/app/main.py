@@ -2,13 +2,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routes import (
-    fill_deduplicated_tables, 
+    fill_deduplicated_tables,
+    get_podobne_nepremicnine, 
     ingest_data, 
     ingest_energetske_izkaznice, 
     posodobi_statistike, 
     splosne_statistike, 
     vse_obcine_posli_zadnjih_12m,
-    vse_obcine_cene_m2_zadnjih_12m,  # Nova funkcija
+    vse_obcine_cene_m2_zadnjih_12m,  
     vse_statistike, 
     get_del_stavbe_geojson, 
     get_cluster_del_stavbe, 
@@ -53,6 +54,8 @@ app.get("/api/statistike/vse-obcine-cene-m2-zadnjih-12m")(vse_obcine_cene_m2_zad
 app.get("/properties/geojson")(get_del_stavbe_geojson)
 app.get("/property-details/{deduplicated_id}")(get_del_stavbe_details)
 app.get("/cluster/{cluster_id}/properties")(get_cluster_del_stavbe)
+
+app.get("/property/{deduplicated_id}/similar")(get_podobne_nepremicnine)
 
 
 ###############

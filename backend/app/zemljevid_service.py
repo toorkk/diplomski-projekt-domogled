@@ -1,6 +1,6 @@
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from geoalchemy2.functions import ST_SetSRID, ST_MakeEnvelope, ST_Intersects, ST_X, ST_Y
+from geoalchemy2.functions import ST_SetSRID, ST_MakeEnvelope, ST_Intersects, ST_X, ST_Y, ST_Distance, ST_Transform
 from difflib import SequenceMatcher
 
 from .models import EnergetskaIzkaznica
@@ -341,6 +341,367 @@ class DelStavbeService:
                 "energetske_izkaznice": serialize_list_to_json(energetske_izkaznice)
             }
         }
+    
+
+
+######################
+#
+#   PODOBNE NEPREMICNINE
+#
+######################
+
+    @staticmethod
+    def get_podobne_nepremicnine(deduplicated_id: int, data_source: str, limit: int, radius_km: float, db: Session):
+        """
+        Pridobi podobne nepremičnine glede na določeno nepremičnino.
+        
+        Kriteriji podobnosti:
+        1. Ista vrsta nepremičnine (stanovanje/hiša)
+        2. Podobna površina (±30%)
+        3. Lokacija v določenem polmeru
+        4. Podobna cena (±40%)
+        5. Podobna starost stavbe (±15 let)
+        """
+        try:
+            print(f"DEBUG: Začenjam iskanje podobnih nepremičnin za ID {deduplicated_id}")
+            
+            DeduplicatedModel = get_deduplicated_del_stavbe_model(data_source)
+            print(f"DEBUG: Model uspešno pridobljen za {data_source}")
+            
+            # 1. Pridobi referenčno nepremičnino
+            reference = db.query(DeduplicatedModel).filter(
+                DeduplicatedModel.del_stavbe_id == deduplicated_id
+            ).first()
+            
+            if not reference:
+                print(f"DEBUG: Referenčna nepremičnina {deduplicated_id} ni bila najdena")
+                return {"status": "error", "message": "Referenčna nepremičnina ni bila najdena"}
+            
+            print(f"DEBUG: Referenčna nepremičnina najdena: vrsta={reference.vrsta_nepremicnine}")
+            
+            # 2. Določi kriterije iskanja
+            vrsta_nepremicnine = reference.vrsta_nepremicnine
+            povrsina = reference.povrsina_uradna or reference.povrsina_uporabna
+            leto_izgradnje = reference.leto_izgradnje_stavbe
+            
+            print(f"DEBUG: Kriteriji - vrsta: {vrsta_nepremicnine}, površina: {povrsina}, leto: {leto_izgradnje}")
+            
+            # Cena/najemnina
+            if data_source.lower() == "np":
+                referenca_cena = reference.zadnja_najemnina
+            else:
+                referenca_cena = reference.zadnja_cena
+                
+            print(f"DEBUG: Referenčna cena: {referenca_cena}")
+            
+            # 3. Osnovni query z filtri
+            base_query = db.query(
+                DeduplicatedModel,
+                ST_Distance(
+                    ST_Transform(DeduplicatedModel.coordinates, 3857),
+                    ST_Transform(reference.coordinates, 3857)
+                ).label('distance_m')
+            ).filter(
+                DeduplicatedModel.del_stavbe_id != deduplicated_id,  # Izključi sebe
+                DeduplicatedModel.vrsta_nepremicnine == vrsta_nepremicnine  # Ista vrsta
+            )
+            
+            print("DEBUG: Osnovni query ustvarjen")
+            
+            # Filter za polmer (v metrih)
+            radius_m = radius_km * 1000
+            base_query = base_query.filter(
+                ST_Distance(
+                    ST_Transform(DeduplicatedModel.coordinates, 3857),
+                    ST_Transform(reference.coordinates, 3857)
+                ) <= radius_m
+            )
+            
+            print(f"DEBUG: Polmer filter dodan: {radius_km}km")
+            
+            # Filter za površino (±30%)
+            if povrsina:
+                try:
+                    povrsina = float(povrsina)
+                    min_povrsina = povrsina * 0.85
+                    max_povrsina = povrsina * 1.15
+                    base_query = base_query.filter(
+                        ((DeduplicatedModel.povrsina_uradna >= min_povrsina) & 
+                        (DeduplicatedModel.povrsina_uradna <= max_povrsina)) |
+                        ((DeduplicatedModel.povrsina_uporabna >= min_povrsina) & 
+                        (DeduplicatedModel.povrsina_uporabna <= max_povrsina))
+                    )
+                    print(f"DEBUG: Površina filter dodan: {min_povrsina}-{max_povrsina}m²")
+                except Exception as e:
+                    print(f"DEBUG: Napaka pri površina filtru: {e}")
+            
+            # Filter za leto izgradnje (±15 let)
+            if leto_izgradnje:
+                try:
+                    min_leto = leto_izgradnje - 10
+                    max_leto = leto_izgradnje + 10
+                    base_query = base_query.filter(
+                        (DeduplicatedModel.leto_izgradnje_stavbe >= min_leto) &
+                        (DeduplicatedModel.leto_izgradnje_stavbe <= max_leto)
+                    )
+                    print(f"DEBUG: Leto filter dodan: {min_leto}-{max_leto}")
+                except Exception as e:
+                    print(f"DEBUG: Napaka pri leto filtru: {e}")
+            
+            # Filter za ceno (±40%)
+            if referenca_cena:
+                try:
+                    referenca_cena = float(referenca_cena)
+                    min_cena = referenca_cena * 0.85
+                    max_cena = referenca_cena * 1.15
+                    
+                    if data_source.lower() == "np":
+                        base_query = base_query.filter(
+                            (DeduplicatedModel.zadnja_najemnina >= min_cena) &
+                            (DeduplicatedModel.zadnja_najemnina <= max_cena)
+                        )
+                    else:
+                        base_query = base_query.filter(
+                            (DeduplicatedModel.zadnja_cena >= min_cena) &
+                            (DeduplicatedModel.zadnja_cena <= max_cena)
+                        )
+                    print(f"DEBUG: Cena filter dodan: {min_cena}-{max_cena}")
+                except Exception as e:
+                    print(f"DEBUG: Napaka pri cena filtru: {e}")
+            
+            # 4. Izvedi query
+            print("DEBUG: Izvajam query...")
+            kandidati = base_query.all()
+            print(f"DEBUG: Najdenih {len(kandidati)} kandidatov")
+            
+            # 5. Izračunaj similarity score za vse kandidate
+            scored_kandidati = []
+            for i, (kandidat, distance_m) in enumerate(kandidati):
+                try:
+                    score = DelStavbeService._calculate_similarity_score(
+                        reference, kandidat, distance_m, data_source
+                    )
+                    scored_kandidati.append((kandidat, distance_m, score))
+                    if i < 3:  # Log prvih nekaj
+                        print(f"DEBUG: Kandidat {i}: score={score}, distance={distance_m}m")
+                except Exception as e:
+                    print(f"DEBUG: Napaka pri score računanju za kandidata {i}: {e}")
+                    continue
+            
+            # 6. Sortiraj po similarity score (višji = bolj podoben)
+            scored_kandidati.sort(key=lambda x: x[2], reverse=True)
+            
+            # 7. Vzemi top N rezultatov
+            top_kandidati = scored_kandidati[:limit]
+            print(f"DEBUG: Izbranjih top {len(top_kandidati)} kandidatov")
+            
+            # 8. Formatiraj rezultat
+            podobne_nepremicnine = []
+            for i, (kandidat, distance_m, score) in enumerate(top_kandidati):
+                try:
+                    print(f"DEBUG: Formatiranje kandidata {i}, ID: {kandidat.del_stavbe_id}")
+                    
+                    
+                    try:
+                        naslov = DelStavbeService._format_naslov(kandidat)
+                        print(f"DEBUG: Naslov OK: {naslov}")
+                    except Exception as e:
+                        print(f"DEBUG: Napaka pri naslovu: {e}")
+                        naslov = "Neznan naslov"
+                    
+                    try:
+                        povrsina = kandidat.povrsina_uradna or kandidat.povrsina_uporabna
+                        povrsina = float(povrsina) if povrsina else None
+                        print(f"DEBUG: Površina OK: {povrsina}")
+                    except Exception as e:
+                        print(f"DEBUG: Napaka pri površini: {e}")
+                        povrsina = None
+                    
+                    try:
+                        if data_source.lower() == "np":
+                            cena = float(kandidat.zadnja_najemnina) if kandidat.zadnja_najemnina else None
+                        else:
+                            cena = float(kandidat.zadnja_cena) if kandidat.zadnja_cena else None
+                        print(f"DEBUG: Cena OK: {cena}")
+                    except Exception as e:
+                        print(f"DEBUG: Napaka pri ceni: {e}")
+                        cena = None
+                    
+                    try:
+                        leto = int(kandidat.leto_izgradnje_stavbe) if kandidat.leto_izgradnje_stavbe else None
+                        print(f"DEBUG: Leto OK: {leto}")
+                    except Exception as e:
+                        print(f"DEBUG: Napaka pri letu: {e}")
+                        leto = None
+                    
+                    try:
+                        distance_km = round(float(distance_m) / 1000, 2)
+                        print(f"DEBUG: Distance OK: {distance_km}")
+                    except Exception as e:
+                        print(f"DEBUG: Napaka pri distance: {e}")
+                        distance_km = 0
+                    
+                    try:
+                        coords = None
+                        if kandidat.coordinates:
+                            coords = [float(kandidat.coordinates.x), float(kandidat.coordinates.y)]
+                        print(f"DEBUG: Coordinates OK: {coords}")
+                    except Exception as e:
+                        print(f"DEBUG: Napaka pri coordinates: {e}")
+                        coords = None
+                    
+                    # Sestavimo objekt
+                    podobna_nepremicnina = {
+                        "del_stavbe_id": kandidat.del_stavbe_id,
+                        "naslov": naslov,
+                        "povrsina": povrsina,
+                        "cena": cena,
+                        "leto_izgradnje": leto,
+                        "energijski_razred": kandidat.energijski_razred,
+                        "distance_km": distance_km,
+                        "similarity_score": round(float(score), 2),
+                        "obcina": kandidat.obcina,
+                        "coordinates": coords
+                    }
+                    
+                    podobne_nepremicnine.append(podobna_nepremicnina)
+                    print(f"DEBUG: Kandidat {i} uspešno formatiran")
+                    
+                except Exception as e:
+                    import traceback
+                    print(f"DEBUG: Napaka pri formatiranju kandidata {i}: {e}")
+                    print(f"DEBUG: Traceback: {traceback.format_exc()}")
+                    continue
+            
+            print(f"DEBUG: Končno vračam {len(podobne_nepremicnine)} podobnih nepremičnin")
+            
+            return {
+                "status": "success",
+                "data": {
+                    "reference_id": deduplicated_id,
+                    "total_found": len(scored_kandidati),
+                    "returned": len(podobne_nepremicnine),
+                    "search_radius_km": radius_km,
+                    "podobne_nepremicnine": podobne_nepremicnine
+                }
+            }
+            
+        except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"DEBUG: Celotna napaka: {e}")
+            print(f"DEBUG: Traceback: {error_details}")
+            return {"status": "error", "message": f"Napaka pri iskanju podobnih nepremičnin: {str(e)} | Traceback: {error_details}"}
+        
+
+    @staticmethod
+    def _calculate_similarity_score(reference, kandidat, distance_m, data_source):
+        """
+        Izračuna similarity score (0-100) na podlagi različnih kriterijev.
+        Višji score = bolj podoben.
+        """
+        score = 0
+        max_score = 0
+        
+        # 1. Površina (30 točk)
+        ref_povrsina = reference.povrsina_uradna or reference.povrsina_uporabna
+        kan_povrsina = kandidat.povrsina_uradna or kandidat.povrsina_uporabna
+        
+        if ref_povrsina and kan_povrsina:
+            # Konvertiraj v float za računanje
+            ref_povrsina = float(ref_povrsina)
+            kan_povrsina = float(kan_povrsina)
+            
+            povrsina_diff = abs(ref_povrsina - kan_povrsina) / ref_povrsina
+            povrsina_score = max(0, 30 * (1 - povrsina_diff))
+            score += povrsina_score
+        max_score += 30
+        
+        # 2. Cena (25 točk)
+        if data_source.lower() == "np":
+            ref_cena = reference.zadnja_najemnina
+            kan_cena = kandidat.zadnja_najemnina
+        else:
+            ref_cena = reference.zadnja_cena
+            kan_cena = kandidat.zadnja_cena
+        
+        if ref_cena and kan_cena:
+            # Konvertiraj v float za računanje
+            ref_cena = float(ref_cena)
+            kan_cena = float(kan_cena)
+            
+            cena_diff = abs(ref_cena - kan_cena) / ref_cena
+            cena_score = max(0, 25 * (1 - cena_diff))
+            score += cena_score
+        max_score += 25
+        
+        # 3. Lokacija (20 točk) - bližje = boljše
+        distance_km = float(distance_m) / 1000  # Konvertiraj distance_m v float
+        if distance_km <= 1:
+            location_score = 20
+        elif distance_km <= 3:
+            location_score = 15
+        elif distance_km <= 5:
+            location_score = 10
+        else:
+            location_score = max(0, 20 * (1 - (distance_km - 5) / 10))
+        
+        score += location_score
+        max_score += 20
+        
+        # 4. Starost stavbe (15 točk)
+        if reference.leto_izgradnje_stavbe and kandidat.leto_izgradnje_stavbe:
+            # Konvertiraj v int/float za računanje
+            ref_leto = int(reference.leto_izgradnje_stavbe)
+            kan_leto = int(kandidat.leto_izgradnje_stavbe)
+            
+            leta_diff = abs(ref_leto - kan_leto)
+            starost_score = max(0, 15 * (1 - leta_diff / 30))
+            score += starost_score
+        max_score += 15
+        
+        # 5. Energijski razred (10 točk)
+        if reference.energijski_razred and kandidat.energijski_razred:
+            energy_classes = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+            try:
+                ref_idx = energy_classes.index(reference.energijski_razred)
+                kan_idx = energy_classes.index(kandidat.energijski_razred)
+                energy_diff = abs(ref_idx - kan_idx)
+                energy_score = max(0, 10 * (1 - energy_diff / 6))
+                score += energy_score
+            except ValueError:
+                pass  # Neznani energijski razred
+        max_score += 10
+        
+        # Normaliziraj na 0-100
+        if max_score > 0:
+            normalized_score = (score / max_score) * 100
+        else:
+            normalized_score = 0
+        
+        return normalized_score
+    
+
+    @staticmethod
+    def _format_naslov(nepremicnina):
+        """Formatira naslov nepremičnine"""
+        naslov_deli = []
+        
+        if nepremicnina.ulica:
+            naslov_deli.append(nepremicnina.ulica)
+        
+        if nepremicnina.hisna_stevilka:
+            naslov_deli.append(str(nepremicnina.hisna_stevilka))
+            if nepremicnina.dodatek_hs:
+                naslov_deli[-1] += nepremicnina.dodatek_hs
+        
+        if nepremicnina.naselje and nepremicnina.naselje != nepremicnina.obcina:
+            naslov_deli.append(nepremicnina.naselje)
+        
+        if nepremicnina.obcina:
+            naslov_deli.append(nepremicnina.obcina)
+        
+        return ", ".join(naslov_deli) if naslov_deli else "Neznan naslov"
     
 
 ######################

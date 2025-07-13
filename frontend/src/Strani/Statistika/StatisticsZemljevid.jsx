@@ -923,7 +923,7 @@ export default function StatisticsZemljevid({
                 </div>
                 {stats && (
                     <div className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-200">
-                        Občin z podatki: {stats.count} | Povprečje: {
+                         Povprečje: {
                             viewMode === 'cene'
                                 ? `${Math.round(stats.avg)}€/m²`
                                 : stats.avg

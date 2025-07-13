@@ -473,3 +473,41 @@ def vse_obcine_cene_m2_zadnjih_12m(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DB napaka: {str(e)}")
+    
+
+def get_podobne_nepremicnine(
+    deduplicated_id: int,
+    data_source: str = Query(default="np", description="Data source: 'np' za najemne 'kpp' za kupoprodajne"),
+    limit: int = Query(default=3, description="Število podobnih nepremičnin (1-10)"),
+    radius_km: float = Query(default=5.0, description="Polmer iskanja v kilometrih"),
+    db: Session = Depends(get_db)
+):
+    """
+    Pridobi podobne nepremičnine glede na določeno nepremičnino.
+    Sortira po podobnosti (vrsta, površina, lokacija, cena).
+    """
+    try:
+        if data_source.lower() not in ["np", "kpp"]:
+            raise ValueError("data_source mora bit 'np' ali 'kpp'")
+        
+        if limit < 1 or limit > 10:
+            raise ValueError("limit mora biti med 1 in 10")
+        
+        if radius_km < 0.1 or radius_km > 50:
+            raise ValueError("radius_km mora biti med 0.1 in 50")
+        
+        podobne = DelStavbeService.get_podobne_nepremicnine(
+            deduplicated_id, data_source, limit, radius_km, db
+        )
+        
+        if podobne["status"] == "error":
+            raise HTTPException(status_code=404, detail=podobne["message"])
+        
+        return podobne
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"neveljavni parametri: {str(e)}")
+    except HTTPException:
+        raise  # Re-raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"db error: {str(e)}")

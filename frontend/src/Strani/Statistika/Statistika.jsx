@@ -70,7 +70,7 @@ ChartTypeSwitcher.propTypes = {
 // NOVA KOMPONENTA - Izboljšan prikaz izbrane regije (z barvnim kodiranjem glede na activeTab)
 const RegionHeader = ({ selectedRegion, getRegionTitle, getRegionType, activeTab, onReset }) => {
     const isDefault = !selectedRegion;
-    
+
     // Določi barve glede na activeTab za VSE regije (vključno s Slovenijo)
     const getColors = () => {
         if (activeTab === 'prodaja') {
@@ -91,9 +91,9 @@ const RegionHeader = ({ selectedRegion, getRegionTitle, getRegionType, activeTab
             };
         }
     };
-    
+
     const colors = getColors();
-    
+
     return (
         <div className={`${colors.background} border-2 rounded-lg p-4 mb-6 transition-all duration-300`}>
             <div className="flex items-center justify-between">
@@ -122,8 +122,8 @@ const RegionHeader = ({ selectedRegion, getRegionTitle, getRegionType, activeTab
                             </span>
                             <span className={`
                                 text-xs font-medium px-2 py-1 rounded-full
-                                ${activeTab === 'prodaja' 
-                                    ? 'bg-blue-100 text-blue-700' 
+                                ${activeTab === 'prodaja'
+                                    ? 'bg-blue-100 text-blue-700'
                                     : 'bg-emerald-100 text-emerald-700'
                                 }
                             `}>
@@ -134,8 +134,8 @@ const RegionHeader = ({ selectedRegion, getRegionTitle, getRegionType, activeTab
                             {getRegionTitle()}
                         </h3>
                         <p className="text-sm text-gray-600 mt-1">
-                            {isDefault 
-                                ? `Povprečni podatki za vso Slovenijo - ${activeTab === 'najem' ? 'najem' : 'prodaja'}` 
+                            {isDefault
+                                ? `Povprečni podatki za vso Slovenijo - ${activeTab === 'najem' ? 'najem' : 'prodaja'}`
                                 : `Statistični podatki za ${activeTab === 'najem' ? 'najem' : 'prodajo'}`
                             }
                         </p>
@@ -188,7 +188,7 @@ const RegionBreadcrumb = ({ selectedObcina, selectedMunicipality, onObcinaSelect
 
     return (
         <div className="flex items-center space-x-2 text-sm text-gray-600 mb-4">
-            <button 
+            <button
                 onClick={() => {
                     onObcinaSelect?.(null);
                     onMunicipalitySelect?.(null);
@@ -197,13 +197,13 @@ const RegionBreadcrumb = ({ selectedObcina, selectedMunicipality, onObcinaSelect
             >
                 Slovenija
             </button>
-            
+
             {selectedObcina && (
                 <>
                     <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
-                    <button 
+                    <button
                         onClick={() => onMunicipalitySelect?.(null)}
                         className={`${selectedMunicipality ? 'hover:text-blue-600 transition-colors' : 'font-medium text-gray-900'}`}
                     >
@@ -211,7 +211,7 @@ const RegionBreadcrumb = ({ selectedObcina, selectedMunicipality, onObcinaSelect
                     </button>
                 </>
             )}
-            
+
             {selectedMunicipality && selectedObcina && (
                 <>
                     <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -278,12 +278,12 @@ const PropertyGrid = ({ data, activeTab, propertyType, regionName, regionType })
                             </div>
                         </div>
                     </div>
-                    
+
                     {/* Status indikator */}
                     <div className={`
                         px-2 py-1 rounded-full text-xs font-medium
-                        ${activeTab === 'prodaja' 
-                            ? 'bg-blue-100 text-blue-700' 
+                        ${activeTab === 'prodaja'
+                            ? 'bg-blue-100 text-blue-700'
                             : 'bg-emerald-100 text-emerald-700'
                         }
                     `}>
@@ -468,6 +468,13 @@ WelcomeOverlay.propTypes = {
 const formatters = {
     currency: (value) => `€${Math.round(value)}`,
     currencyLarge: (value) => `€${Math.round(value).toLocaleString()}`,
+    // formatiranje Y-osi
+    currencyYAxis: (value) => {
+        if (value >= 1000) {
+            return `€${(value / 1000).toFixed(0)}k`;
+        }
+        return `€${Math.round(value)}`;
+    },
     area: (value) => `${Math.round(value)} m²`,
     age: (value) => `${Math.round(value)} let`
 };
@@ -715,7 +722,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                     onObcinaSelect={handleObcinaSelect}
                                     onMunicipalitySelect={handleMunicipalitySelect}
                                 />
-                                
+
                                 <RegionHeader
                                     selectedRegion={selectedRegion}
                                     getRegionTitle={getRegionTitle}
@@ -738,7 +745,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                         <div className="bg-red-50 border border-red-200 rounded-lg p-6">
                                             <div className="text-lg text-red-600 mb-2">Napaka pri nalaganju statistik</div>
                                             <div className="text-sm text-gray-500">{apiState.error}</div>
-                                            <button 
+                                            <button
                                                 onClick={() => selectedRegion ? handleReset() : fetchSloveniaStatistics()}
                                                 className="mt-3 px-4 py-2 bg-red-100 text-red-700 rounded-md text-sm hover:bg-red-200 transition-colors"
                                             >
@@ -808,7 +815,7 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                         <p className="text-gray-600 mt-2">
                                             Analiza gibanja cen, starosti in aktivnosti na trgu {activeTab === 'najem' ? 'najema' : 'prodaje'} v obdobju zadnjih let
                                         </p>
-                                        
+
                                     </div>
                                 </div>
                             )}
@@ -858,7 +865,12 @@ export default function Statistika({ selectedRegionFromNavigation }) {
                                                         <LineChart data={chartData.totalPrice}>
                                                             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                                                             <XAxis dataKey="leto" stroke="#666" tick={{ fontSize: 11 }} />
-                                                            <YAxis stroke="#666" tick={{ fontSize: 11 }} tickFormatter={(value) => `€${(value / 1000).toFixed(0)}k`} />
+                                                            {/* POPRAVLJENA Y-os - uporabi pametno formatiranje */}
+                                                            <YAxis
+                                                                stroke="#666"
+                                                                tick={{ fontSize: 11 }}
+                                                                tickFormatter={formatters.currencyYAxis}
+                                                            />
                                                             <Tooltip content={<UniversalTooltip formatter={formatters.currencyLarge} />} />
                                                             <Legend />
                                                             <Line type="monotone" dataKey="povprecna" stroke={
