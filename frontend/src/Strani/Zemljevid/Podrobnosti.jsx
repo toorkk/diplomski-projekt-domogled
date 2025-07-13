@@ -256,7 +256,6 @@ const PoselData = ({ posel, dataSource }) => (
       <DetailRow label="Datum uveljavitve" value={posel.datum_uveljavitve ? formatirajDatum(posel.datum_uveljavitve) : null} />
       <DetailRow label="Zadnja uveljavitev" value={posel.datum_zadnje_uveljavitve ? formatirajDatum(posel.datum_zadnje_uveljavitve) : null} />
       <DetailRow label="Zadnja sprememba" value={posel.datum_zadnje_spremembe ? formatirajDatum(posel.datum_zadnje_spremembe) : null} />
-      <DetailRow label="Tržnost posla" value={getTrznostPosla(posel.trznost_posla)} />
       <DetailRow
         label="Vrsta posla"
         value={dataSource === 'np' ? getVrstaNajemnegaPosla(posel.vrsta_posla) : getVrstaProdajnegaPosla(posel.vrsta_posla)}
@@ -508,7 +507,7 @@ const SimilarPropertiesSection = ({ propertyId, dataSource }) => {
 // Ločena komponenta za posamezno podobno nepremičnino
 const SimilarPropertyCard = ({ nepremicnina, dataSource, formatPrice, getEnergyClassColor }) => {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm transition-shadow">
       <div className="space-y-3">
         {/* Header z naslovom */}
         <div className="border-b border-gray-200 pb-2">

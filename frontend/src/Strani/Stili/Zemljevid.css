@@ -51,3 +51,10 @@
     opacity: 1;
   }
 }
+
+@media (max-width: 768px) {
+    .maplibregl-ctrl-group .maplibregl-ctrl-zoom-in,
+    .maplibregl-ctrl-group .maplibregl-ctrl-zoom-out {
+        display: none !important;
+    }
+}
