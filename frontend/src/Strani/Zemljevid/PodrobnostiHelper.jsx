@@ -108,15 +108,15 @@ const getNeBoljDa = (vrednost) => {
 
 const getEnergyClassColor = (razred) => {
     const colors = {
-        'A1': 'bg-lime-400 text-gray-800',      // svetlo zelena
-        'A2': 'bg-lime-300 text-gray-800',      // svetlejša zelena
-        'B1': 'bg-green-300 text-gray-800',     // zelena
-        'B2': 'bg-green-200 text-gray-800',     // svetlejša zelena
-        'C': 'bg-yellow-300 text-gray-800',     // rumena
-        'D': 'bg-orange-400 text-white',        // oranžna
-        'E': 'bg-red-400 text-white',           // svetlo rdeča
-        'F': 'bg-red-500 text-white',           // rdeča
-        'G': 'bg-red-600 text-white'            // temno rdeča
+        'A1': 'bg-green-200 text-green-800',
+        'A2': 'bg-green-100 text-green-800',
+        'B1': 'bg-green-50 text-green-800',
+        'B2': 'bg-yellow-100 text-yellow-800', 
+        'C': 'bg-amber-100 text-amber-800',
+        'D': 'bg-orange-100 text-orange-800',
+        'E': 'bg-red-100 text-red-800',
+        'F': 'bg-red-200 text-red-900',
+        'G': 'bg-red-300 text-red-900'
     };
     return colors[razred] || 'bg-gray-400 text-white';
 };
