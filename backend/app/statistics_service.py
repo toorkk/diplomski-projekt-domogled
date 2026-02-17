@@ -188,7 +188,7 @@ class StatisticsService:
                 WHERE tip_regije = :tip_regije 
                   AND ime_regije = :regija
                   AND tip_obdobja = 'letno'
-                  AND leto = 2025
+                  AND leto = 2026
                 ORDER BY tip_posla, vrsta_nepremicnine
                 """
                 

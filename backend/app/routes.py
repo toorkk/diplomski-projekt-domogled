@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import Depends, HTTPException, Path, Query, BackgroundTasks
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -27,7 +28,7 @@ def ingest_data(
     background_tasks: BackgroundTasks,  
     data_type: str = Query("kpp", description="Tip podatkov (np ali kpp)"),
     start_year: int = Query(None, description="Začetno leto"),
-    end_year: int = Query(2025, description="Končno leto")
+    end_year: int = Query(datetime.now().year, description="Končno leto")
 ):
     """API endpoint za zagon vnosa podatkov za razpon let"""
     try:
