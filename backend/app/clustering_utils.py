@@ -93,7 +93,7 @@ def apply_del_stavbe_filters(query, DeduplicatedModel, filters: dict, data_sourc
         filters = {}
     
     # Nastavi privzeto leto če ni podano
-    filter_leto = filters.get('filter_leto', 2026)
+    filter_leto = filters.get('filter_leto', 2025)
     query = query.filter(DeduplicatedModel.zadnje_leto >= filter_leto)
     
     if data_source.lower() == "np":
