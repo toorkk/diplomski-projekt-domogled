@@ -15,7 +15,7 @@ CREATE MATERIALIZED VIEW stats.mv_najemne_statistike AS (
 -- ============================================
 WITH konstante AS (
     SELECT DATE '2008-01-01' as MIN_DATUM
-),WITH najemni_podatki AS (
+), najemni_podatki AS (
     SELECT 
         -- Identifikatorji regij
         n.obcina,
