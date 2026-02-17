@@ -211,7 +211,7 @@ export const formatFilterSummary = (filters, dataSourceType) => {
     if (filters.filter_leto) {
         parts.push(`Leto: ${filters.filter_leto}`);
     }
-    else parts.push(`Leto: 2026`);
+    else parts.push(`Leto: 2025`);
     
     if (filters.min_cena || filters.max_cena) {
         const currency = dataSourceType === 'prodaja' ? ' €' : ' € / mes';
