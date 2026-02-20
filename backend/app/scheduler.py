@@ -17,8 +17,8 @@ async def weekly_update():
         current_year = datetime.now().year
 
         for year in [current_year - 1, current_year]:
-            await asyncio.to_thread(ingestion_service.run_ingestion, str(year), "kpp")
-            await asyncio.to_thread(ingestion_service.run_ingestion, str(year), "np")
+            await ingestion_service.run_ingestion(str(year), "kpp")
+            await ingestion_service.run_ingestion(str(year), "np")
 
         await asyncio.to_thread(ei_ingestion_service.run_ingestion, url=None)
         await asyncio.to_thread(deduplication_service.create_all_deduplicated_del_stavbe, ["np", "kpp"])
