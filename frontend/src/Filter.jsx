@@ -6,7 +6,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
   const isMobile = useIsMobile();
 
   const [filters, setFilters] = useState({
-    filter_leto: 2026,
+    filter_leto: 2025,
     min_cena: null,
     max_cena: null,
     min_povrsina: null,
@@ -36,7 +36,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
   useEffect(() => {
     if (Object.keys(activeFilters).length === 0) {
       setFilters({
-        filter_leto: 2026,
+        filter_leto: 2025,
         min_cena: null,
         max_cena: null,
         min_povrsina: null,
@@ -44,7 +44,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
       });
     } else {
       setFilters({
-        filter_leto: activeFilters.filter_leto || 2026,
+        filter_leto: activeFilters.filter_leto || 2025,
         min_cena: activeFilters.min_cena || null,
         max_cena: activeFilters.max_cena || null,
         min_povrsina: activeFilters.min_povrsina || null,
@@ -82,7 +82,7 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
 
   const handleReset = () => {
     const resetFilters = {
-      filter_leto: 2026,
+      filter_leto: 2025,
       min_cena: null,
       max_cena: null,
       min_povrsina: null,
@@ -192,8 +192,8 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
                     </label>
                     <select
                       id="mobile-filter-leto"
-                      value={filters.filter_leto || 2026}
-                      onChange={(e) => handleFilterChange('filter_leto', e.target.value || 2026)}
+                      value={filters.filter_leto || 2025}
+                      onChange={(e) => handleFilterChange('filter_leto', e.target.value || 2025)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       disabled={isLoading}
                     >
@@ -310,8 +310,8 @@ export default function Filters({ onFiltersChange, dataSourceType, isLoading, ac
                   </label>
                   <select
                     id="desktop-filter-leto"
-                    value={filters.filter_leto || 2026}
-                    onChange={(e) => handleFilterChange('filter_leto', e.target.value || 2026)}
+                    value={filters.filter_leto || 2025}
+                    onChange={(e) => handleFilterChange('filter_leto', e.target.value || 2025)}
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                     disabled={isLoading}
                   >
