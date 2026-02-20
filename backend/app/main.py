@@ -1,5 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+
+import pytz
+from apscheduler.triggers.cron import CronTrigger
+from .scheduler import scheduler, weekly_update
 
 from .routes import (
     fill_deduplicated_tables,
@@ -16,10 +21,23 @@ from .routes import (
     get_del_stavbe_details
 )
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler.add_job(
+        weekly_update,
+        trigger=CronTrigger(day_of_week="fri", hour=20, minute=0, timezone=pytz.timezone("Europe/Ljubljana")),
+        id="weekly_update",
+        replace_existing=True,
+    )
+    scheduler.start()
+    yield
+    scheduler.shutdown()
+
 app = FastAPI(
     title="Domogled API",
     description="API za spletno stran Domogled, vnos podatkov in geojson plast ki grupira dele stavb (najemne ali kupoprodajne)",
-    version="0.1.0"
+    version="0.1.0",
+    lifespan=lifespan
 )
 
 # CORS middleware

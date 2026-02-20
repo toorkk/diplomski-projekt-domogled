@@ -10,3 +10,4 @@ python-dotenv
 requests
 aiohttp
 aiofiles
+apscheduler

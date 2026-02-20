@@ -19,54 +19,58 @@ class EnergetskaIzkaznicaIngestionService:
         self.engine = get_engine()
 
 
-    def generate_current_url(self) -> str:
-        """Generiraj URL za trenutni mesec in leto."""
-        now = datetime.now()
-        
+    def generate_url_for_month(self, year: int, month: int) -> str:
+        """Generiraj URL za določen mesec in leto."""
         months = [
             "jan", "feb", "mar", "apr", "maj", "jun",
             "jul", "avg", "sep", "okt", "nov", "dec"
         ]
-        
-        current_month = months[now.month - 1]
-        current_year = str(now.year)[2:]
-        
+        current_month = months[month - 1]
+        current_year = str(year)[2:]
         filename = f"ei_javni_register_{current_month}{current_year}.csv"
-        url = f"https://www.energetika-portal.si/fileadmin/dokumenti/podrocja/energetika/energetske_izkaznice/{filename}"
-        
-        return url
+        return f"https://www.energetika-portal.si/fileadmin/dokumenti/podrocja/energetika/energetske_izkaznice/{filename}"
 
 
     def download_csv(self, url: str = None) -> str:
-        """Prenesi CSV datoteko iz URL-ja."""
+        """Prenesi CSV datoteko iz URL-ja. Če ni URL-ja, poskusi trenutni mesec, nato prejšnji."""
         try:
-
             if url is None:
-                url = self.generate_current_url()
-            
+                now = datetime.now()
 
-            logger.info(f"Prenašanje CSV datoteke iz: {url}")
-            response = requests.get(url, stream=True)
-            
+                # Poskusi trenutni mesec
+                url = self.generate_url_for_month(now.year, now.month)
+                logger.info(f"Prenašanje CSV datoteke iz: {url}")
+                response = requests.get(url, stream=True)
+
+                # Če 404, poskusi prejšnji mesec
+                if response.status_code == 404:
+                    prev_month = now.month - 1 if now.month > 1 else 12
+                    prev_year = now.year if now.month > 1 else now.year - 1
+                    logger.warning(f"Podatki za trenutni mesec niso na voljo (404). Poskušam prejšnji mesec...")
+                    url = self.generate_url_for_month(prev_year, prev_month)
+                    logger.info(f"Prenašanje CSV datoteke iz: {url}")
+                    response = requests.get(url, stream=True)
+
+            else:
+                logger.info(f"Prenašanje CSV datoteke iz: {url}")
+                response = requests.get(url, stream=True)
 
             if response.status_code != 200:
                 logger.error(f"Napaka pri prenosu: status {response.status_code}")
                 raise Exception(f"Napaka pri prenosu datoteke, status: {response.status_code}")
-            
 
             temp_dir = tempfile.mkdtemp()
             csv_path = os.path.join(temp_dir, "energetska_izkaznica.csv")
-            
+
             with open(csv_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
-            
 
             file_size = os.path.getsize(csv_path)
             logger.info(f"CSV datoteka prenesena: {file_size} bajtov")
-            
+
             return csv_path
-            
+
         except Exception as e:
             logger.error(f"Napaka pri prenosu CSV: {str(e)}")
             raise
