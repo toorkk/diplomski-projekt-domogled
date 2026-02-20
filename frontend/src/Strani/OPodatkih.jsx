@@ -245,10 +245,10 @@ export default function OPodatkih() {
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-blue-900 text-sm lg:text-base">E-pošta</p>
                       <a 
-                        href="mailto:domogled-info@gmail.com" 
+                        href="mailto:torkermeco@gmail.com" 
                         className="text-blue-700 hover:text-blue-900 underline text-sm lg:text-base break-all"
                       >
-                        domogled-info@gmail.com
+                        torkermeco@gmail.com
                       </a>
                     </div>
                   </div>
