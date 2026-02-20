@@ -363,10 +363,8 @@ class DelStavbeService:
         5. Podobna starost stavbe (±15 let)
         """
         try:
-            print(f"DEBUG: Začenjam iskanje podobnih nepremičnin za ID {deduplicated_id}")
             
             DeduplicatedModel = get_deduplicated_del_stavbe_model(data_source)
-            print(f"DEBUG: Model uspešno pridobljen za {data_source}")
             
             # 1. Pridobi referenčno nepremičnino
             reference = db.query(DeduplicatedModel).filter(
@@ -374,17 +372,14 @@ class DelStavbeService:
             ).first()
             
             if not reference:
-                print(f"DEBUG: Referenčna nepremičnina {deduplicated_id} ni bila najdena")
                 return {"status": "error", "message": "Referenčna nepremičnina ni bila najdena"}
             
-            print(f"DEBUG: Referenčna nepremičnina najdena: vrsta={reference.vrsta_nepremicnine}")
             
             # 2. Določi kriterije iskanja
             vrsta_nepremicnine = reference.vrsta_nepremicnine
             povrsina = reference.povrsina_uradna or reference.povrsina_uporabna
             leto_izgradnje = reference.leto_izgradnje_stavbe
             
-            print(f"DEBUG: Kriteriji - vrsta: {vrsta_nepremicnine}, površina: {povrsina}, leto: {leto_izgradnje}")
             
             # Cena/najemnina
             if data_source.lower() == "np":
@@ -392,7 +387,6 @@ class DelStavbeService:
             else:
                 referenca_cena = reference.zadnja_cena
                 
-            print(f"DEBUG: Referenčna cena: {referenca_cena}")
             
             # 3. Osnovni query z filtri
             base_query = db.query(
@@ -405,9 +399,7 @@ class DelStavbeService:
                 DeduplicatedModel.del_stavbe_id != deduplicated_id,  # Izključi sebe
                 DeduplicatedModel.vrsta_nepremicnine == vrsta_nepremicnine  # Ista vrsta
             )
-            
-            print("DEBUG: Osnovni query ustvarjen")
-            
+                        
             # Filter za polmer (v metrih)
             radius_m = radius_km * 1000
             base_query = base_query.filter(
@@ -416,9 +408,7 @@ class DelStavbeService:
                     ST_Transform(reference.coordinates, 3857)
                 ) <= radius_m
             )
-            
-            print(f"DEBUG: Polmer filter dodan: {radius_km}km")
-            
+                        
             # Filter za površino (±30%)
             if povrsina:
                 try:
@@ -431,9 +421,8 @@ class DelStavbeService:
                         ((DeduplicatedModel.povrsina_uporabna >= min_povrsina) & 
                         (DeduplicatedModel.povrsina_uporabna <= max_povrsina))
                     )
-                    print(f"DEBUG: Površina filter dodan: {min_povrsina}-{max_povrsina}m²")
                 except Exception as e:
-                    print(f"DEBUG: Napaka pri površina filtru: {e}")
+                    print(f"Napaka pri površina filtru: {e}")
             
             # Filter za leto izgradnje (±15 let)
             if leto_izgradnje:
@@ -444,9 +433,8 @@ class DelStavbeService:
                         (DeduplicatedModel.leto_izgradnje_stavbe >= min_leto) &
                         (DeduplicatedModel.leto_izgradnje_stavbe <= max_leto)
                     )
-                    print(f"DEBUG: Leto filter dodan: {min_leto}-{max_leto}")
                 except Exception as e:
-                    print(f"DEBUG: Napaka pri leto filtru: {e}")
+                    print(f"Napaka pri leto filtru: {e}")
             
             # Filter za ceno (±40%)
             if referenca_cena:
@@ -465,14 +453,11 @@ class DelStavbeService:
                             (DeduplicatedModel.zadnja_cena >= min_cena) &
                             (DeduplicatedModel.zadnja_cena <= max_cena)
                         )
-                    print(f"DEBUG: Cena filter dodan: {min_cena}-{max_cena}")
                 except Exception as e:
-                    print(f"DEBUG: Napaka pri cena filtru: {e}")
+                    print(f"Napaka pri cena filtru: {e}")
             
             # 4. Izvedi query
-            print("DEBUG: Izvajam query...")
             kandidati = base_query.all()
-            print(f"DEBUG: Najdenih {len(kandidati)} kandidatov")
             
             # 5. Izračunaj similarity score za vse kandidate
             scored_kandidati = []
@@ -482,10 +467,8 @@ class DelStavbeService:
                         reference, kandidat, distance_m, data_source
                     )
                     scored_kandidati.append((kandidat, distance_m, score))
-                    if i < 3:  # Log prvih nekaj
-                        print(f"DEBUG: Kandidat {i}: score={score}, distance={distance_m}m")
                 except Exception as e:
-                    print(f"DEBUG: Napaka pri score računanju za kandidata {i}: {e}")
+                    print(f"Napaka pri score računanju za kandidata {i}: {e}")
                     continue
             
             # 6. Sortiraj po similarity score (višji = bolj podoben)
@@ -493,28 +476,24 @@ class DelStavbeService:
             
             # 7. Vzemi top N rezultatov
             top_kandidati = scored_kandidati[:limit]
-            print(f"DEBUG: Izbranjih top {len(top_kandidati)} kandidatov")
             
             # 8. Formatiraj rezultat
             podobne_nepremicnine = []
             for i, (kandidat, distance_m, score) in enumerate(top_kandidati):
                 try:
-                    print(f"DEBUG: Formatiranje kandidata {i}, ID: {kandidat.del_stavbe_id}")
                     
                     
                     try:
                         naslov = DelStavbeService._format_naslov(kandidat)
-                        print(f"DEBUG: Naslov OK: {naslov}")
                     except Exception as e:
-                        print(f"DEBUG: Napaka pri naslovu: {e}")
+                        print(f"Napaka pri naslovu: {e}")
                         naslov = "Neznan naslov"
                     
                     try:
                         povrsina = kandidat.povrsina_uradna or kandidat.povrsina_uporabna
                         povrsina = float(povrsina) if povrsina else None
-                        print(f"DEBUG: Površina OK: {povrsina}")
                     except Exception as e:
-                        print(f"DEBUG: Napaka pri površini: {e}")
+                        print(f"Napaka pri površini: {e}")
                         povrsina = None
                     
                     try:
@@ -522,32 +501,28 @@ class DelStavbeService:
                             cena = float(kandidat.zadnja_najemnina) if kandidat.zadnja_najemnina else None
                         else:
                             cena = float(kandidat.zadnja_cena) if kandidat.zadnja_cena else None
-                        print(f"DEBUG: Cena OK: {cena}")
                     except Exception as e:
-                        print(f"DEBUG: Napaka pri ceni: {e}")
+                        print(f"Napaka pri ceni: {e}")
                         cena = None
                     
                     try:
                         leto = int(kandidat.leto_izgradnje_stavbe) if kandidat.leto_izgradnje_stavbe else None
-                        print(f"DEBUG: Leto OK: {leto}")
                     except Exception as e:
-                        print(f"DEBUG: Napaka pri letu: {e}")
+                        print(f"Napaka pri letu: {e}")
                         leto = None
                     
                     try:
                         distance_km = round(float(distance_m) / 1000, 2)
-                        print(f"DEBUG: Distance OK: {distance_km}")
                     except Exception as e:
-                        print(f"DEBUG: Napaka pri distance: {e}")
+                        print(f"Napaka pri distance: {e}")
                         distance_km = 0
                     
                     try:
                         coords = None
                         if kandidat.coordinates:
                             coords = [float(kandidat.coordinates.x), float(kandidat.coordinates.y)]
-                        print(f"DEBUG: Coordinates OK: {coords}")
                     except Exception as e:
-                        print(f"DEBUG: Napaka pri coordinates: {e}")
+                        print(f"Napaka pri coordinates: {e}")
                         coords = None
                     
                     # Sestavimo objekt
@@ -565,15 +540,13 @@ class DelStavbeService:
                     }
                     
                     podobne_nepremicnine.append(podobna_nepremicnina)
-                    print(f"DEBUG: Kandidat {i} uspešno formatiran")
                     
                 except Exception as e:
                     import traceback
-                    print(f"DEBUG: Napaka pri formatiranju kandidata {i}: {e}")
-                    print(f"DEBUG: Traceback: {traceback.format_exc()}")
+                    print(f"Napaka pri formatiranju kandidata {i}: {e}")
+                    print(f"Traceback: {traceback.format_exc()}")
                     continue
             
-            print(f"DEBUG: Končno vračam {len(podobne_nepremicnine)} podobnih nepremičnin")
             
             return {
                 "status": "success",
@@ -589,8 +562,8 @@ class DelStavbeService:
         except Exception as e:
             import traceback
             error_details = traceback.format_exc()
-            print(f"DEBUG: Celotna napaka: {e}")
-            print(f"DEBUG: Traceback: {error_details}")
+            print(f"Celotna napaka pri iskanju podobnih nepremičnin: {e}")
+            print(f"Traceback: {error_details}")
             return {"status": "error", "message": f"Napaka pri iskanju podobnih nepremičnin: {str(e)} | Traceback: {error_details}"}
         
 
