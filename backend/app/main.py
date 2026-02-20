@@ -25,7 +25,7 @@ from .routes import (
 async def lifespan(app: FastAPI):
     scheduler.add_job(
         weekly_update,
-        trigger=CronTrigger(day_of_week="fri", hour=20, minute=10, timezone=pytz.timezone("Europe/Ljubljana")),
+        trigger=CronTrigger(day_of_week="sat", hour=4, minute=0, timezone=pytz.timezone("Europe/Ljubljana")),
         id="weekly_update",
         replace_existing=True,
     )
