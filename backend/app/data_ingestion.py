@@ -276,8 +276,16 @@ class DataIngestionService:
                     try:
                         del_result = conn.execute(text(f"DELETE FROM core.{table_prefix}_del_stavbe WHERE leto = {filter_year}"))
                         posel_result = conn.execute(text(f"DELETE FROM core.{table_prefix}_posel WHERE leto = {filter_year}"))
+
+                        # GURS lahko posel po naknadni spremembi objavi v datoteki drugega leta (npr. posel iz 2024 se pojavi v 2026),
+                        # posel_id pa je primarni ključ čez vsa leta. Zato izbrišemo še vse posle iz staginga ne glede na leto,
+                        # sicer stara kopija ostane in INSERT pade na kpp_posel_pkey / np_posel_pkey.
+                        moved_del_result = conn.execute(text(f"DELETE FROM core.{table_prefix}_del_stavbe WHERE posel_id IN (SELECT id_posla FROM staging.{table_prefix}_posel)"))
+                        moved_posel_result = conn.execute(text(f"DELETE FROM core.{table_prefix}_posel WHERE posel_id IN (SELECT id_posla FROM staging.{table_prefix}_posel)"))
                         trans.commit()
                         logger.info(f"Obstoječi podatki so bili izbrisani iz core tabel. Izbrisanih {table_prefix}_del_stavbe: {del_result.rowcount}, {table_prefix}_posel: {posel_result.rowcount}")
+                        if moved_posel_result.rowcount > 0:
+                            logger.info(f"Izbrisani posli iz drugih let, ki so zdaj v datoteki za {filter_year}: {table_prefix}_posel: {moved_posel_result.rowcount}, {table_prefix}_del_stavbe: {moved_del_result.rowcount}")
                     except Exception as e:
                         trans.rollback()
                         logger.error(f"Napaka pri brisanju obstoječih podatkov: {str(e)}")
